@@ -35,7 +35,13 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         let text: string
 
         if (options.useHtmlTags) {
-            text = convertTagsToHtml(event.Text, true)
+            const style = track.styles.find(s => s.Name === event.Style)
+            text = convertTagsToHtml(event.Text, true, {
+                b: style?.Bold,
+                i: style?.Italic,
+                u: style?.Underline,
+                s: style?.StrikeOut
+            })
         } else {
             text = stripTags(event.Text)
         }

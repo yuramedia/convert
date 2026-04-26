@@ -281,11 +281,34 @@ export function stripTags(text: string): string {
  * Convert ASS text to SRT with basic HTML tag mapping (Subtitle Edit style).
  * Maps \b, \i, \u, \s to HTML equivalents, strips everything else.
  */
-export function convertTagsToHtml(text: string, useHtmlTags: boolean = true): string {
+export function convertTagsToHtml(
+    text: string,
+    useHtmlTags: boolean = true,
+    initialStyle?: { b?: boolean; i?: boolean; u?: boolean; s?: boolean }
+): string {
     const segments = tokenizeText(text)
     let result = ""
     let inDrawing = false
     const openTags: string[] = []
+
+    if (useHtmlTags && initialStyle) {
+        if (initialStyle.b) {
+            result += "<b>"
+            openTags.push("b")
+        }
+        if (initialStyle.i) {
+            result += "<i>"
+            openTags.push("i")
+        }
+        if (initialStyle.u) {
+            result += "<u>"
+            openTags.push("u")
+        }
+        if (initialStyle.s) {
+            result += "<s>"
+            openTags.push("s")
+        }
+    }
 
     for (const seg of segments) {
         if (seg.type === "tags" && seg.tags) {
@@ -301,12 +324,16 @@ export function convertTagsToHtml(text: string, useHtmlTags: boolean = true): st
                 if (htmlDef) {
                     const val = parseInt(tag.value, 10)
                     if (val === 1 || (tag.name.toLowerCase() === "b" && val > 1)) {
-                        result += htmlDef.on
-                        openTags.push(tag.name.toLowerCase())
+                        if (!openTags.includes(tag.name.toLowerCase())) {
+                            result += htmlDef.on
+                            openTags.push(tag.name.toLowerCase())
+                        }
                     } else if (val === 0) {
-                        result += htmlDef.off
                         const idx = openTags.lastIndexOf(tag.name.toLowerCase())
-                        if (idx >= 0) openTags.splice(idx, 1)
+                        if (idx >= 0) {
+                            result += htmlDef.off
+                            openTags.splice(idx, 1)
+                        }
                     }
                 }
             }
