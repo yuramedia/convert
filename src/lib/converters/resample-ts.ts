@@ -47,6 +47,14 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
     resampled.scriptInfo.PlayResX = options.targetWidth
     resampled.scriptInfo.PlayResY = options.targetHeight
 
+    // Update LayoutRes if set (scale proportionally, following Aegisub's resampler behavior)
+    if (resampled.scriptInfo.LayoutResX > 0) {
+        resampled.scriptInfo.LayoutResX = Math.round(resampled.scriptInfo.LayoutResX * rx)
+    }
+    if (resampled.scriptInfo.LayoutResY > 0) {
+        resampled.scriptInfo.LayoutResY = Math.round(resampled.scriptInfo.LayoutResY * ry)
+    }
+
     // Resample styles
     for (const style of resampled.styles) {
         style.FontSize = round(style.FontSize * ry)
