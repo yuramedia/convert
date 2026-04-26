@@ -8,25 +8,28 @@
         "start": "bunx serve@latest out",
         "lint": "oxlint",
         "lint:eslint": "eslint",
-        "format": "oxfmt ."
+        "format": "oxfmt .",
+        "test": "vitest run"
     },
     "dependencies": {
         "lucide-react": "^1.11.0",
         "next": "16.2.4",
-        "react": "19.2.4",
-        "react-dom": "19.2.4"
+        "react": "19.2.5",
+        "react-dom": "19.2.5"
     },
     "devDependencies": {
-        "@tailwindcss/postcss": "^4",
-        "@types/node": "^20",
-        "@types/react": "^19",
-        "@types/react-dom": "^19",
-        "eslint": "^9",
+        "@tailwindcss/postcss": "^4.2.4",
+        "@types/bun": "^1.3.13",
+        "@types/node": "^25.6.0",
+        "@types/react": "^19.2.14",
+        "@types/react-dom": "^19.2.3",
+        "eslint": "^10.2.1",
         "eslint-config-next": "16.2.4",
         "oxfmt": "^0.46.0",
         "oxlint": "^1.61.0",
-        "tailwindcss": "^4",
-        "typescript": "^5"
+        "tailwindcss": "^4.2.4",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.5"
     },
     "ignoreScripts": [
         "sharp",
