@@ -37,7 +37,7 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         if (options.useHtmlTags) {
             const style = track.styles.find(s => s.Name === event.Style)
             text = convertTagsToHtml(event.Text, true, {
-                b: style?.Bold,
+                // b: style?.Bold, // Ignored per user request, only inline {\b1} will trigger <b>
                 i: style?.Italic,
                 u: style?.Underline,
                 s: style?.StrikeOut
