@@ -22,12 +22,18 @@ export interface ResampleOptions {
 }
 
 export const RESOLUTION_PRESETS: { label: string; width: number; height: number }[] = [
-    { label: "360p", width: 640, height: 360 },
-    { label: "480p", width: 854, height: 480 },
-    { label: "720p", width: 1280, height: 720 },
-    { label: "1080p", width: 1920, height: 1080 },
-    { label: "1440p", width: 2560, height: 1440 },
-    { label: "2160p (4K)", width: 3840, height: 2160 }
+    { label: "640×360 (SD widescreen)", width: 640, height: 360 },
+    { label: "640×480 (SD fullscreen)", width: 640, height: 480 },
+    { label: "704×480 (SD anamorphic)", width: 704, height: 480 },
+    { label: "704×396 (SD widescreen)", width: 704, height: 396 },
+    { label: "640×352 (SD widescreen MOD16)", width: 640, height: 352 },
+    { label: "704×400 (SD widescreen MOD16)", width: 704, height: 400 },
+    { label: "1024×576 (SuperPAL widescreen)", width: 1024, height: 576 },
+    { label: "1280×720 (HD 720p)", width: 1280, height: 720 },
+    { label: "1920×1080 (FHD 1080p)", width: 1920, height: 1080 },
+    { label: "2560×1440 (QHD 1440p)", width: 2560, height: 1440 },
+    { label: "3840×2160 (4K UHD 2160p)", width: 3840, height: 2160 },
+    { label: "1080×1920 (FHD vertical)", width: 1080, height: 1920 }
 ]
 
 export function convertResampleTs(track: AssTrack, options: ResampleOptions): string {
