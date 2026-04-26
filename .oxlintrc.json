@@ -1,0 +1,25 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["react", "jsx-a11y", "nextjs", "typescript", "unicorn", "import"],
+    "categories": {
+        "correctness": "error"
+    },
+    "rules": {
+        "no-unreachable": "error",
+        "no-unused-labels": "error",
+        "no-eval": "error",
+        "react/no-children-prop": "error",
+        "react/exhaustive-deps": "warn",
+        "react/rules-of-hooks": "error",
+        "react/jsx-key": "error",
+        "react/jsx-no-comment-textnodes": "error",
+        "react/jsx-no-duplicate-props": "error",
+        "react/no-danger-with-children": "error",
+        "jsx-a11y/aria-unsupported-elements": "warn",
+        "jsx-a11y/alt-text": "warn",
+        "jsx-a11y/role-has-required-aria-props": "warn",
+        "jsx-a11y/role-supports-aria-props": "warn",
+        "jsx-a11y/aria-props": "warn",
+        "jsx-a11y/aria-proptypes": "warn"
+    }
+}

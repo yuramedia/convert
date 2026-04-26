@@ -1,65 +1,178 @@
-import Image from "next/image";
+"use client"
+
+import { useState, useEffect } from "react"
+import { Layers } from "lucide-react"
+import FileDropzone from "@/components/file-dropzone"
+import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
+import OptionsPanel from "@/components/options-panel"
+import OutputPreview from "@/components/output-preview"
+import { type AssTrack } from "@/lib/ass-parser"
+import { convertNormalSrt, DEFAULT_NORMAL_OPTIONS, type NormalSrtOptions } from "@/lib/converters/normal-srt"
+import { convertKeepTs } from "@/lib/converters/keep-ts"
+import { convertResampleTs, type ResampleOptions } from "@/lib/converters/resample-ts"
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+    const [parsedTrack, setParsedTrack] = useState<AssTrack | null>(null)
+    const [fileName, setFileName] = useState<string>("")
+    const [mode, setMode] = useState<ConversionMode>("normal")
+
+    const [normalOptions, setNormalOptions] = useState<NormalSrtOptions>(DEFAULT_NORMAL_OPTIONS)
+    const [resampleOptions, setResampleOptions] = useState<ResampleOptions>({
+        sourceWidth: 0,
+        sourceHeight: 0,
+        targetWidth: 1920,
+        targetHeight: 1080,
+        outputFormat: "srt"
+    })
+
+    const [outputContent, setOutputContent] = useState<string>("")
+    const [isConverting, setIsConverting] = useState(false)
+
+    // Update source resolution when track loads
+    useEffect(() => {
+        if (parsedTrack && parsedTrack.scriptInfo) {
+            setResampleOptions(prev => ({
+                ...prev,
+                sourceWidth: parsedTrack.scriptInfo.PlayResX || 0,
+                sourceHeight: parsedTrack.scriptInfo.PlayResY || 0
+            }))
+        }
+    }, [parsedTrack])
+
+    const handleFileLoaded = (content: string, name: string, track: AssTrack) => {
+        setParsedTrack(track)
+        setFileName(name)
+        setOutputContent("")
+    }
+
+    const handleClear = () => {
+        setParsedTrack(null)
+        setFileName("")
+        setOutputContent("")
+    }
+
+    const handleConvert = async () => {
+        if (!parsedTrack) return
+
+        setIsConverting(true)
+
+        // Slight delay to allow UI to update to loading state (since conversion is sync but can be heavy)
+        await new Promise(resolve => setTimeout(resolve, 50))
+
+        try {
+            let result = ""
+            if (mode === "normal") {
+                result = convertNormalSrt(parsedTrack, normalOptions)
+            } else if (mode === "keepts") {
+                result = convertKeepTs(parsedTrack)
+            } else if (mode === "resample") {
+                result = convertResampleTs(parsedTrack, resampleOptions)
+            }
+            setOutputContent(result)
+        } catch (err) {
+            console.error("Conversion failed", err)
+            alert("Conversion failed. Please check the console for details.")
+        } finally {
+            setIsConverting(false)
+        }
+    }
+
+    const getOutputFormat = () => {
+        if (mode === "resample") return resampleOptions.outputFormat
+        return "srt"
+    }
+
+    return (
+        <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-8 flex flex-col gap-8">
+            {/* Header */}
+            <header className="text-center pt-8 pb-4 fade-in">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 mb-6 shadow-[0_0_40px_rgba(139,92,246,0.3)]">
+                    <Layers className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-white">
+                    ASS to SRT <span className="gradient-text">Converter</span>
+                </h1>
+                <p className="text-lg text-[var(--muted)] max-w-2xl mx-auto leading-relaxed">
+                    Convert Advanced SubStation Alpha subtitles with options to preserve complex typesetting or resample
+                    resolutions.
+                </p>
+            </header>
+
+            {/* Main Form Area */}
+            <div className="flex flex-col gap-6">
+                <FileDropzone
+                    onFileLoaded={handleFileLoaded}
+                    parsedTrack={parsedTrack}
+                    fileName={fileName}
+                    onClear={handleClear}
+                />
+
+                {parsedTrack && (
+                    <div className="fade-in flex flex-col gap-6">
+                        <div className="glass-card p-2">
+                            <ModeSelector mode={mode} onModeChange={setMode} />
+                        </div>
+
+                        <OptionsPanel
+                            mode={mode}
+                            normalOptions={normalOptions}
+                            setNormalOptions={setNormalOptions}
+                            resampleOptions={resampleOptions}
+                            setResampleOptions={setResampleOptions}
+                        />
+
+                        <div className="flex justify-end pt-2">
+                            <button
+                                onClick={handleConvert}
+                                disabled={isConverting}
+                                className="btn-primary w-full sm:w-auto text-base !px-8 !py-3"
+                            >
+                                {isConverting ? (
+                                    <>
+                                        <div className="spinner" />
+                                        <span>Converting...</span>
+                                    </>
+                                ) : (
+                                    <span>Convert File</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <OutputPreview content={outputContent} originalFileName={fileName} outputFormat={getOutputFormat()} />
+
+            {/* Footer */}
+            <footer className="mt-auto pt-16 pb-8 text-center text-sm text-[var(--muted)] fade-in">
+                <p>
+                    Client-side parsing. Files are not uploaded to any server.
+                    <br />
+                    Inspired by{" "}
+                    <a
+                        href="https://github.com/SubtitleEdit/subtitleedit"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="footer-link"
+                    >
+                        Subtitle Edit
+                    </a>
+                    ,{" "}
+                    <a href="https://github.com/libass/libass" target="_blank" rel="noreferrer" className="footer-link">
+                        libass
+                    </a>
+                    , and{" "}
+                    <a
+                        href="https://gist.github.com/rcombs/455fd9c2ef015d51d46791e0d353df44"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="footer-link"
+                    >
+                        rcombs
+                    </a>
+                    .
+                </p>
+            </footer>
+        </main>
+    )
 }
