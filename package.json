@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "next dev",
         "build": "next build",
-        "start": "next start",
+        "start": "bunx serve@latest out",
         "lint": "oxlint",
         "lint:eslint": "eslint",
         "format": "oxfmt ."

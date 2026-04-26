@@ -34,8 +34,7 @@ export function writeSrt(entries: SrtEntry[], addBom: boolean = false): string {
         lines.push("\uFEFF")
     }
 
-    for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i]
+    for (const entry of entries) {
         if (!entry.text.trim()) continue
 
         lines.push(String(entry.index))
