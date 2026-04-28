@@ -146,7 +146,15 @@ export default function Home() {
             {/* Footer */}
             <footer className="mt-auto pt-16 pb-8 text-center text-sm text-[var(--muted)] fade-in">
                 <p>
-                    Client-side parsing. Files are not uploaded to any server.
+                    <a
+                        href="https://github.com/yuramedia/convert"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="footer-link"
+                    >
+                        Yuramedia Link
+                    </a>
+                    . Files are not uploaded to any server.
                     <br />
                     Inspired by{" "}
                     <a
@@ -156,6 +164,15 @@ export default function Home() {
                         className="footer-link"
                     >
                         Subtitle Edit
+                    </a>
+                    ,{" "}
+                    <a
+                        href="https://github.com/TypesettingTools/arch1t3cht-Aegisub-Scripts"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="footer-link"
+                    >
+                        arch1t3cht-Aegisub-Scripts
                     </a>
                     ,{" "}
                     <a href="https://github.com/libass/libass" target="_blank" rel="noreferrer" className="footer-link">
