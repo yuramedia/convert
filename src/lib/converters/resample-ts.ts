@@ -118,7 +118,7 @@ function resampleEventText(text: string, rx: number, ry: number): string {
             // Track drawing state from \p tag
             if (seg.tags) {
                 for (const tag of seg.tags) {
-                    if (tag.name === "p") {
+                    if (tag.name.toLowerCase() === "p") {
                         inDrawing = parseInt(tag.value, 10) > 0
                     }
                 }

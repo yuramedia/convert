@@ -57,7 +57,7 @@ function processTextKeepTags(text: string, defaultAlignment: number): string {
 
     // Check if alignment is already specified in the first tag block
     if (segments.length > 0 && segments[0].type === "tags" && segments[0].tags) {
-        hasAlignment = segments[0].tags.some((t: AssTag) => t.name === "an" || t.name === "a")
+        hasAlignment = segments[0].tags.some((t: AssTag) => ["an", "a"].includes(t.name.toLowerCase()))
     }
 
     // If no alignment tag, inject one
@@ -80,7 +80,7 @@ function processTextKeepTags(text: string, defaultAlignment: number): string {
             // Track drawing state
             if (seg.tags) {
                 for (const tag of seg.tags) {
-                    if (tag.name === "p") {
+                    if (tag.name.toLowerCase() === "p") {
                         inDrawing = parseInt(tag.value, 10) > 0
                     }
                 }
