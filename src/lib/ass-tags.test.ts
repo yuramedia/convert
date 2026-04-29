@@ -52,6 +52,22 @@ describe("tokenizeText", () => {
         expect(segs).toHaveLength(1)
         expect(segs[0].content).toBe("{\\t(0,500,\\fs48)}")
     })
+
+    it("strips Aegisub extradata {=N} blocks", () => {
+        const segs = tokenizeText("{=7}{\\pos(100,200)}Text")
+        expect(segs).toHaveLength(2)
+        expect(segs[0].type).toBe("tags")
+        expect(segs[0].content).toBe("{\\pos(100,200)}")
+        expect(segs[1].type).toBe("text")
+        expect(segs[1].content).toBe("Text")
+    })
+
+    it("strips multiple extradata blocks", () => {
+        const segs = tokenizeText("{=3}{=auto}{\\an8}Hello")
+        expect(segs).toHaveLength(2)
+        expect(segs[0].content).toBe("{\\an8}")
+        expect(segs[1].content).toBe("Hello")
+    })
 })
 
 // ─── parseTagBlock ──────────────────────────────────────────────────────────

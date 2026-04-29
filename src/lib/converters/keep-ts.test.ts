@@ -50,10 +50,10 @@ describe("convertKeepTs", () => {
         expect(srt).toContain("{\\an8}Already has alignment")
     })
 
-    it("uses style alignment for {\\anN}", () => {
+    it("merges alignment into first tag block", () => {
         const srt = convertKeepTs(track)
-        // TopCenter style has alignment=8
-        expect(srt).toContain("{\\an8}{\\pos(640,100)\\fscx120\\c&HFFFFFF&}Complex TS")
+        // TopCenter style has alignment=8 — merged into existing tag block
+        expect(srt).toContain("{\\an8\\pos(640,100)\\fscx120\\c&HFFFFFF&}Complex TS")
     })
 
     it("preserves ALL override tags verbatim", () => {
@@ -73,10 +73,10 @@ describe("convertKeepTs", () => {
         expect(srt).toContain("Word1\u00A0Word2")
     })
 
-    it("strips drawing text but keeps visible text after \\p0", () => {
+    it("preserves drawing commands for libass-based players", () => {
         const srt = convertKeepTs(track)
         expect(srt).toContain("Visible")
-        expect(srt).not.toContain("m 0 0")
+        expect(srt).toContain("m 0 0")
     })
 
     it("sorts by start time", () => {

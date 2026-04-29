@@ -53,6 +53,9 @@ export const SIZE_TAGS = new Set(["fs", "fsp", "bord", "xbord", "ybord", "shad",
  * Handles nested braces in \t(...) and \clip(scale, drawing) correctly.
  */
 export function tokenizeText(text: string): TextSegment[] {
+    // Strip Aegisub extradata references {=N} — internal metadata, not renderable
+    text = text.replace(/\{=[^}]*\}/g, "")
+
     const segments: TextSegment[] = []
     let i = 0
 
