@@ -109,10 +109,23 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
 function resampleEventText(text: string, rx: number, ry: number): string {
     const segments = tokenizeText(text)
     let result = ""
+    let inDrawing = false
 
     for (const seg of segments) {
         if (seg.type === "tags") {
             result += resampleTagBlock(seg.content, rx, ry)
+
+            // Track drawing state from \p tag
+            if (seg.tags) {
+                for (const tag of seg.tags) {
+                    if (tag.name.toLowerCase() === "p") {
+                        inDrawing = parseInt(tag.value, 10) > 0
+                    }
+                }
+            }
+        } else if (inDrawing) {
+            // Scale drawing coordinates in text segments
+            result += resampleDrawingCommands(seg.content, rx, ry)
         } else {
             result += seg.content
         }
@@ -294,8 +307,12 @@ function resampleParenValue(tagName: string, value: string, rx: number, ry: numb
         }
         case "clip":
         case "iclip": {
+            // Empty \clip() or malformed — pass through unchanged
+            const clipInner = value.replace(/^\(/, "").replace(/\)$/, "").trim()
+            if (!clipInner) return value
+
             const clip = parseClip(value)
-            if (clip.type === "rect") {
+            if (clip.type === "rect" && clip.coords.length === 4 && clip.coords.every(n => !isNaN(n))) {
                 const c = clip.coords
                 return `(${round(c[0] * rx)},${round(c[1] * ry)},${round(c[2] * rx)},${round(c[3] * ry)})`
             } else if (clip.type === "drawing") {

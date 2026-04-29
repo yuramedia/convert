@@ -33,6 +33,8 @@ Dialogue: 0,0:00:50.00,0:00:55.00,Signs,,0000,0000,0000,,{\\clip(1,m 100 200 l 3
 Dialogue: 0,0:00:55.00,0:01:00.00,Default,,0000,0000,0000,,{\\t(0,1000,2,\\fs72\\blur5)}AccelAnim
 Dialogue: 0,0:01:00.00,0:01:05.00,Default,,0000,0000,0000,,{\\fad(500,1000)}Fade
 Dialogue: 0,0:01:05.00,0:01:10.00,Default,,0000,0000,0000,,{\\b1\\i1}BI{\\b0\\i0} N
+Dialogue: 0,0:01:10.00,0:01:15.00,Default,,0000,0000,0000,,{\\clip()\\t(18,8819,\\clip())\\fs40}EmptyClip
+Dialogue: 0,0:01:15.00,0:01:20.00,Signs,,0000,0000,0000,,{\\an9\\bord2\\pos(100,200)\\p1}m 0 0 l 100 0 100 100 0 100
 `
 
 const track = parseAss(SAMPLE_ASS)
@@ -169,6 +171,13 @@ describe("resample — Override tags (1.5x)", () => {
         expect(result.events[13].Text).toContain("\\b1")
         expect(result.events[13].Text).toContain("\\i1")
     })
+
+    it("handles empty \\clip() without producing NaN", () => {
+        const text = result.events[14].Text
+        expect(text).not.toContain("NaN")
+        expect(text).toContain("\\clip()")
+        expect(text).toContain("\\fs60") // 40*1.5
+    })
 })
 
 // ─── \\t() animation ────────────────────────────────────────────────────────
@@ -193,6 +202,13 @@ describe("resample — Drawing clips", () => {
     it("scales drawing coordinates in clip", () => {
         expect(result.events[10].Text).toContain("150 300")
         expect(result.events[10].Text).toContain("450 600")
+    })
+
+    it("scales drawing coordinates in \\p1 text segments", () => {
+        // m 0 0 l 100 0 100 100 0 100 → m 0 0 l 150 0 150 150 0 150 (1.5x)
+        const text = result.events[15].Text
+        expect(text).toContain("\\p1")
+        expect(text).toContain("150 0 150 150 0 150")
     })
 })
 

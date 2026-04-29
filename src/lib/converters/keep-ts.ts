@@ -57,34 +57,51 @@ function processTextKeepTags(text: string, defaultAlignment: number): string {
 
     // Check if alignment is already specified in the first tag block
     if (segments.length > 0 && segments[0].type === "tags" && segments[0].tags) {
-        hasAlignment = segments[0].tags.some((t: AssTag) => t.name === "an" || t.name === "a")
+        hasAlignment = segments[0].tags.some((t: AssTag) => ["an", "a"].includes(t.name.toLowerCase()))
     }
 
-    // If no alignment tag, prepend one
-    if (!hasAlignment) {
-        result += `{\\an${defaultAlignment}}`
-    }
+    // If no alignment tag, inject one
+    // Merge into first tag block if possible, otherwise prepend standalone
+    let needAlignment = !hasAlignment
+    let isFirstTagBlock = true
 
     for (const seg of segments) {
         if (seg.type === "tags") {
-            // Preserve the entire tag block verbatim
-            result += seg.content
+            if (needAlignment && isFirstTagBlock) {
+                // Inject \anN right after the opening { of the first tag block
+                result += `{\\an${defaultAlignment}` + seg.content.slice(1)
+                needAlignment = false
+            } else {
+                // Preserve the entire tag block verbatim
+                result += seg.content
+            }
+            isFirstTagBlock = false
 
             // Track drawing state
             if (seg.tags) {
                 for (const tag of seg.tags) {
-                    if (tag.name === "p") {
+                    if (tag.name.toLowerCase() === "p") {
                         inDrawing = parseInt(tag.value, 10) > 0
                     }
                 }
             }
-        } else if (seg.type === "text" && !inDrawing) {
-            // Process text commands but keep everything else
-            let processedText = seg.content
-            processedText = processedText.replace(/\\N/g, "\n")
-            processedText = processedText.replace(/\\n/g, "\n")
-            processedText = processedText.replace(/\\h/g, "\u00A0")
-            result += processedText
+        } else if (seg.type === "text") {
+            // If first segment is text and we still need alignment, prepend standalone
+            if (needAlignment) {
+                result += `{\\an${defaultAlignment}}`
+                needAlignment = false
+            }
+            if (inDrawing) {
+                // Preserve drawing commands verbatim for libass-based players
+                result += seg.content
+            } else {
+                // Process text commands but keep everything else
+                let processedText = seg.content
+                processedText = processedText.replace(/\\N/g, "\n")
+                processedText = processedText.replace(/\\n/g, "\n")
+                processedText = processedText.replace(/\\h/g, "\u00A0")
+                result += processedText
+            }
         }
     }
 

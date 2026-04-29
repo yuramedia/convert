@@ -66,6 +66,14 @@ export function tokenizeText(text: string): TextSegment[] {
                 break
             }
             const blockContent = text.substring(i + 1, closeIdx)
+
+            // Skip Aegisub extradata blocks {=N} — internal metadata, not renderable
+            // Pattern: block content starts with '=' followed by digits/identifier
+            if (/^=[^\\{}]*$/.test(blockContent)) {
+                i = closeIdx + 1
+                continue
+            }
+
             const tags = parseTagBlock(blockContent)
             segments.push({
                 type: "tags",
