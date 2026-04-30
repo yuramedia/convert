@@ -445,3 +445,165 @@ describe("convertKeepTs — SRT format validity", () => {
         }
     })
 })
+
+// ─── Layer-aware sorting ─────────────────────────────────────────────────────
+
+const LAYER_SAMPLE = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Signs,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,8,20,20,15,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0000,0000,0000,,First line
+Dialogue: 0,0:00:05.00,0:00:07.00,Signs,,0000,0000,0000,,{\\an8\\pos(960,54)\\bord6\\shad0}Border layer
+Dialogue: 1,0:00:05.00,0:00:07.00,Signs,,0000,0000,0000,,{\\an8\\pos(960,54)\\bord3\\shad0}Middle layer
+Dialogue: 2,0:00:05.00,0:00:07.00,Signs,,0000,0000,0000,,{\\an8\\pos(960,54)\\bord0\\shad0}Text layer
+Dialogue: 10,0:00:09.00,0:00:11.00,Default,,0000,0000,0000,,High layer dialogue
+Dialogue: 0,0:00:09.00,0:00:11.00,Default,,0000,0000,0000,,Low layer dialogue
+`
+
+const LAYER_REVERSED = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 2,0:00:01.00,0:00:03.00,Default,,0000,0000,0000,,Layer2
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0000,0000,0000,,Layer0
+Dialogue: 1,0:00:01.00,0:00:03.00,Default,,0000,0000,0000,,Layer1
+`
+
+describe("convertNormalSrt — layer-aware sorting", () => {
+    it("sorts same-timestamp lines by layer ascending", () => {
+        const layerTrack = parseAss(LAYER_SAMPLE)
+        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+
+        // Lines at 0:00:05-07 should appear in layer order: 0, 1, 2
+        const borderIdx = srt.indexOf("Border layer")
+        const middleIdx = srt.indexOf("Middle layer")
+        const textIdx = srt.indexOf("Text layer")
+        expect(borderIdx).toBeLessThan(middleIdx)
+        expect(middleIdx).toBeLessThan(textIdx)
+    })
+
+    it("sorts reversed-layer input correctly", () => {
+        const revTrack = parseAss(LAYER_REVERSED)
+        const srt = convertNormalSrt(revTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+
+        // Input was Layer2, Layer0, Layer1 — output should be Layer0, Layer1, Layer2
+        const idx0 = srt.indexOf("Layer0")
+        const idx1 = srt.indexOf("Layer1")
+        const idx2 = srt.indexOf("Layer2")
+        expect(idx0).toBeLessThan(idx1)
+        expect(idx1).toBeLessThan(idx2)
+    })
+
+    it("sorts by start time first, then layer", () => {
+        const layerTrack = parseAss(LAYER_SAMPLE)
+        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+
+        // "First line" at 0:00:01 should come before all sign lines at 0:00:05
+        const firstIdx = srt.indexOf("First line")
+        const borderIdx = srt.indexOf("Border layer")
+        expect(firstIdx).toBeLessThan(borderIdx)
+    })
+
+    it("layer 0 appears before layer 10 at same timestamp", () => {
+        const layerTrack = parseAss(LAYER_SAMPLE)
+        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+
+        // At 0:00:09: Layer 0 "Low layer dialogue" before Layer 10 "High layer dialogue"
+        const lowIdx = srt.indexOf("Low layer dialogue")
+        const highIdx = srt.indexOf("High layer dialogue")
+        expect(lowIdx).toBeLessThan(highIdx)
+    })
+})
+
+describe("convertKeepTs — layer-aware sorting", () => {
+    it("preserves layer stacking order for same-timestamp sign lines", () => {
+        const layerTrack = parseAss(LAYER_SAMPLE)
+        const srt = convertKeepTs(layerTrack)
+
+        // Layer 0 (border) → Layer 1 (middle) → Layer 2 (text)
+        const borderIdx = srt.indexOf("Border layer")
+        const middleIdx = srt.indexOf("Middle layer")
+        const textIdx = srt.indexOf("Text layer")
+        expect(borderIdx).toBeLessThan(middleIdx)
+        expect(middleIdx).toBeLessThan(textIdx)
+    })
+
+    it("corrects reversed layer order", () => {
+        const revTrack = parseAss(LAYER_REVERSED)
+        const srt = convertKeepTs(revTrack)
+
+        const idx0 = srt.indexOf("Layer0")
+        const idx1 = srt.indexOf("Layer1")
+        const idx2 = srt.indexOf("Layer2")
+        expect(idx0).toBeLessThan(idx1)
+        expect(idx1).toBeLessThan(idx2)
+    })
+
+    it("preserves override tags while sorting by layer", () => {
+        const layerTrack = parseAss(LAYER_SAMPLE)
+        const srt = convertKeepTs(layerTrack)
+
+        // Border layer line should have \\bord6
+        const lines = srt.split("\n")
+        const borderLine = lines.find(l => l.includes("Border layer"))
+        expect(borderLine).toContain("\\bord6")
+
+        // Text layer line should have \\bord0
+        const textLine = lines.find(l => l.includes("Text layer"))
+        expect(textLine).toContain("\\bord0")
+    })
+})
+
+// ─── Layer priority over end time ──────────────────
+
+const LAYER_DIFF_END = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 1,0:00:05.00,0:00:06.00,Default,,0000,0000,0000,,ShortHighLayer
+Dialogue: 0,0:00:05.00,0:00:10.00,Default,,0000,0000,0000,,LongLowLayer
+`
+
+describe("layer sorting — layer takes priority over end time", () => {
+    it("normalSrt: low layer appears first even when its end time is later", () => {
+        const t = parseAss(LAYER_DIFF_END)
+        const srt = convertNormalSrt(t, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+
+        // Layer 0 (long, ends at 10s) should come BEFORE Layer 1 (short, ends at 6s)
+        // because layer takes priority over end time
+        const lowIdx = srt.indexOf("LongLowLayer")
+        const highIdx = srt.indexOf("ShortHighLayer")
+        expect(lowIdx).toBeLessThan(highIdx)
+    })
+
+    it("keepTs: low layer appears first even when its end time is later", () => {
+        const t = parseAss(LAYER_DIFF_END)
+        const srt = convertKeepTs(t)
+
+        const lowIdx = srt.indexOf("LongLowLayer")
+        const highIdx = srt.indexOf("ShortHighLayer")
+        expect(lowIdx).toBeLessThan(highIdx)
+    })
+})
