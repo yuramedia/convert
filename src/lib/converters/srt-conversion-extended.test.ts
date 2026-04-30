@@ -568,3 +568,42 @@ describe("convertKeepTs — layer-aware sorting", () => {
         expect(textLine).toContain("\\bord0")
     })
 })
+
+// ─── Layer priority over end time ──────────────────
+
+const LAYER_DIFF_END = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 1,0:00:05.00,0:00:06.00,Default,,0000,0000,0000,,ShortHighLayer
+Dialogue: 0,0:00:05.00,0:00:10.00,Default,,0000,0000,0000,,LongLowLayer
+`
+
+describe("layer sorting — layer takes priority over end time", () => {
+    it("normalSrt: low layer appears first even when its end time is later", () => {
+        const t = parseAss(LAYER_DIFF_END)
+        const srt = convertNormalSrt(t, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+
+        // Layer 0 (long, ends at 10s) should come BEFORE Layer 1 (short, ends at 6s)
+        // because layer takes priority over end time
+        const lowIdx = srt.indexOf("LongLowLayer")
+        const highIdx = srt.indexOf("ShortHighLayer")
+        expect(lowIdx).toBeLessThan(highIdx)
+    })
+
+    it("keepTs: low layer appears first even when its end time is later", () => {
+        const t = parseAss(LAYER_DIFF_END)
+        const srt = convertKeepTs(t)
+
+        const lowIdx = srt.indexOf("LongLowLayer")
+        const highIdx = srt.indexOf("ShortHighLayer")
+        expect(lowIdx).toBeLessThan(highIdx)
+    })
+})

@@ -28,10 +28,10 @@ export const DEFAULT_NORMAL_OPTIONS: NormalSrtOptions = {
 export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DEFAULT_NORMAL_OPTIONS): string {
     let entries: SrtEntry[] = []
 
-    // Sort events by start time, then end time, then layer (preserves render stacking order)
+    // Sort events by start time, then layer, then end time (preserves render stacking order)
     const dialogues = track.events
         .filter(e => e.type === "Dialogue")
-        .sort((a, b) => a.Start - b.Start || a.End - b.End || a.Layer - b.Layer)
+        .sort((a, b) => a.Start - b.Start || a.Layer - b.Layer || a.End - b.End)
 
     for (const event of dialogues) {
         let text: string

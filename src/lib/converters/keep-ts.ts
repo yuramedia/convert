@@ -18,10 +18,10 @@ import { type SrtEntry, writeSrt, reindex } from "../srt-writer"
 export function convertKeepTs(track: AssTrack): string {
     const entries: SrtEntry[] = []
 
-    // Sort events by start time, then end time, then layer (preserves render stacking order)
+    // Sort events by start time, then layer, then end time (preserves render stacking order)
     const dialogues = track.events
         .filter(e => e.type === "Dialogue")
-        .sort((a, b) => a.Start - b.Start || a.End - b.End || a.Layer - b.Layer)
+        .sort((a, b) => a.Start - b.Start || a.Layer - b.Layer || a.End - b.End)
 
     for (const event of dialogues) {
         // Find the style to get default alignment
