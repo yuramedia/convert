@@ -2,12 +2,15 @@
 
 import { type ConversionMode } from "./mode-selector"
 import { type NormalSrtOptions } from "@/lib/converters/normal-srt"
+import { type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { type ResampleOptions, RESOLUTION_PRESETS } from "@/lib/converters/resample-ts"
 
 interface OptionsPanelProps {
     mode: ConversionMode
     normalOptions: NormalSrtOptions
     setNormalOptions: (opts: NormalSrtOptions) => void
+    keeptOptions: KeepTsOptions
+    setKeeptOptions: (opts: KeepTsOptions) => void
     resampleOptions: ResampleOptions
     setResampleOptions: (opts: ResampleOptions) => void
 }
@@ -16,17 +19,25 @@ export default function OptionsPanel({
     mode,
     normalOptions,
     setNormalOptions,
+    keeptOptions,
+    setKeeptOptions,
     resampleOptions,
     setResampleOptions
 }: OptionsPanelProps) {
     if (mode === "keepts") {
         return (
             <div className="glass-card p-5 fade-in">
-                <h3 className="text-sm font-semibold mb-2">Keep TS Options</h3>
-                <p className="text-xs text-[var(--muted)]">
-                    This mode preserves all ASS override tags verbatim in the SRT output. There are no options to
-                    configure. Best used with mpv or other libass-based players.
-                </p>
+                <h3 className="text-sm font-semibold mb-4">Keep TS Options</h3>
+                <div className="space-y-4">
+                    <Toggle
+                        label={"Inject \\an2 explicitly"}
+                        description={
+                            "Always inject \\an2 alignment tag even though it's the libass global default. Disable to keep output cleaner."
+                        }
+                        checked={keeptOptions.injectAn2}
+                        onChange={c => setKeeptOptions({ ...keeptOptions, injectAn2: c })}
+                    />
+                </div>
             </div>
         )
     }
@@ -140,6 +151,19 @@ export default function OptionsPanel({
                         />
                     </div>
                 </div>
+
+                {resampleOptions.outputFormat === "srt" && (
+                    <div className="col-span-1 md:col-span-2 pt-2 border-t border-white/5">
+                        <Toggle
+                            label={"Inject \\an2 explicitly"}
+                            description={
+                                "Always inject \\an2 alignment tag in SRT output even though it's the libass global default."
+                            }
+                            checked={resampleOptions.injectAn2 ?? false}
+                            onChange={c => setResampleOptions({ ...resampleOptions, injectAn2: c })}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     )

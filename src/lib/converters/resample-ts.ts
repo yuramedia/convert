@@ -19,6 +19,8 @@ export interface ResampleOptions {
     targetWidth: number
     targetHeight: number
     outputFormat: "ass" | "srt"
+    /** When true, explicitly inject \an2 in SRT output. Only used when outputFormat is "srt". Default: false */
+    injectAn2?: boolean
 }
 
 export const RESOLUTION_PRESETS: { label: string; width: number; height: number }[] = [
@@ -99,7 +101,7 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
     if (options.outputFormat === "ass") {
         return writeAss(resampled)
     } else {
-        return convertKeepTs(resampled)
+        return convertKeepTs(resampled, { injectAn2: options.injectAn2 ?? false })
     }
 }
 

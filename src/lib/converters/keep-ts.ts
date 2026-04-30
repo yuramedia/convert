@@ -15,7 +15,16 @@ import { type AssTrack } from "../ass-parser"
 import { tokenizeText, type AssTag } from "../ass-tags"
 import { type SrtEntry, writeSrt, reindex } from "../srt-writer"
 
-export function convertKeepTs(track: AssTrack): string {
+export interface KeepTsOptions {
+    /** When true, explicitly inject \an2 even though it's the libass global default. Default: false */
+    injectAn2: boolean
+}
+
+export const DEFAULT_KEEPTS_OPTIONS: KeepTsOptions = {
+    injectAn2: false
+}
+
+export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_KEEPTS_OPTIONS): string {
     const entries: SrtEntry[] = []
 
     // Sort events by start time, then layer, then end time (preserves render stacking order)
@@ -29,7 +38,7 @@ export function convertKeepTs(track: AssTrack): string {
         const defaultAlignment = style?.Alignment ?? 2
 
         // Process text — preserve all override tags, just handle \N/\n/\h
-        let text = processTextKeepTags(event.Text, defaultAlignment)
+        let text = processTextKeepTags(event.Text, defaultAlignment, options.injectAn2)
 
         text = text.trim()
         if (!text) continue
@@ -51,7 +60,7 @@ export function convertKeepTs(track: AssTrack): string {
  * - Preserves all {} blocks verbatim
  * - Converts \N → newline, \n → newline, \h → hard space in text segments
  */
-function processTextKeepTags(text: string, defaultAlignment: number): string {
+function processTextKeepTags(text: string, defaultAlignment: number, injectAn2: boolean): string {
     const segments = tokenizeText(text)
     let result = ""
     let hasAlignment = false
@@ -64,8 +73,9 @@ function processTextKeepTags(text: string, defaultAlignment: number): string {
 
     // If no alignment tag, inject one
     // Merge into first tag block if possible, otherwise prepend standalone
-    // \an2 is the global default — only inject if alignment differs
-    let needAlignment = !hasAlignment && defaultAlignment !== 2
+    // When injectAn2 is false, skip injection for \an2 (it's the libass global default)
+    const skipBecauseDefault = !injectAn2 && defaultAlignment === 2
+    let needAlignment = !hasAlignment && !skipBecauseDefault
     let isFirstTagBlock = true
 
     for (const seg of segments) {

@@ -8,7 +8,7 @@ import OptionsPanel from "@/components/options-panel"
 import OutputPreview from "@/components/output-preview"
 import { type AssTrack } from "@/lib/ass-parser"
 import { convertNormalSrt, DEFAULT_NORMAL_OPTIONS, type NormalSrtOptions } from "@/lib/converters/normal-srt"
-import { convertKeepTs } from "@/lib/converters/keep-ts"
+import { convertKeepTs, DEFAULT_KEEPTS_OPTIONS, type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { convertResampleTs, type ResampleOptions } from "@/lib/converters/resample-ts"
 
 export default function Home() {
@@ -17,12 +17,14 @@ export default function Home() {
     const [mode, setMode] = useState<ConversionMode>("normal")
 
     const [normalOptions, setNormalOptions] = useState<NormalSrtOptions>(DEFAULT_NORMAL_OPTIONS)
+    const [keeptOptions, setKeeptOptions] = useState<KeepTsOptions>(DEFAULT_KEEPTS_OPTIONS)
     const [resampleOptions, setResampleOptions] = useState<ResampleOptions>({
         sourceWidth: 0,
         sourceHeight: 0,
         targetWidth: 1920,
         targetHeight: 1080,
-        outputFormat: "srt"
+        outputFormat: "srt",
+        injectAn2: false
     })
 
     const [outputContent, setOutputContent] = useState<string>("")
@@ -64,7 +66,7 @@ export default function Home() {
             if (mode === "normal") {
                 result = convertNormalSrt(parsedTrack, normalOptions)
             } else if (mode === "keepts") {
-                result = convertKeepTs(parsedTrack)
+                result = convertKeepTs(parsedTrack, keeptOptions)
             } else if (mode === "resample") {
                 result = convertResampleTs(parsedTrack, resampleOptions)
             }
@@ -117,6 +119,8 @@ export default function Home() {
                             mode={mode}
                             normalOptions={normalOptions}
                             setNormalOptions={setNormalOptions}
+                            keeptOptions={keeptOptions}
+                            setKeeptOptions={setKeeptOptions}
                             resampleOptions={resampleOptions}
                             setResampleOptions={setResampleOptions}
                         />
