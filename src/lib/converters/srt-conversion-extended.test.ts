@@ -357,20 +357,21 @@ describe("convertKeepTs — alignment injection", () => {
         }
     })
 
-    it("injects \\an2 for Default style lines with no alignment tag", () => {
-        // Default style has Alignment=2; plain text lines get {\\an2...} or standalone
-        expect(srt).toMatch(/\{\\an2[^}]*\}Plain text|\{\\an2\}Plain text/)
+    it("does NOT inject \\an2 for Default style lines (global default)", () => {
+        // Default style has Alignment=2 — this is the global default, no injection needed
+        expect(srt).toContain("Plain text")
+        expect(srt).not.toMatch(/\{\\an2[^}]*\}Plain text/)
     })
 
-    it("merges injected \\an into first existing tag block", () => {
-        // "Positioned" line: {\\pos(960,540)\\fscx120\\fscy80\\frz45}
-        // Should become {\\an2\\pos(960,540)...} not {\\an2}{\\pos...}
-        expect(srt).toContain("{\\an2\\pos(960,540)")
+    it("does NOT merge \\an2 into positioned Default-style lines", () => {
+        // "Positioned" line uses Default style (alignment=2) — no \\an2 injection
+        expect(srt).toContain("{\\pos(960,540)")
+        expect(srt).not.toContain("{\\an2\\pos(960,540)")
     })
 
-    it("injects standalone {\\anN} when line starts with text", () => {
-        // "Line1\\NLine2" starts with text (no opening tag)
-        expect(srt).toMatch(/\{\\an2\}Line1/)
+    it("does NOT inject standalone {\\an2} when line starts with text", () => {
+        // "Line1\\NLine2" starts with text, Default style — no \\an2 needed
+        expect(srt).not.toMatch(/\{\\an2\}Line1/)
     })
 })
 
