@@ -64,7 +64,8 @@ function processTextKeepTags(text: string, defaultAlignment: number): string {
 
     // If no alignment tag, inject one
     // Merge into first tag block if possible, otherwise prepend standalone
-    let needAlignment = !hasAlignment
+    // \an2 is the global default — only inject if alignment differs
+    let needAlignment = !hasAlignment && defaultAlignment !== 2
     let isFirstTagBlock = true
 
     for (const seg of segments) {

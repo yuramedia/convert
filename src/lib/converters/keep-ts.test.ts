@@ -37,10 +37,11 @@ describe("convertKeepTs", () => {
         expect(srt).toContain("-->")
     })
 
-    it("prepends {\\anN} when no alignment tag exists", () => {
+    it("does NOT inject \\an2 for Default style (it is the global default)", () => {
         const srt = convertKeepTs(track)
-        // "Plain text" has Default style (alignment=2), should get {\\an2}
-        expect(srt).toContain("{\\an2}Plain text")
+        // \\an2 is the default — no need to inject it
+        expect(srt).toContain("Plain text")
+        expect(srt).not.toMatch(/\{\\an2\}Plain text/)
     })
 
     it("does not duplicate alignment when already present", () => {
