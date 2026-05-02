@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Layers } from "lucide-react"
+import Link from "next/link"
+import { Layers, Info } from "lucide-react"
 import FileDropzone from "@/components/file-dropzone"
 import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
 import OptionsPanel from "@/components/options-panel"
@@ -86,8 +87,18 @@ export default function Home() {
 
     return (
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-8 flex flex-col gap-8">
+            <div className="flex justify-end pt-4">
+                <Link
+                    href="/about"
+                    className="inline-flex items-center gap-2 text-sm text-[var(--muted)] hover:text-white transition-colors group"
+                >
+                    <Info size={16} className="group-hover:scale-110 transition-transform" />
+                    About this tool
+                </Link>
+            </div>
+
             {/* Header */}
-            <header className="text-center pt-8 pb-4 fade-in">
+            <header className="text-center pt-4 pb-4 fade-in">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 mb-6 shadow-[0_0_40px_rgba(139,92,246,0.3)]">
                     <Layers className="w-8 h-8 text-white" />
                 </div>
