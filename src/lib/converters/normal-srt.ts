@@ -34,7 +34,7 @@ function isLikelySign(event: AssEvent, track: AssTrack): boolean {
     const segments = tokenizeText(event.Text)
     const tags = segments.flatMap(s => s.tags || [])
 
-    if (tags.some(t => ["pos", "move", "clip", "iclip", "p"].includes(t.name.toLowerCase()))) {
+    if (tags.some(t => ["pos", "move", "clip", "iclip"].includes(t.name.toLowerCase()))) {
         return true
     }
 
@@ -73,27 +73,30 @@ function isLikelySign(event: AssEvent, track: AssTrack): boolean {
 }
 
 export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DEFAULT_NORMAL_OPTIONS): string {
+    // 1. Pre-calculate "isSign" to avoid redundant expensive calls during sort
+    const eventWithMetadata = track.events
+        .filter(e => e.type === "Dialogue")
+        .map(event => ({
+            event,
+            isSign: isLikelySign(event, track)
+        }))
+
+    // 2. Sort events by start time, then sign-ness, then layer, then end time
+    // Signs first so they appear at the top of merged SRT blocks (dialogue at bottom)
+    eventWithMetadata.sort((a, b) => {
+        if (a.event.Start !== b.event.Start) return a.event.Start - b.event.Start
+
+        if (a.isSign !== b.isSign) {
+            return a.isSign ? -1 : 1
+        }
+
+        if (a.event.Layer !== b.event.Layer) return a.event.Layer - b.event.Layer
+        return a.event.End - b.event.End
+    })
+
     let entries: SrtEntry[] = []
 
-    // Sort events by start time, then sign-ness, then layer, then end time
-    // Signs first so they appear at the top of merged SRT blocks (dialogue at bottom)
-    const dialogues = track.events
-        .filter(e => e.type === "Dialogue")
-        .sort((a, b) => {
-            if (a.Start !== b.Start) return a.Start - b.Start
-
-            const aIsSign = isLikelySign(a, track)
-            const bIsSign = isLikelySign(b, track)
-
-            if (aIsSign !== bIsSign) {
-                return aIsSign ? -1 : 1
-            }
-
-            if (a.Layer !== b.Layer) return a.Layer - b.Layer
-            return a.End - b.End
-        })
-
-    for (const event of dialogues) {
+    for (const { event } of eventWithMetadata) {
         let text: string
 
         if (options.useHtmlTags) {
