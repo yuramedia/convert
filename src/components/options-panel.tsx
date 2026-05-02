@@ -65,6 +65,112 @@ export default function OptionsPanel({
                         checked={normalOptions.stripEmptyLines}
                         onChange={c => setNormalOptions({ ...normalOptions, stripEmptyLines: c })}
                     />
+
+                    <div className="pt-4 border-t border-white/5 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="col-span-2 md:col-span-1">
+                                <label
+                                    htmlFor="fps-input"
+                                    className="block text-xs font-medium text-[var(--muted)] mb-2"
+                                >
+                                    Base FPS
+                                </label>
+                                <input
+                                    id="fps-input"
+                                    type="number"
+                                    step="any"
+                                    min="0.001"
+                                    className="input-field"
+                                    placeholder="23.976024"
+                                    value={normalOptions.fps || ""}
+                                    onChange={e =>
+                                        setNormalOptions({
+                                            ...normalOptions,
+                                            fps: parseFloat(e.target.value) || 0
+                                        })
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <label
+                                    htmlFor="snap-threshold"
+                                    className="block text-xs font-medium text-[var(--muted)]"
+                                >
+                                    Snap Threshold
+                                </label>
+                                <select
+                                    className="bg-transparent text-[10px] text-white border border-white/10 rounded px-1"
+                                    value={normalOptions.snapUnit}
+                                    onChange={e =>
+                                        setNormalOptions({
+                                            ...normalOptions,
+                                            snapUnit: e.target.value as "ms" | "frames"
+                                        })
+                                    }
+                                >
+                                    <option value="ms">ms</option>
+                                    <option value="frames">frames</option>
+                                </select>
+                            </div>
+                            <input
+                                id="snap-threshold"
+                                type="number"
+                                min="0"
+                                className="input-field"
+                                placeholder={normalOptions.snapUnit === "ms" ? "e.g. 200" : "e.g. 5"}
+                                value={normalOptions.snapThreshold || ""}
+                                onChange={e =>
+                                    setNormalOptions({
+                                        ...normalOptions,
+                                        snapThreshold: parseFloat(e.target.value) || 0
+                                    })
+                                }
+                            />
+                            <p className="text-[10px] text-[var(--muted)] mt-1">
+                                Close gaps smaller than this (snaps lines together).
+                            </p>
+                        </div>
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <label htmlFor="min-gap" className="block text-xs font-medium text-[var(--muted)]">
+                                    Minimum Gap
+                                </label>
+                                <select
+                                    className="bg-transparent text-[10px] text-white border border-white/10 rounded px-1"
+                                    value={normalOptions.gapUnit}
+                                    onChange={e =>
+                                        setNormalOptions({
+                                            ...normalOptions,
+                                            gapUnit: e.target.value as "ms" | "frames"
+                                        })
+                                    }
+                                >
+                                    <option value="ms">ms</option>
+                                    <option value="frames">frames</option>
+                                </select>
+                            </div>
+                            <input
+                                id="min-gap"
+                                type="number"
+                                min="0"
+                                className="input-field"
+                                placeholder={normalOptions.gapUnit === "ms" ? "e.g. 42" : "e.g. 1"}
+                                value={normalOptions.minGap || ""}
+                                onChange={e =>
+                                    setNormalOptions({
+                                        ...normalOptions,
+                                        minGap: parseFloat(e.target.value) || 0
+                                    })
+                                }
+                            />
+                            <p className="text-[10px] text-[var(--muted)] mt-1">
+                                Ensure at least this much space between lines (shortens end time).
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         )
