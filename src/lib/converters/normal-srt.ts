@@ -17,12 +17,27 @@ export interface NormalSrtOptions {
     useHtmlTags: boolean
     mergeDuplicates: boolean
     stripEmptyLines: boolean
+    /** Snap threshold value. Default 0 (disabled). */
+    snapThreshold?: number
+    /** Unit for snap threshold: 'ms' or 'frames'. Default 'ms'. */
+    snapUnit?: "ms" | "frames"
+    /** Minimum gap value. Default 0 (disabled). */
+    minGap?: number
+    /** Unit for minimum gap: 'ms' or 'frames'. Default 'ms'. */
+    gapUnit?: "ms" | "frames"
+    /** FPS for frame calculations. Default 23.976023976 (24000/1001). */
+    fps?: number
 }
 
-export const DEFAULT_NORMAL_OPTIONS: NormalSrtOptions = {
+export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     useHtmlTags: true,
     mergeDuplicates: true,
-    stripEmptyLines: true
+    stripEmptyLines: true,
+    snapThreshold: 0,
+    snapUnit: "ms",
+    minGap: 0,
+    gapUnit: "ms",
+    fps: 23.976023976 // Accurate 24000/1001
 }
 
 /**
@@ -73,6 +88,9 @@ function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
 }
 
 export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DEFAULT_NORMAL_OPTIONS): string {
+    // Merge provided options with defaults
+    const fullOptions = { ...DEFAULT_NORMAL_OPTIONS, ...options }
+
     // 1. Create a style map for O(1) lookups
     const styleMap = new Map(track.styles.map(s => [s.Name, s]))
 
@@ -108,7 +126,7 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
     for (const { event, segments, style } of eventWithMetadata) {
         let text: string
 
-        if (options.useHtmlTags) {
+        if (fullOptions.useHtmlTags) {
             text = convertTagsToHtml(segments, true, {
                 // b: style?.Bold, // Ignored per user request, only inline {\b1} will trigger <b>
                 i: style?.Italic,
@@ -121,7 +139,7 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
         // Clean up
         text = text.trim()
-        if (options.stripEmptyLines && !text) continue
+        if (fullOptions.stripEmptyLines && !text) continue
 
         entries.push({
             index: entries.length + 1,
@@ -131,8 +149,42 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         })
     }
 
-    if (options.mergeDuplicates) {
+    if (fullOptions.mergeDuplicates) {
         entries = mergeduplicates(entries)
+    }
+
+    // 4. Apply Timing Adjustments (Snap and Min Gap)
+    // Following logic from polo.FrameGap.lua
+    const msPerFrame = 1000 / fullOptions.fps
+    const snapMs =
+        fullOptions.snapUnit === "frames" ? fullOptions.snapThreshold * msPerFrame : fullOptions.snapThreshold
+    const minGapMs = fullOptions.gapUnit === "frames" ? fullOptions.minGap * msPerFrame : fullOptions.minGap
+
+    if (snapMs > 0 || minGapMs > 0) {
+        // Must be sorted by start time (already sorted)
+        for (let i = 0; i < entries.length - 1; i++) {
+            const current = entries[i]
+            const next = entries[i + 1]
+            const gap = next.startMs - current.endMs
+
+            // Option 1: Snap (extend current to meet next)
+            // Only if gap is positive and within threshold
+            if (snapMs > 0 && gap > 0 && gap <= snapMs) {
+                current.endMs = next.startMs
+            }
+            // Option 2: Min Gap (shorten current to ensure space)
+            // Only if gap is less than minGap (can be 0 or negative after snapping)
+            else if (minGapMs > 0) {
+                const currentGap = next.startMs - current.endMs
+                if (currentGap < minGapMs) {
+                    const newEnd = next.startMs - minGapMs
+                    // Safety: don't shorten subtitle below 200ms
+                    if (newEnd - current.startMs >= 200) {
+                        current.endMs = newEnd
+                    }
+                }
+            }
+        }
     }
 
     entries = reindex(entries)
