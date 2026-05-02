@@ -1,6 +1,7 @@
 "use client"
 
 import { FileOutput, Brackets, Scaling } from "lucide-react"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 export type ConversionMode = "normal" | "keepts" | "resample"
 
@@ -12,45 +13,45 @@ interface ModeSelectorProps {
 const MODES: { id: ConversionMode; label: string; description: string; icon: React.ReactNode }[] = [
     {
         id: "normal",
-        label: "Normal SRT",
-        description: "Clean SRT with basic HTML tags. Strips typesetting.",
-        icon: <FileOutput className="w-5 h-5" />
+        label: "Normal",
+        description: "Standard strip / basic HTML.",
+        icon: <FileOutput />
     },
     {
         id: "keepts",
         label: "Keep TS",
-        description: "Preserve all ASS override tags for mpv/libass players.",
-        icon: <Brackets className="w-5 h-5" />
+        description: "Preserve all override tags.",
+        icon: <Brackets />
     },
     {
         id: "resample",
-        label: "Resample TS",
-        description: "Rescale typesetting coordinates between resolutions.",
-        icon: <Scaling className="w-5 h-5" />
+        label: "Resample",
+        description: "Scale coordinate metrics.",
+        icon: <Scaling />
     }
 ]
 
 export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) {
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <ToggleGroup
+            value={[mode]}
+            onValueChange={v => v[0] && onModeChange(v[0] as ConversionMode)}
+            className="w-full bg-muted/50 p-1"
+            spacing={1}
+        >
             {MODES.map(m => (
-                <button
+                <ToggleGroupItem
                     key={m.id}
-                    className={`mode-card text-left ${mode === m.id ? "selected" : ""}`}
-                    onClick={() => onModeChange(m.id)}
-                    id={`mode-${m.id}`}
+                    value={m.id}
+                    className="flex-1 flex flex-col items-center h-auto py-3 px-2 gap-1.5 transition-all data-checked:bg-primary data-checked:text-primary-foreground"
                 >
-                    <div className="flex items-center gap-2.5 mb-2">
-                        <div
-                            className={`transition-colors ${mode === m.id ? "text-violet-400" : "text-[var(--muted)]"}`}
-                        >
-                            {m.icon}
-                        </div>
-                        <span className="font-semibold text-sm">{m.label}</span>
+                    <div className="flex items-center gap-2">
+                        {m.icon}
+                        <span className="text-[11px] font-bold uppercase tracking-wider">{m.label}</span>
                     </div>
-                    <p className="text-xs text-[var(--muted)] leading-relaxed">{m.description}</p>
-                </button>
+                    <p className="text-[9px] font-medium opacity-60 leading-none">{m.description}</p>
+                </ToggleGroupItem>
             ))}
-        </div>
+        </ToggleGroup>
     )
 }

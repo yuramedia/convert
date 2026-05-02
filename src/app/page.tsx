@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Layers, Info } from "lucide-react"
+import { Layers, Info, Cpu } from "lucide-react"
 import FileDropzone from "@/components/file-dropzone"
 import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
 import OptionsPanel from "@/components/options-panel"
@@ -11,6 +11,8 @@ import { type AssTrack } from "@/lib/ass-parser"
 import { convertNormalSrt, DEFAULT_NORMAL_OPTIONS, type NormalSrtOptions } from "@/lib/converters/normal-srt"
 import { convertKeepTs, DEFAULT_KEEPTS_OPTIONS, type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { convertResampleTs, type ResampleOptions } from "@/lib/converters/resample-ts"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 
 export default function Home() {
     const [parsedTrack, setParsedTrack] = useState<AssTrack | null>(null)
@@ -59,7 +61,7 @@ export default function Home() {
 
         setIsConverting(true)
 
-        // Slight delay to allow UI to update to loading state (since conversion is sync but can be heavy)
+        // Slight delay to allow UI to update to loading state
         await new Promise(resolve => setTimeout(resolve, 50))
 
         try {
@@ -86,29 +88,35 @@ export default function Home() {
     }
 
     return (
-        <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-8 flex flex-col gap-8">
-            <div className="flex justify-end pt-4">
+        <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-12 flex flex-col gap-10 relative z-10">
+            <div className="flex justify-end">
                 <Link
                     href="/about"
-                    className="inline-flex items-center gap-2 text-sm text-[var(--muted)] hover:text-white transition-colors group"
+                    className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-blue-500 transition-colors"
                 >
-                    <Info size={16} className="group-hover:scale-110 transition-transform" />
-                    About this tool
+                    <Info size={14} />
+                    About
                 </Link>
             </div>
 
             {/* Header */}
-            <header className="text-center pt-4 pb-4 fade-in">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 mb-6 shadow-[0_0_40px_rgba(139,92,246,0.3)]">
-                    <Layers className="w-8 h-8 text-white" />
+            <header className="flex flex-col items-center text-center space-y-4">
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/20">
+                        <Layers size={18} className="text-white" />
+                    </div>
+                    <div className="w-8 h-8 rounded bg-red-600 flex items-center justify-center shadow-lg shadow-red-900/20">
+                        <Cpu size={18} className="text-white" />
+                    </div>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-white">
-                    ASS to SRT <span className="gradient-text">Converter</span>
-                </h1>
-                <p className="text-lg text-[var(--muted)] max-w-2xl mx-auto leading-relaxed">
-                    Convert Advanced SubStation Alpha subtitles with options to preserve complex typesetting or resample
-                    resolutions.
-                </p>
+                <div>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-zinc-50 uppercase">
+                        Yuuume ASS <span className="text-blue-500">Converter</span>
+                    </h1>
+                    <p className="text-sm text-zinc-500 font-medium">
+                        Optimized for subbing workflows. Fully client-side.
+                    </p>
+                </div>
             </header>
 
             {/* Main Form Area */}
@@ -121,10 +129,10 @@ export default function Home() {
                 />
 
                 {parsedTrack && (
-                    <div className="fade-in flex flex-col gap-6">
-                        <div className="glass-card p-2">
+                    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <Card className="p-1">
                             <ModeSelector mode={mode} onModeChange={setMode} />
-                        </div>
+                        </Card>
 
                         <OptionsPanel
                             mode={mode}
@@ -136,21 +144,21 @@ export default function Home() {
                             setResampleOptions={setResampleOptions}
                         />
 
-                        <div className="flex justify-end pt-2">
-                            <button
+                        <div className="flex justify-end">
+                            <Button
                                 onClick={handleConvert}
                                 disabled={isConverting}
-                                className="btn-primary w-full sm:w-auto text-base !px-8 !py-3"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 h-11"
                             >
                                 {isConverting ? (
                                     <>
-                                        <div className="spinner" />
-                                        <span>Converting...</span>
+                                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                        Converting...
                                     </>
                                 ) : (
-                                    <span>Convert File</span>
+                                    "Convert File"
                                 )}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -159,51 +167,24 @@ export default function Home() {
             <OutputPreview content={outputContent} originalFileName={fileName} outputFormat={getOutputFormat()} />
 
             {/* Footer */}
-            <footer className="mt-auto pt-16 pb-8 text-center text-sm text-[var(--muted)] fade-in">
-                <p>
-                    <a
+            <footer className="mt-auto pt-16 pb-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4 text-[11px] font-medium text-zinc-600 uppercase tracking-wider">
+                <div className="flex gap-6">
+                    <Link
                         href="https://github.com/yuramedia/convert"
                         target="_blank"
-                        rel="noreferrer"
-                        className="footer-link"
+                        className="hover:text-blue-500 transition-colors"
                     >
-                        Yuramedia Link
-                    </a>
-                    . Files are not uploaded to any server.
-                    <br />
-                    Inspired by{" "}
-                    <a
-                        href="https://github.com/SubtitleEdit/subtitleedit"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="footer-link"
-                    >
-                        Subtitle Edit
-                    </a>
-                    ,{" "}
-                    <a
+                        Source
+                    </Link>
+                    <Link
                         href="https://github.com/TypesettingTools/arch1t3cht-Aegisub-Scripts"
                         target="_blank"
-                        rel="noreferrer"
-                        className="footer-link"
+                        className="hover:text-blue-500 transition-colors"
                     >
-                        arch1t3cht-Aegisub-Scripts
-                    </a>
-                    ,{" "}
-                    <a href="https://github.com/libass/libass" target="_blank" rel="noreferrer" className="footer-link">
-                        libass
-                    </a>
-                    , and{" "}
-                    <a
-                        href="https://gist.github.com/rcombs/455fd9c2ef015d51d46791e0d353df44"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="footer-link"
-                    >
-                        rcombs
-                    </a>
-                    .
-                </p>
+                        Research
+                    </Link>
+                </div>
+                <p>No data uploaded. Privacy guaranteed.</p>
             </footer>
         </main>
     )

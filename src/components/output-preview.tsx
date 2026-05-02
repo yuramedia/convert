@@ -1,7 +1,9 @@
 "use client"
 
-import { Copy, Download, Check } from "lucide-react"
+import { Copy, Download, Check, FileCode } from "lucide-react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 
 interface OutputPreviewProps {
     content: string
@@ -45,33 +47,52 @@ export default function OutputPreview({ content, originalFileName, outputFormat 
     if (!content) return null
 
     return (
-        <div className="glass-card fade-in overflow-hidden flex flex-col mt-6">
-            <div className="flex items-center justify-between p-3 border-b border-[var(--border)] bg-black/20">
-                <div className="flex items-center gap-3">
-                    <div className="flex gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
-                        <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" />
-                        <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50" />
+        <Card className="overflow-hidden flex flex-col mt-8 bg-zinc-950 border-zinc-800 animate-in fade-in duration-500 shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-zinc-900 bg-zinc-900/20">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <FileCode size={16} className="text-blue-500" />
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-100">Output Preview</h3>
                     </div>
-                    <span className="text-xs font-medium text-[var(--muted)]">Preview Output</span>
-                    <span className="stat-badge ml-2">{lineCount} lines</span>
-                    <span className="stat-badge">{sizeKb} KB</span>
+                    <div className="hidden sm:flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                            {lineCount} lines
+                        </span>
+                        <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                            {sizeKb} KB
+                        </span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={handleCopy} className="btn-secondary !py-1.5 !px-3" title="Copy to clipboard">
-                        {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                        <span className="sr-only">Copy</span>
-                    </button>
-                    <button onClick={handleDownload} className="btn-primary !py-1.5 !px-4">
-                        <Download className="w-4 h-4" />
-                        <span>Download .{outputFormat}</span>
-                    </button>
+                    <Button
+                        onClick={handleCopy}
+                        variant="secondary"
+                        size="sm"
+                        className="h-9 px-4 text-xs font-bold rounded-md transition-all"
+                    >
+                        {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                        <span className="ml-2">{copied ? "Copied" : "Copy"}</span>
+                    </Button>
+                    <Button
+                        onClick={handleDownload}
+                        variant="default"
+                        size="sm"
+                        className="h-9 px-4 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                    >
+                        <Download size={14} />
+                        <span className="ml-2">Download</span>
+                    </Button>
                 </div>
             </div>
 
-            <div className="p-4 preview-area">
-                <pre className="whitespace-pre-wrap break-words m-0">{content}</pre>
+            <div className="p-6 relative bg-black/40">
+                <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
+                    <span className="font-mono text-[10px] font-bold text-zinc-400">{outputFormat.toUpperCase()}</span>
+                </div>
+                <pre className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre">
+                    {content}
+                </pre>
             </div>
-        </div>
+        </Card>
     )
 }
