@@ -9,8 +9,8 @@
  * - Filters out Comment lines
  */
 
-import { type AssTrack, type AssEvent } from "../ass-parser"
-import { convertTagsToHtml, stripTags, tokenizeText } from "../ass-tags"
+import { type AssTrack, type AssStyle } from "../ass-parser"
+import { convertTagsToHtml, stripTags, tokenizeText, type TextSegment } from "../ass-tags"
 import { type SrtEntry, writeSrt, mergeduplicates, reindex } from "../srt-writer"
 
 export interface NormalSrtOptions {
@@ -29,9 +29,8 @@ export const DEFAULT_NORMAL_OPTIONS: NormalSrtOptions = {
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
  * Signs should appear before dialogue in merged SRT blocks (so dialogue stays at the bottom).
  */
-function isLikelySign(event: AssEvent, track: AssTrack): boolean {
+function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
     // 1. Check for "complex" tags that almost always imply typesetting
-    const segments = tokenizeText(event.Text)
     const tags = segments.flatMap(s => s.tags || [])
 
     if (tags.some(t => ["pos", "move", "clip", "iclip"].includes(t.name.toLowerCase()))) {
@@ -57,31 +56,41 @@ function isLikelySign(event: AssEvent, track: AssTrack): boolean {
     }
 
     // 4. Check Style's default alignment if no tag override exists
-    const style = track.styles.find(s => s.Name === event.Style)
     if (style && style.Alignment >= 4) {
         return true
     }
 
     // 5. Fallback to common style name keywords
-    const name = event.Style.toLowerCase()
-    const keywords = ["sign", "ts", "typeset", "op", "ed", "song"]
-    if (keywords.some(k => name.includes(k))) {
-        return true
+    if (style) {
+        const name = style.Name.toLowerCase()
+        const keywords = ["sign", "ts", "typeset", "op", "ed", "song"]
+        if (keywords.some(k => name.includes(k))) {
+            return true
+        }
     }
 
     return false
 }
 
 export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DEFAULT_NORMAL_OPTIONS): string {
-    // 1. Pre-calculate "isSign" to avoid redundant expensive calls during sort
+    // 1. Create a style map for O(1) lookups
+    const styleMap = new Map(track.styles.map(s => [s.Name, s]))
+
+    // 2. Pre-calculate metadata to avoid redundant expensive calls
     const eventWithMetadata = track.events
         .filter(e => e.type === "Dialogue")
-        .map(event => ({
-            event,
-            isSign: isLikelySign(event, track)
-        }))
+        .map(event => {
+            const segments = tokenizeText(event.Text)
+            const style = styleMap.get(event.Style)
+            return {
+                event,
+                segments,
+                style,
+                isSign: isLikelySign(segments, style)
+            }
+        })
 
-    // 2. Sort events by start time, then sign-ness, then layer, then end time
+    // 3. Sort events by start time, then sign-ness, then layer, then end time
     // Signs first so they appear at the top of merged SRT blocks (dialogue at bottom)
     eventWithMetadata.sort((a, b) => {
         if (a.event.Start !== b.event.Start) return a.event.Start - b.event.Start
@@ -96,19 +105,18 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
     let entries: SrtEntry[] = []
 
-    for (const { event } of eventWithMetadata) {
+    for (const { event, segments, style } of eventWithMetadata) {
         let text: string
 
         if (options.useHtmlTags) {
-            const style = track.styles.find(s => s.Name === event.Style)
-            text = convertTagsToHtml(event.Text, true, {
+            text = convertTagsToHtml(segments, true, {
                 // b: style?.Bold, // Ignored per user request, only inline {\b1} will trigger <b>
                 i: style?.Italic,
                 u: style?.Underline,
                 s: style?.StrikeOut
             })
         } else {
-            text = stripTags(event.Text)
+            text = stripTags(segments)
         }
 
         // Clean up

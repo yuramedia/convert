@@ -280,8 +280,8 @@ export function hasDrawingCommand(tags: AssTag[]): boolean {
  * Strip all override tag blocks from text, keeping only visible text.
  * Handles \N → newline, \n → space/newline, \h → hard space
  */
-export function stripTags(text: string): string {
-    const segments = tokenizeText(text)
+export function stripTags(textOrSegments: string | TextSegment[]): string {
+    const segments = typeof textOrSegments === "string" ? tokenizeText(textOrSegments) : textOrSegments
     let result = ""
     let inDrawing = false
 
@@ -304,13 +304,7 @@ export function stripTags(text: string): string {
     result = result.replace(/\\n/g, " ")
     result = result.replace(/\\h/g, "\u00A0")
 
-    // Clean up empty HTML tags (only if they were generated, e.g. in convertTagsToHtml)
-    let finalResult = result
-    while (/<(b|i|u|s)><\/\1>/.test(finalResult)) {
-        finalResult = finalResult.replace(/<(b|i|u|s)><\/\1>/g, "")
-    }
-
-    return finalResult
+    return result
 }
 
 /**
@@ -318,11 +312,11 @@ export function stripTags(text: string): string {
  * Maps \b, \i, \u, \s to HTML equivalents, strips everything else.
  */
 export function convertTagsToHtml(
-    text: string,
+    textOrSegments: string | TextSegment[],
     useHtmlTags: boolean = true,
     initialStyle?: { b?: boolean; i?: boolean; u?: boolean; s?: boolean }
 ): string {
-    const segments = tokenizeText(text)
+    const segments = typeof textOrSegments === "string" ? tokenizeText(textOrSegments) : textOrSegments
     let result = ""
     let inDrawing = false
     const openTags: string[] = []

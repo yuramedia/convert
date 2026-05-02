@@ -52,32 +52,27 @@ export function writeSrt(entries: SrtEntry[], addBom: boolean = false): string {
  */
 export function mergeduplicates(entries: SrtEntry[]): SrtEntry[] {
     const merged: SrtEntry[] = []
-    const timeMap = new Map<string, SrtEntry>()
+    const timeMap = new Map<string, { entry: SrtEntry; lines: Set<string> }>()
 
     for (const entry of entries) {
         const key = `${entry.startMs}-${entry.endMs}`
         const existing = timeMap.get(key)
+        const newLines = entry.text
+            .split("\n")
+            .map(l => l.trim())
+            .filter(Boolean)
 
         if (existing) {
-            const existingLines = existing.text
-                .split("\n")
-                .map(l => l.trim())
-                .filter(Boolean)
-            const newLines = entry.text
-                .split("\n")
-                .map(l => l.trim())
-                .filter(Boolean)
-
             for (const line of newLines) {
-                if (!existingLines.includes(line)) {
-                    existing.text += "\n" + line
-                    existingLines.push(line)
+                if (!existing.lines.has(line)) {
+                    existing.entry.text += "\n" + line
+                    existing.lines.add(line)
                 }
             }
         } else {
             const newEntry = { ...entry, index: merged.length + 1 }
             merged.push(newEntry)
-            timeMap.set(key, newEntry)
+            timeMap.set(key, { entry: newEntry, lines: new Set(newLines) })
         }
     }
 
