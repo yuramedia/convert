@@ -77,13 +77,24 @@ describe("mergeduplicates", () => {
         expect(result[1].text).toBe("Different")
     })
 
-    it("keeps non-duplicates", () => {
+    it("merges non-identical text with same timestamps", () => {
         const entries: SrtEntry[] = [
             { index: 1, startMs: 0, endMs: 1000, text: "A" },
             { index: 2, startMs: 0, endMs: 1000, text: "B" }
         ]
         const result = mergeduplicates(entries)
-        expect(result).toHaveLength(2)
+        expect(result).toHaveLength(1)
+        expect(result[0].text).toBe("A\nB")
+    })
+
+    it("does not duplicate identical lines when merging", () => {
+        const entries: SrtEntry[] = [
+            { index: 1, startMs: 0, endMs: 1000, text: "A" },
+            { index: 2, startMs: 0, endMs: 1000, text: "A" }
+        ]
+        const result = mergeduplicates(entries)
+        expect(result).toHaveLength(1)
+        expect(result[0].text).toBe("A")
     })
 
     it("re-indexes after merge", () => {
