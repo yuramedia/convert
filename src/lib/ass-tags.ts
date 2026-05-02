@@ -113,9 +113,10 @@ function findClosingBrace(text: string, openIdx: number): number {
 
 /**
  * Parse individual tags from a tag block content (without surrounding {})
+ * Deduplicates simple override tags, keeping the last occurrence.
  */
 export function parseTagBlock(content: string): AssTag[] {
-    const tags: AssTag[] = []
+    const rawTags: AssTag[] = []
     let i = 0
 
     while (i < content.length) {
@@ -137,7 +138,7 @@ export function parseTagBlock(content: string): AssTag[] {
         if (content[i] === "N" || content[i] === "n" || content[i] === "h") {
             // These are handled as text, but we still tokenize them
             tagName = content[i]
-            tags.push({
+            rawTags.push({
                 name: tagName,
                 value: "",
                 raw: content.substring(tagStart, i + 1)
@@ -194,14 +195,35 @@ export function parseTagBlock(content: string): AssTag[] {
             value = content.substring(valueStart, i)
         }
 
-        tags.push({
+        rawTags.push({
             name: tagName,
             value: value.trim(),
             raw: content.substring(tagStart, i)
         })
     }
 
-    return tags
+    // Deduplicate override tags (keep only the last one of the same name)
+    // Exclude tags that can meaningfully appear multiple times: \t, \k, \K, \kf, \ko, \N, \n, \h
+    const MULTI_TAGS = new Set(["t", "k", "K", "kf", "ko", "n", "N", "h"])
+    const filteredTags: AssTag[] = []
+    const seen = new Map<string, number>()
+
+    for (const tag of rawTags) {
+        const nameLower = tag.name.toLowerCase()
+        if (MULTI_TAGS.has(nameLower)) {
+            filteredTags.push(tag)
+        } else {
+            if (seen.has(nameLower)) {
+                const idx = seen.get(nameLower)!
+                filteredTags[idx] = tag
+            } else {
+                seen.set(nameLower, filteredTags.length)
+                filteredTags.push(tag)
+            }
+        }
+    }
+
+    return filteredTags
 }
 
 // ─── Tag value parsers ───────────────────────────────────────────────────────
@@ -258,8 +280,8 @@ export function hasDrawingCommand(tags: AssTag[]): boolean {
  * Strip all override tag blocks from text, keeping only visible text.
  * Handles \N → newline, \n → space/newline, \h → hard space
  */
-export function stripTags(text: string): string {
-    const segments = tokenizeText(text)
+export function stripTags(textOrSegments: string | TextSegment[]): string {
+    const segments = typeof textOrSegments === "string" ? tokenizeText(textOrSegments) : textOrSegments
     let result = ""
     let inDrawing = false
 
@@ -290,11 +312,11 @@ export function stripTags(text: string): string {
  * Maps \b, \i, \u, \s to HTML equivalents, strips everything else.
  */
 export function convertTagsToHtml(
-    text: string,
+    textOrSegments: string | TextSegment[],
     useHtmlTags: boolean = true,
     initialStyle?: { b?: boolean; i?: boolean; u?: boolean; s?: boolean }
 ): string {
-    const segments = tokenizeText(text)
+    const segments = typeof textOrSegments === "string" ? tokenizeText(textOrSegments) : textOrSegments
     let result = ""
     let inDrawing = false
     const openTags: string[] = []
@@ -330,7 +352,14 @@ export function convertTagsToHtml(
 
                 const htmlDef = HTML_MAPPABLE_TAGS[tag.name.toLowerCase()]
                 if (htmlDef) {
-                    const val = parseInt(tag.value, 10)
+                    let val: number
+                    if (tag.value === "") {
+                        // Tags like \i, \b, \u, \s without value are treated as "on" (1)
+                        val = 1
+                    } else {
+                        val = parseInt(tag.value, 10)
+                    }
+
                     if (val === 1 || (tag.name.toLowerCase() === "b" && val > 1)) {
                         if (!openTags.includes(tag.name.toLowerCase())) {
                             result += htmlDef.on
@@ -361,5 +390,11 @@ export function convertTagsToHtml(
     result = result.replace(/\\n/g, " ")
     result = result.replace(/\\h/g, "\u00A0")
 
-    return result
+    // Clean up empty HTML tags (only if they were generated, e.g. in convertTagsToHtml)
+    let finalResult = result
+    while (/<(b|i|u|s)><\/\1>/.test(finalResult)) {
+        finalResult = finalResult.replace(/<(b|i|u|s)><\/\1>/g, "")
+    }
+
+    return finalResult
 }

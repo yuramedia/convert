@@ -47,17 +47,32 @@ export function writeSrt(entries: SrtEntry[], addBom: boolean = false): string {
 }
 
 /**
- * Merge entries with identical timestamps and text
+ * Merge entries with identical timestamps by joining their text with newlines.
+ * Ensures no duplicate lines are added, even if the input text contains multiple lines.
  */
 export function mergeduplicates(entries: SrtEntry[]): SrtEntry[] {
     const merged: SrtEntry[] = []
-    const seen = new Map<string, number>()
+    const timeMap = new Map<string, { entry: SrtEntry; lines: Set<string> }>()
 
     for (const entry of entries) {
-        const key = `${entry.startMs}-${entry.endMs}-${entry.text}`
-        if (!seen.has(key)) {
-            seen.set(key, merged.length)
-            merged.push({ ...entry, index: merged.length + 1 })
+        const key = `${entry.startMs}-${entry.endMs}`
+        const existing = timeMap.get(key)
+        const newLines = entry.text
+            .split("\n")
+            .map(l => l.trim())
+            .filter(Boolean)
+
+        if (existing) {
+            for (const line of newLines) {
+                if (!existing.lines.has(line)) {
+                    existing.entry.text += "\n" + line
+                    existing.lines.add(line)
+                }
+            }
+        } else {
+            const newEntry = { ...entry, index: merged.length + 1 }
+            merged.push(newEntry)
+            timeMap.set(key, { entry: newEntry, lines: new Set(newLines) })
         }
     }
 
