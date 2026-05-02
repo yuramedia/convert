@@ -79,8 +79,9 @@ export default function OptionsPanel({
                                     id="fps-input"
                                     type="number"
                                     step="any"
+                                    min="0.001"
                                     className="input-field"
-                                    placeholder="e.g. 24000/1001 (23.976)"
+                                    placeholder="23.976024"
                                     value={normalOptions.fps || ""}
                                     onChange={e =>
                                         setNormalOptions({
@@ -117,8 +118,9 @@ export default function OptionsPanel({
                             <input
                                 id="snap-threshold"
                                 type="number"
+                                min="0"
                                 className="input-field"
-                                placeholder={normalOptions.snapUnit === "ms" ? "e.g. 200" : "e.g. 2"}
+                                placeholder={normalOptions.snapUnit === "ms" ? "e.g. 200" : "e.g. 5"}
                                 value={normalOptions.snapThreshold || ""}
                                 onChange={e =>
                                     setNormalOptions({
@@ -153,6 +155,7 @@ export default function OptionsPanel({
                             <input
                                 id="min-gap"
                                 type="number"
+                                min="0"
                                 className="input-field"
                                 placeholder={normalOptions.gapUnit === "ms" ? "e.g. 42" : "e.g. 1"}
                                 value={normalOptions.minGap || ""}

@@ -87,6 +87,8 @@ function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
     return false
 }
 
+const MIN_SUBTITLE_DURATION_MS = 200
+
 export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DEFAULT_NORMAL_OPTIONS): string {
     // Merge provided options with defaults
     const fullOptions = { ...DEFAULT_NORMAL_OPTIONS, ...options }
@@ -155,10 +157,13 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
     // 4. Apply Timing Adjustments (Snap and Min Gap)
     // Following logic from polo.FrameGap.lua
-    const msPerFrame = 1000 / fullOptions.fps
+    const fps = Math.max(0.001, fullOptions.fps || DEFAULT_NORMAL_OPTIONS.fps)
+    const msPerFrame = 1000 / fps
     const snapMs =
-        fullOptions.snapUnit === "frames" ? fullOptions.snapThreshold * msPerFrame : fullOptions.snapThreshold
-    const minGapMs = fullOptions.gapUnit === "frames" ? fullOptions.minGap * msPerFrame : fullOptions.minGap
+        fullOptions.snapUnit === "frames"
+            ? (fullOptions.snapThreshold || 0) * msPerFrame
+            : fullOptions.snapThreshold || 0
+    const minGapMs = fullOptions.gapUnit === "frames" ? (fullOptions.minGap || 0) * msPerFrame : fullOptions.minGap || 0
 
     if (snapMs > 0 || minGapMs > 0) {
         // Must be sorted by start time (already sorted)
@@ -178,8 +183,8 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
                 const currentGap = next.startMs - current.endMs
                 if (currentGap < minGapMs) {
                     const newEnd = next.startMs - minGapMs
-                    // Safety: don't shorten subtitle below 200ms
-                    if (newEnd - current.startMs >= 200) {
+                    // Safety: don't shorten subtitle below minimum duration
+                    if (newEnd - current.startMs >= MIN_SUBTITLE_DURATION_MS) {
                         current.endMs = newEnd
                     }
                 }
