@@ -42,8 +42,19 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
     const rx = options.targetWidth / options.sourceWidth
     const ry = options.targetHeight / options.sourceHeight
 
-    // Deep clone the track
-    const resampled: AssTrack = JSON.parse(JSON.stringify(track))
+    // Surgical clone instead of JSON.parse(JSON.stringify(track))
+    // This avoids massive intermediate string allocation and improves performance
+    const resampled: AssTrack = {
+        ...track,
+        scriptInfo: { ...track.scriptInfo },
+        styles: track.styles.map(s => ({
+            ...s,
+            _raw: s._raw ? { ...s._raw } : {}
+        })),
+        events: track.events.map(e => ({
+            ...e
+        }))
+    }
 
     // Update PlayRes
     resampled.scriptInfo.PlayResX = options.targetWidth
@@ -89,13 +100,6 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
 
         // Scale override tags in text
         event.Text = resampleEventText(event.Text, rx, ry)
-
-        // Update raw
-        if (event._raw) {
-            if (event._raw["MarginL"] !== undefined) event._raw["MarginL"] = String(event.MarginL).padStart(4, "0")
-            if (event._raw["MarginR"] !== undefined) event._raw["MarginR"] = String(event.MarginR).padStart(4, "0")
-            if (event._raw["MarginV"] !== undefined) event._raw["MarginV"] = String(event.MarginV).padStart(4, "0")
-        }
     }
 
     if (options.outputFormat === "ass") {

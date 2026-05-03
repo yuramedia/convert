@@ -66,8 +66,6 @@ export interface AssEvent {
     MarginV: number
     Effect: string
     Text: string
-    /** Raw fields from file for lossless roundtrip */
-    _raw: Record<string, string>
 }
 
 export interface AssTrack {
@@ -434,8 +432,7 @@ function parseEventsLine(line: string, track: AssTrack): void {
         MarginR: parseInt(raw["MarginR"] || "0", 10),
         MarginV: parseInt(raw["MarginV"] || "0", 10),
         Effect: raw["Effect"] || "",
-        Text: text,
-        _raw: raw
+        Text: text
     }
 
     track.events.push(event)

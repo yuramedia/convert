@@ -1,7 +1,7 @@
 "use client"
 
-import { Copy, Download, Check, FileCode } from "lucide-react"
-import { useState } from "react"
+import { Copy, Download, Check, FileCode, AlertCircle } from "lucide-react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
@@ -14,9 +14,26 @@ interface OutputPreviewProps {
 export default function OutputPreview({ content, originalFileName, outputFormat }: OutputPreviewProps) {
     const [copied, setCopied] = useState(false)
 
-    const lines = content.split("\n")
-    const lineCount = lines.length
-    const sizeKb = (new Blob([content]).size / 1024).toFixed(1)
+    const { lineCount, sizeKb, displayContent, isTruncated } = useMemo(() => {
+        if (!content) return { lineCount: 0, sizeKb: "0.0", displayContent: "", isTruncated: false }
+
+        const lines = content.split("\n")
+        const count = lines.length
+        const size = (new Blob([content]).size / 1024).toFixed(1)
+
+        // Truncate display for very large files to prevent DOM memory issues
+        // 1000 lines is a safe limit for most browsers without virtualization
+        const MAX_DISPLAY_LINES = 1000
+        const isTruncated = count > MAX_DISPLAY_LINES
+        const displayContent = isTruncated ? lines.slice(0, MAX_DISPLAY_LINES).join("\n") : content
+
+        return {
+            lineCount: count,
+            sizeKb: size,
+            displayContent,
+            isTruncated
+        }
+    }, [content])
 
     const handleCopy = async () => {
         try {
@@ -90,8 +107,17 @@ export default function OutputPreview({ content, originalFileName, outputFormat 
                     <span className="font-mono text-[10px] font-bold text-zinc-400">{outputFormat.toUpperCase()}</span>
                 </div>
                 <pre className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre">
-                    {content}
+                    {displayContent}
                 </pre>
+                {isTruncated && (
+                    <div className="mt-4 p-3 bg-blue-900/20 border border-blue-900/30 rounded flex items-center gap-3">
+                        <AlertCircle size={16} className="text-blue-500 shrink-0" />
+                        <p className="text-[11px] text-blue-300 font-medium uppercase tracking-wider">
+                            Preview truncated for performance ({lineCount - 1000} lines hidden). Download to see full
+                            content.
+                        </p>
+                    </div>
+                )}
             </div>
         </Card>
     )
