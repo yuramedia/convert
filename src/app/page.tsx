@@ -174,16 +174,12 @@ export default function Home() {
                         target="_blank"
                         className="hover:text-blue-500 transition-colors"
                     >
-                        Source
-                    </Link>
-                    <Link
-                        href="https://github.com/TypesettingTools/arch1t3cht-Aegisub-Scripts"
-                        target="_blank"
-                        className="hover:text-blue-500 transition-colors"
-                    >
-                        Research
+                        GitHub
                     </Link>
                 </div>
+                <Link href="https://yuramedia.com" target="_blank" className="text-center text-[10px] text-zinc-500">
+                    &copy; {new Date().getFullYear()} Made with ❤️ by Yuramedia Link
+                </Link>
                 <p>No data uploaded. Privacy guaranteed.</p>
             </footer>
         </main>

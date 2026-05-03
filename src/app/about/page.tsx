@@ -77,7 +77,7 @@ export default function AboutPage() {
                                     1. ASS/SSA Parsing Engine
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="pt-6 text-sm leading-relaxed space-y-4">
+                            <CardContent className="text-sm leading-relaxed space-y-4">
                                 <p>
                                     The converter implements a custom parser that strictly follows the{" "}
                                     <strong>SSA/ASS V4+ specification</strong>. It processes the input stream in
@@ -110,7 +110,7 @@ export default function AboutPage() {
                                     2. Coordinate Resampling Matrix
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="pt-6 text-sm leading-relaxed space-y-4">
+                            <CardContent className="text-sm leading-relaxed space-y-4">
                                 <p>
                                     When converting between different target resolutions, the engine applies a{" "}
                                     <strong>Linear Transformation Matrix</strong> to all coordinate-based tags:
@@ -133,7 +133,7 @@ export default function AboutPage() {
                                     3. Semantic Normalization
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="pt-6 text-sm leading-relaxed space-y-4">
+                            <CardContent className="text-sm leading-relaxed space-y-4">
                                 <p>
                                     For standard SRT output, the engine performs high-velocity{" "}
                                     <strong>Deduplication</strong>. It identifies overlapping signs that share identical
@@ -181,7 +181,7 @@ export default function AboutPage() {
 
             {/* Footer */}
             <footer className="max-w-4xl mx-auto px-6 py-12 border-t border-zinc-900 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-800">
-                &copy; {new Date().getFullYear()} ASS CONVERTER CORE // BUILT WITH BUN & NEXTJS
+                &copy; {new Date().getFullYear()} Yuuume ASS Converter. Made with ❤️ by Yuramedia Link
             </footer>
         </div>
     )
