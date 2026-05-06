@@ -3,13 +3,13 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "next dev",
-        "build": "next build",
+        "dev": "bun --bun next dev",
+        "build": "bun --bun next build",
         "start": "bunx serve@latest out",
         "lint": "oxlint",
         "lint:eslint": "eslint",
         "format": "oxfmt .",
-        "test": "vitest run"
+        "test": "bun test"
     },
     "dependencies": {
         "@base-ui/react": "^1.4.1",

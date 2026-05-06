@@ -12,7 +12,7 @@
  */
 
 import { type AssTrack } from "../ass-parser"
-import { tokenizeText, type AssTag } from "../ass-tags"
+import { tokenizeText } from "../ass-tags"
 import { type SrtEntry, writeSrt, reindex } from "../srt-writer"
 
 export interface KeepTsOptions {
@@ -24,8 +24,13 @@ export const DEFAULT_KEEPTS_OPTIONS: KeepTsOptions = {
     injectAn2: false
 }
 
+const ALIGN_TAGS = new Set(["an", "a"])
+
 export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_KEEPTS_OPTIONS): string {
     const entries: SrtEntry[] = []
+
+    // Build style map for O(1) lookups
+    const styleMap = new Map(track.styles.map(s => [s.Name, s]))
 
     // Sort events by start time, then layer, then end time (preserves render stacking order)
     const dialogues = track.events
@@ -34,7 +39,7 @@ export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_
 
     for (const event of dialogues) {
         // Find the style to get default alignment
-        const style = track.styles.find(s => s.Name === event.Style)
+        const style = styleMap.get(event.Style)
         const defaultAlignment = style?.Alignment ?? 2
 
         // Process text — preserve all override tags, just handle \N/\n/\h
@@ -68,7 +73,13 @@ function processTextKeepTags(text: string, defaultAlignment: number, injectAn2: 
 
     // Check if alignment is already specified in the first tag block
     if (segments.length > 0 && segments[0].type === "tags" && segments[0].tags) {
-        hasAlignment = segments[0].tags.some((t: AssTag) => ["an", "a"].includes(t.name.toLowerCase()))
+        const firstTags = segments[0].tags
+        for (let i = 0; i < firstTags.length; i++) {
+            if (ALIGN_TAGS.has(firstTags[i].name.toLowerCase())) {
+                hasAlignment = true
+                break
+            }
+        }
     }
 
     // If no alignment tag, inject one

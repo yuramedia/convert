@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { Layers, Info, Cpu } from "lucide-react"
 import FileDropzone from "@/components/file-dropzone"
@@ -33,21 +33,18 @@ export default function Home() {
     const [outputContent, setOutputContent] = useState<string>("")
     const [isConverting, setIsConverting] = useState(false)
 
-    // Update source resolution when track loads
-    useEffect(() => {
-        if (parsedTrack && parsedTrack.scriptInfo) {
-            setResampleOptions(prev => ({
-                ...prev,
-                sourceWidth: parsedTrack.scriptInfo.PlayResX || 0,
-                sourceHeight: parsedTrack.scriptInfo.PlayResY || 0
-            }))
-        }
-    }, [parsedTrack])
-
     const handleFileLoaded = (content: string, name: string, track: AssTrack) => {
         setParsedTrack(track)
         setFileName(name)
         setOutputContent("")
+
+        if (track && track.scriptInfo) {
+            setResampleOptions(prev => ({
+                ...prev,
+                sourceWidth: track.scriptInfo.PlayResX || 0,
+                sourceHeight: track.scriptInfo.PlayResY || 0
+            }))
+        }
     }
 
     const handleClear = () => {
@@ -128,7 +125,7 @@ export default function Home() {
                     onClear={handleClear}
                 />
 
-                {parsedTrack && (
+                {parsedTrack ? (
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <Card className="p-1">
                             <ModeSelector mode={mode} onModeChange={setMode} />
@@ -161,7 +158,7 @@ export default function Home() {
                             </Button>
                         </div>
                     </div>
-                )}
+                ) : null}
             </div>
 
             <OutputPreview content={outputContent} originalFileName={fileName} outputFormat={getOutputFormat()} />

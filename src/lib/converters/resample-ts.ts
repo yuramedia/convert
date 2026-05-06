@@ -140,6 +140,8 @@ function resampleEventText(text: string, rx: number, ry: number): string {
     return result
 }
 
+const PAREN_TAGS = new Set(["pos", "move", "org", "clip", "iclip", "fad", "fade"])
+
 /**
  * Resample tags within a single {} block
  */
@@ -182,7 +184,7 @@ function resampleTagBlock(block: string, rx: number, ry: number): string {
         const tagLower = tagName.toLowerCase()
 
         // Handle tags that need parenthesized values
-        if (["pos", "move", "org", "clip", "iclip", "fad", "fade"].includes(tagLower)) {
+        if (PAREN_TAGS.has(tagLower)) {
             if (i < inner.length && inner[i] === "(") {
                 const parenStart = i
                 let depth = 0

@@ -109,7 +109,7 @@ export default function OutputPreview({ content, originalFileName, outputFormat 
                 <pre className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre">
                     {displayContent}
                 </pre>
-                {isTruncated && (
+                {isTruncated ? (
                     <div className="mt-4 p-3 bg-blue-900/20 border border-blue-900/30 rounded flex items-center gap-3">
                         <AlertCircle size={16} className="text-blue-500 shrink-0" />
                         <p className="text-[11px] text-blue-300 font-medium uppercase tracking-wider">
@@ -117,7 +117,7 @@ export default function OutputPreview({ content, originalFileName, outputFormat 
                             content.
                         </p>
                     </div>
-                )}
+                ) : null}
             </div>
         </Card>
     )

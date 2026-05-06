@@ -283,7 +283,7 @@ export default function OptionsPanel({
                             </div>
                         </Field>
 
-                        {resampleOptions.outputFormat === "srt" && (
+                        {resampleOptions.outputFormat === "srt" ? (
                             <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-6 border-t">
                                 <div className="flex-1">
                                     <FieldLabel>Explicit Alignment</FieldLabel>
@@ -294,7 +294,7 @@ export default function OptionsPanel({
                                     onCheckedChange={c => setResampleOptions({ ...resampleOptions, injectAn2: c })}
                                 />
                             </Field>
-                        )}
+                        ) : null}
                     </div>
                 </FieldGroup>
             </CardContent>
