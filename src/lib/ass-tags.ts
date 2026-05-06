@@ -258,6 +258,12 @@ export function parseClip(
         }
     }
 
+    // Drawing clip without scale: \clip(m x y l ...) — implicit scale 1
+    // Drawing commands always start with 'm' (moveto)
+    if (/^\s*m\s/i.test(inner)) {
+        return { type: "drawing", scale: 1, commands: inner }
+    }
+
     // Fallback: try as rect
     return { type: "rect", coords: parts.map(p => parseFloat(p) || 0) }
 }

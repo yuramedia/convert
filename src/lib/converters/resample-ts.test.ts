@@ -30,6 +30,7 @@ Dialogue: 0,0:00:35.00,0:00:40.00,Signs,,0000,0000,0000,,{\\iclip(200,100,800,50
 Dialogue: 0,0:00:40.00,0:00:45.00,Default,,0000,0000,0000,,{\\be4\\fsp3}Effects
 Dialogue: 0,0:00:45.00,0:00:50.00,Default,,0020,0030,0040,,Margins
 Dialogue: 0,0:00:50.00,0:00:55.00,Signs,,0000,0000,0000,,{\\clip(1,m 100 200 l 300 400 500 200)}DrawClip
+Dialogue: 0,0:00:52.00,0:00:57.00,Signs,,0000,0000,0000,,{\\clip(m 666 576 l 784 476 826 456)}ScalelessClip
 Dialogue: 0,0:00:55.00,0:01:00.00,Default,,0000,0000,0000,,{\\t(0,1000,2,\\fs72\\blur5)}AccelAnim
 Dialogue: 0,0:01:00.00,0:01:05.00,Default,,0000,0000,0000,,{\\fad(500,1000)}Fade
 Dialogue: 0,0:01:05.00,0:01:10.00,Default,,0000,0000,0000,,{\\b1\\i1}BI{\\b0\\i0} N
@@ -163,17 +164,17 @@ describe("resample — Override tags (1.5x)", () => {
     })
 
     it("does NOT scale \\fad timing", () => {
-        expect(result.events[12].Text).toContain("\\fad(500,1000)")
+        expect(result.events[13].Text).toContain("\\fad(500,1000)")
     })
 
     it("passes through non-scalable tags", () => {
         expect(result.events[4].Text).toContain("\\frz45")
-        expect(result.events[13].Text).toContain("\\b1")
-        expect(result.events[13].Text).toContain("\\i1")
+        expect(result.events[14].Text).toContain("\\b1")
+        expect(result.events[14].Text).toContain("\\i1")
     })
 
     it("handles empty \\clip() without producing NaN", () => {
-        const text = result.events[14].Text
+        const text = result.events[15].Text
         expect(text).not.toContain("NaN")
         expect(text).toContain("\\clip()")
         expect(text).toContain("\\fs60") // 40*1.5
@@ -190,7 +191,7 @@ describe("resample — \\t() animation", () => {
     })
 
     it("handles accel parameter", () => {
-        expect(result.events[11].Text).toContain("\\t(0,1000,2,\\fs108\\blur7.5)")
+        expect(result.events[12].Text).toContain("\\t(0,1000,2,\\fs108\\blur7.5)")
     })
 })
 
@@ -206,9 +207,18 @@ describe("resample — Drawing clips", () => {
 
     it("scales drawing coordinates in \\p1 text segments", () => {
         // m 0 0 l 100 0 100 100 0 100 → m 0 0 l 150 0 150 150 0 150 (1.5x)
-        const text = result.events[15].Text
+        const text = result.events[16].Text
         expect(text).toContain("\\p1")
         expect(text).toContain("150 0 150 150 0 150")
+    })
+
+    it("scales scale-less drawing clip (\\clip(m x y l ...))", () => {
+        // \clip(m 666 576 l 784 476 826 456) → scale coords by 1.5x
+        const text = result.events[11].Text
+        expect(text).toContain("\\clip(")
+        expect(text).toContain("999 864")
+        expect(text).toContain("1176 714")
+        expect(text).toContain("1239 684")
     })
 })
 

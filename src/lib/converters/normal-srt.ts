@@ -52,23 +52,24 @@ function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
     for (let i = 0; i < segments.length; i++) {
         const segTags = segments[i].tags
         if (!segTags) continue
-        
+
         for (let j = 0; j < segTags.length; j++) {
             const t = segTags[j]
             const nameLower = t.name.toLowerCase()
-            
+
             // 1. Check for "complex" tags that almost always imply typesetting
             if (SIGN_TAGS.has(nameLower)) return true
-            
+
             // 2. Check for drawing mode (\p1 or higher)
             if (nameLower === "p" && parseInt(t.value, 10) > 0) return true
-            
+
             // 3. Check for Alignment tags (4-9 are middle/top, usually signs or top-subs)
             if (ALIGN_TAGS.has(nameLower)) {
                 let align = parseInt(t.value, 10)
                 // \a is legacy alignment: 5,6,7 are top; 9,10,11 are middle
                 if (nameLower === "a") {
-                    if (align === 5 || align === 6 || align === 7 || align === 9 || align === 10 || align === 11) return true
+                    if (align === 5 || align === 6 || align === 7 || align === 9 || align === 10 || align === 11)
+                        return true
                 } else {
                     // \an values 4-9 are middle/top
                     if (align >= 4) return true

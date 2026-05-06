@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
         unoptimized: true
     },
     experimental: {
-        optimizePackageImports: ['lucide-react']
+        optimizePackageImports: ["lucide-react"]
     }
 }
 
