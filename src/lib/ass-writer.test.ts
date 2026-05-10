@@ -116,4 +116,32 @@ describe("writeAss", () => {
         expect(output).toContain("[Fonts]")
         expect(output).toContain("fontdata_line1")
     })
+
+    it("outputs valid margins when event margins are NaN", () => {
+        const track = parseAss(SAMPLE_ASS)
+        // Simulate NaN margins (e.g., from resample with 0 source resolution)
+        track.events[0].MarginL = NaN
+        track.events[0].MarginR = NaN
+        track.events[0].MarginV = NaN
+        const output = writeAss(track)
+
+        expect(output).not.toContain("NaN")
+        // NaN should fall back to 0, padded to 4 chars
+        expect(output).toContain(",0000,0000,0000,")
+    })
+
+    it("outputs valid style values when style fields are NaN", () => {
+        const track = parseAss(SAMPLE_ASS)
+        // Simulate NaN style values
+        track.styles[0].MarginL = NaN
+        track.styles[0].MarginR = NaN
+        track.styles[0].MarginV = NaN
+        track.styles[0].FontSize = NaN
+        track.styles[0].Outline = NaN
+        track.styles[0].Shadow = NaN
+        track.styles[0]._raw = {} // Clear raw to force fallback
+        const output = writeAss(track)
+
+        expect(output).not.toContain("NaN")
+    })
 })

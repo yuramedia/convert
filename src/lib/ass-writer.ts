@@ -140,9 +140,12 @@ function getStyleFieldValue(style: AssStyle, field: string): string {
     const fieldLower = field.toLowerCase()
 
     // Try raw values first for lossless roundtrip
+    // But reject raw values containing "NaN" or "Infinity" — these are corrupted
     if (style._raw && typeof style._raw === "object") {
         const raw = style._raw as Record<string, string>
-        if (raw[field] !== undefined) return raw[field]
+        if (raw[field] !== undefined && !raw[field].includes("NaN") && !raw[field].includes("Infinity")) {
+            return raw[field]
+        }
     }
 
     switch (fieldLower) {
@@ -151,7 +154,7 @@ function getStyleFieldValue(style: AssStyle, field: string): string {
         case "fontname":
             return String(style.FontName ?? "Arial")
         case "fontsize":
-            return String(style.FontSize ?? 18)
+            return String(Number.isFinite(style.FontSize) ? style.FontSize : 18)
         case "primarycolour":
             return String(style.PrimaryColour ?? "&H00FFFFFF")
         case "secondarycolour":
@@ -174,23 +177,23 @@ function getStyleFieldValue(style: AssStyle, field: string): string {
         case "scaley":
             return String(style.ScaleY ?? 100)
         case "spacing":
-            return String(style.Spacing ?? 0)
+            return String(Number.isFinite(style.Spacing) ? style.Spacing : 0)
         case "angle":
             return String(style.Angle ?? 0)
         case "borderstyle":
             return String(style.BorderStyle ?? 1)
         case "outline":
-            return String(style.Outline ?? 0)
+            return String(Number.isFinite(style.Outline) ? style.Outline : 0)
         case "shadow":
-            return String(style.Shadow ?? 0)
+            return String(Number.isFinite(style.Shadow) ? style.Shadow : 0)
         case "alignment":
             return String(style.Alignment ?? 2)
         case "marginl":
-            return String(style.MarginL ?? 0)
+            return String(Number.isFinite(style.MarginL) ? style.MarginL : 0)
         case "marginr":
-            return String(style.MarginR ?? 0)
+            return String(Number.isFinite(style.MarginR) ? style.MarginR : 0)
         case "marginv":
-            return String(style.MarginV ?? 0)
+            return String(Number.isFinite(style.MarginV) ? style.MarginV : 0)
         case "encoding":
             return String(style.Encoding ?? 0)
         default:
@@ -214,12 +217,18 @@ function getEventFieldValue(event: AssEvent, field: string): string {
         case "name":
         case "actor":
             return String(event.Name ?? "")
-        case "marginl":
-            return String(event.MarginL ?? 0).padStart(4, "0")
-        case "marginr":
-            return String(event.MarginR ?? 0).padStart(4, "0")
-        case "marginv":
-            return String(event.MarginV ?? 0).padStart(4, "0")
+        case "marginl": {
+            const ml = Number.isFinite(event.MarginL) ? event.MarginL : 0
+            return String(ml).padStart(4, "0")
+        }
+        case "marginr": {
+            const mr = Number.isFinite(event.MarginR) ? event.MarginR : 0
+            return String(mr).padStart(4, "0")
+        }
+        case "marginv": {
+            const mv = Number.isFinite(event.MarginV) ? event.MarginV : 0
+            return String(mv).padStart(4, "0")
+        }
         case "effect":
             return String(event.Effect ?? "")
         case "text":

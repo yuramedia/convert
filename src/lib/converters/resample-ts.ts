@@ -39,8 +39,10 @@ export const RESOLUTION_PRESETS: { label: string; width: number; height: number 
 ]
 
 export function convertResampleTs(track: AssTrack, options: ResampleOptions): string {
-    const rx = options.targetWidth / options.sourceWidth
-    const ry = options.targetHeight / options.sourceHeight
+    // Guard against division by zero when source resolution is missing (PlayResX/Y = 0)
+    // Fall back to ratio 1.0 (no scaling) to prevent Infinity/NaN from corrupting values
+    const rx = options.sourceWidth > 0 ? options.targetWidth / options.sourceWidth : 1
+    const ry = options.sourceHeight > 0 ? options.targetHeight / options.sourceHeight : 1
 
     // Surgical clone instead of JSON.parse(JSON.stringify(track))
     // This avoids massive intermediate string allocation and improves performance
