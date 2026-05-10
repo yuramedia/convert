@@ -154,16 +154,16 @@ function getStyleFieldValue(style: AssStyle, field: string): string {
         case "fontname":
             return String(style.FontName ?? "Arial")
         case "fontsize":
-            return String(Number.isFinite(style.FontSize) ? style.FontSize : 18)
+            return String(Number.isFinite(style.FontSize) ? style.FontSize : 48)
         case "primarycolour":
             return String(style.PrimaryColour ?? "&H00FFFFFF")
         case "secondarycolour":
-            return String(style.SecondaryColour ?? "&H0000FFFF")
+            return String(style.SecondaryColour ?? "&H000000FF")
         case "outlinecolour":
         case "tertiarycolour":
             return String(style.OutlineColour ?? "&H00000000")
         case "backcolour":
-            return String(style.BackColour ?? "&H00000080")
+            return String(style.BackColour ?? "&H00000000")
         case "bold":
             return (style.Bold as boolean) ? "-1" : "0"
         case "italic":
@@ -183,19 +183,19 @@ function getStyleFieldValue(style: AssStyle, field: string): string {
         case "borderstyle":
             return String(style.BorderStyle ?? 1)
         case "outline":
-            return String(Number.isFinite(style.Outline) ? style.Outline : 0)
+            return String(Number.isFinite(style.Outline) ? style.Outline : 2)
         case "shadow":
-            return String(Number.isFinite(style.Shadow) ? style.Shadow : 0)
+            return String(Number.isFinite(style.Shadow) ? style.Shadow : 2)
         case "alignment":
             return String(style.Alignment ?? 2)
         case "marginl":
-            return String(Number.isFinite(style.MarginL) ? style.MarginL : 0)
+            return String(Number.isFinite(style.MarginL) ? style.MarginL : 10)
         case "marginr":
-            return String(Number.isFinite(style.MarginR) ? style.MarginR : 0)
+            return String(Number.isFinite(style.MarginR) ? style.MarginR : 10)
         case "marginv":
-            return String(Number.isFinite(style.MarginV) ? style.MarginV : 0)
+            return String(Number.isFinite(style.MarginV) ? style.MarginV : 10)
         case "encoding":
-            return String(style.Encoding ?? 0)
+            return String(style.Encoding ?? 1)
         default:
             return "0"
     }
@@ -217,18 +217,12 @@ function getEventFieldValue(event: AssEvent, field: string): string {
         case "name":
         case "actor":
             return String(event.Name ?? "")
-        case "marginl": {
-            const ml = Number.isFinite(event.MarginL) ? event.MarginL : 0
-            return String(ml).padStart(4, "0")
-        }
-        case "marginr": {
-            const mr = Number.isFinite(event.MarginR) ? event.MarginR : 0
-            return String(mr).padStart(4, "0")
-        }
-        case "marginv": {
-            const mv = Number.isFinite(event.MarginV) ? event.MarginV : 0
-            return String(mv).padStart(4, "0")
-        }
+        case "marginl":
+            return String(Number.isFinite(event.MarginL) ? event.MarginL : 0)
+        case "marginr":
+            return String(Number.isFinite(event.MarginR) ? event.MarginR : 0)
+        case "marginv":
+            return String(Number.isFinite(event.MarginV) ? event.MarginV : 0)
         case "effect":
             return String(event.Effect ?? "")
         case "text":

@@ -126,8 +126,8 @@ describe("writeAss", () => {
         const output = writeAss(track)
 
         expect(output).not.toContain("NaN")
-        // NaN should fall back to 0, padded to 4 chars
-        expect(output).toContain(",0000,0000,0000,")
+        // NaN should fall back to 0 (unpadded, matching Aegisub)
+        expect(output).toContain(",0,0,0,")
     })
 
     it("outputs valid style values when style fields are NaN", () => {
