@@ -82,6 +82,11 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
         style.MarginR = Math.round(style.MarginR * rx)
         style.MarginV = Math.round(style.MarginV * ry)
 
+        if (compensate && rx !== ry) {
+            style.ScaleX = round(style.ScaleX * (rx / ry))
+            // ScaleY remains unchanged because FontSize scales by ry
+        }
+
         // Update raw values for lossless roundtrip
         if (style._raw) {
             if (style._raw["Fontsize"] || style._raw["FontSize"])
@@ -92,6 +97,9 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
             if (style._raw["MarginL"] !== undefined) style._raw["MarginL"] = String(style.MarginL)
             if (style._raw["MarginR"] !== undefined) style._raw["MarginR"] = String(style.MarginR)
             if (style._raw["MarginV"] !== undefined) style._raw["MarginV"] = String(style.MarginV)
+            if (compensate && rx !== ry) {
+                if (style._raw["ScaleX"] !== undefined) style._raw["ScaleX"] = String(style.ScaleX)
+            }
         }
     }
 
@@ -251,11 +259,22 @@ function resampleTagBlock(block: string, rx: number, ry: number, compensate: boo
             case "fsp":
                 result += `\\fsp${round(parseFloat(value) * rx)}`
                 break
-            case "fscx":
-                result += `\\fscx${round(parseFloat(value) * (compensate ? rx : 1))}`
+            case "fscx": {
+                const val = parseFloat(value)
+                if (isNaN(val)) {
+                    result += `\\fscx${value}`
+                } else {
+                    // fscx is a percentage of font size. Since fs is already scaled by ry,
+                    // we only need to scale fscx by the remaining factor (rx / ry)
+                    // to match the coordinate system stretch.
+                    result += `\\fscx${round(val * (compensate ? rx / ry : 1))}`
+                }
                 break
+            }
             case "fscy":
-                result += `\\fscy${round(parseFloat(value) * (compensate ? ry : 1))}`
+                // fscy is already accounted for by the fs scaling (which uses ry).
+                // No additional scaling is needed to preserve visual appearance.
+                result += `\\fscy${value}`
                 break
             case "bord":
                 result += `\\bord${round(parseFloat(value) * Math.max(rx, ry))}`
@@ -300,12 +319,16 @@ function resampleTagBlock(block: string, rx: number, ry: number, compensate: boo
                 // For now, pass through as they are visually "close" for small AR changes
                 result += `\\${tagName}${value}`
                 break
-            case "fax":
-                result += `\\fax${round(parseFloat(value) * (compensate ? ry / rx : 1))}`
+            case "fax": {
+                const val = parseFloat(value)
+                result += isNaN(val) ? `\\fax${value}` : `\\fax${round(val * (compensate ? ry / rx : 1))}`
                 break
-            case "fay":
-                result += `\\fay${round(parseFloat(value) * (compensate ? rx / ry : 1))}`
+            }
+            case "fay": {
+                const val = parseFloat(value)
+                result += isNaN(val) ? `\\fay${value}` : `\\fay${round(val * (compensate ? rx / ry : 1))}`
                 break
+            }
             default:
                 // Non-scalable tag — pass through
                 result += inner.substring(tagStart, i)

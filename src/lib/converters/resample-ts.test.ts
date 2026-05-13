@@ -274,8 +274,17 @@ describe("resample — Anamorphic (rx≠ry)", () => {
     it("scales \\fscx and \\fscy", () => {
         const withScale = `[Events]\nDialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,{\\fscx100\\fscy100}Test`
         const res = convertResampleTs(parseAss(withScale), anaOpts)
-        expect(res).toContain("\\fscx150") // 100 * 1.5
-        expect(res).toContain("\\fscy100") // 100 * 1.0
+        expect(res).toContain("\\fscx150") // 100 * (1.5 / 1.0)
+        expect(res).toContain("\\fscy100") // 100 (unchanged)
+        
+        // Test with ry != 1.0
+        const anaOpts2 = {
+            ...anaOpts,
+            targetHeight: 360 // ry = 0.5, rx = 1.5
+        }
+        const res2 = convertResampleTs(parseAss(withScale), anaOpts2)
+        expect(res2).toContain("\\fscx300") // 100 * (1.5 / 0.5)
+        expect(res2).toContain("\\fscy100") // 100 (unchanged)
     })
 
     it("scales \\fax and \\fay", () => {
