@@ -295,6 +295,22 @@ export default function OptionsPanel({
                                 />
                             </Field>
                         ) : null}
+
+                        <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-6 border-t">
+                            <div className="flex-1">
+                                <FieldLabel>Aspect Ratio Correction</FieldLabel>
+                                <FieldDescription>
+                                    Adjust rotation (\frz) and scaling (\fscx/y) for non-uniform resolution changes
+                                    (e.g., anamorphic DVD).
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={resampleOptions.compensateAspectRatio ?? true}
+                                onCheckedChange={c =>
+                                    setResampleOptions({ ...resampleOptions, compensateAspectRatio: c })
+                                }
+                            />
+                        </Field>
                     </div>
                 </FieldGroup>
             </CardContent>

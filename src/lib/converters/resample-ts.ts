@@ -21,16 +21,17 @@ export interface ResampleOptions {
     outputFormat: "ass" | "srt"
     /** When true, explicitly inject \an2 in SRT output. Only used when outputFormat is "srt". Default: false */
     injectAn2?: boolean
+    /** When true, adjusts rotations (\frz) and scale (\fscx, \fscy) to preserve visual appearance when aspect ratio changes. Default: true */
+    compensateAspectRatio?: boolean
 }
 
 export const RESOLUTION_PRESETS: { label: string; width: number; height: number }[] = [
-    { label: "640×360 (SD widescreen)", width: 640, height: 360 },
-    { label: "640×480 (SD fullscreen)", width: 640, height: 480 },
-    { label: "704×480 (SD anamorphic)", width: 704, height: 480 },
-    { label: "704×396 (SD widescreen)", width: 704, height: 396 },
-    { label: "640×352 (SD widescreen MOD16)", width: 640, height: 352 },
-    { label: "704×400 (SD widescreen MOD16)", width: 704, height: 400 },
-    { label: "1024×576 (SuperPAL widescreen)", width: 1024, height: 576 },
+    { label: "640×360 (nHD widescreen)", width: 640, height: 360 },
+    { label: "640×480 (VGA fullscreen)", width: 640, height: 480 },
+    { label: "720×480 (NTSC storage)", width: 720, height: 480 },
+    { label: "848×480 (NTSC display 16:9)", width: 848, height: 480 },
+    { label: "720×576 (PAL storage)", width: 720, height: 576 },
+    { label: "1024×576 (PAL display 16:9)", width: 1024, height: 576 },
     { label: "1280×720 (HD 720p)", width: 1280, height: 720 },
     { label: "1920×1080 (FHD 1080p)", width: 1920, height: 1080 },
     { label: "2560×1440 (QHD 1440p)", width: 2560, height: 1440 },
@@ -39,6 +40,7 @@ export const RESOLUTION_PRESETS: { label: string; width: number; height: number 
 ]
 
 export function convertResampleTs(track: AssTrack, options: ResampleOptions): string {
+    const compensate = options.compensateAspectRatio !== false
     // Guard against division by zero when source resolution is missing (PlayResX/Y = 0)
     // Fall back to ratio 1.0 (no scaling) to prevent Infinity/NaN from corrupting values
     const rx = options.sourceWidth > 0 ? options.targetWidth / options.sourceWidth : 1
@@ -80,6 +82,11 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
         style.MarginR = Math.round(style.MarginR * rx)
         style.MarginV = Math.round(style.MarginV * ry)
 
+        if (compensate && rx !== ry) {
+            style.ScaleX = round(style.ScaleX * (rx / ry))
+            // ScaleY remains unchanged because FontSize scales by ry
+        }
+
         // Update raw values for lossless roundtrip
         if (style._raw) {
             if (style._raw["Fontsize"] || style._raw["FontSize"])
@@ -90,6 +97,9 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
             if (style._raw["MarginL"] !== undefined) style._raw["MarginL"] = String(style.MarginL)
             if (style._raw["MarginR"] !== undefined) style._raw["MarginR"] = String(style.MarginR)
             if (style._raw["MarginV"] !== undefined) style._raw["MarginV"] = String(style.MarginV)
+            if (compensate && rx !== ry) {
+                if (style._raw["ScaleX"] !== undefined) style._raw["ScaleX"] = String(style.ScaleX)
+            }
         }
     }
 
@@ -101,7 +111,7 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
         event.MarginV = Math.round(event.MarginV * ry)
 
         // Scale override tags in text
-        event.Text = resampleEventText(event.Text, rx, ry)
+        event.Text = resampleEventText(event.Text, rx, ry, compensate)
     }
 
     if (options.outputFormat === "ass") {
@@ -114,14 +124,14 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
 /**
  * Resample all override tags within event text
  */
-function resampleEventText(text: string, rx: number, ry: number): string {
+function resampleEventText(text: string, rx: number, ry: number, compensate: boolean): string {
     const segments = tokenizeText(text)
     let result = ""
     let inDrawing = false
 
     for (const seg of segments) {
         if (seg.type === "tags") {
-            result += resampleTagBlock(seg.content, rx, ry)
+            result += resampleTagBlock(seg.content, rx, ry, compensate)
 
             // Track drawing state from \p tag
             if (seg.tags) {
@@ -147,7 +157,7 @@ const PAREN_TAGS = new Set(["pos", "move", "org", "clip", "iclip", "fad", "fade"
 /**
  * Resample tags within a single {} block
  */
-function resampleTagBlock(block: string, rx: number, ry: number): string {
+function resampleTagBlock(block: string, rx: number, ry: number, compensate: boolean): string {
     // Remove surrounding braces
     const inner = block.slice(1, -1)
     let result = ""
@@ -227,7 +237,7 @@ function resampleTagBlock(block: string, rx: number, ry: number): string {
                     i++
                 }
                 const parenContent = inner.substring(parenStart + 1, i - 1)
-                const resampledInner = resampleTContent(parenContent, rx, ry)
+                const resampledInner = resampleTContent(parenContent, rx, ry, compensate)
                 result += "\\t(" + resampledInner + ")"
             } else {
                 result += inner.substring(tagStart, i)
@@ -248,6 +258,23 @@ function resampleTagBlock(block: string, rx: number, ry: number): string {
                 break
             case "fsp":
                 result += `\\fsp${round(parseFloat(value) * rx)}`
+                break
+            case "fscx": {
+                const val = parseFloat(value)
+                if (isNaN(val)) {
+                    result += `\\fscx${value}`
+                } else {
+                    // fscx is a percentage of font size. Since fs is already scaled by ry,
+                    // we only need to scale fscx by the remaining factor (rx / ry)
+                    // to match the coordinate system stretch.
+                    result += `\\fscx${round(val * (compensate ? rx / ry : 1))}`
+                }
+                break
+            }
+            case "fscy":
+                // fscy is already accounted for by the fs scaling (which uses ry).
+                // No additional scaling is needed to preserve visual appearance.
+                result += `\\fscy${value}`
                 break
             case "bord":
                 result += `\\bord${round(parseFloat(value) * Math.max(rx, ry))}`
@@ -273,6 +300,35 @@ function resampleTagBlock(block: string, rx: number, ry: number): string {
             case "blur":
                 result += `\\blur${round(parseFloat(value) * Math.max(rx, ry))}`
                 break
+            case "frz": {
+                const val = parseFloat(value)
+                if (!compensate || rx === ry || isNaN(val)) {
+                    result += `\\frz${value}`
+                } else {
+                    // Adjust rotation angle for non-uniform scaling
+                    // tan(angle_new) = (ry/rx) * tan(angle_old)
+                    const rad = (val * Math.PI) / 180
+                    const newVal = (Math.atan2(ry * Math.sin(rad), rx * Math.cos(rad)) * 180) / Math.PI
+                    result += `\\frz${round(newVal)}`
+                }
+                break
+            }
+            case "frx":
+            case "fry":
+                // 3D rotations are complex to adjust without full matrix decomposition
+                // For now, pass through as they are visually "close" for small AR changes
+                result += `\\${tagName}${value}`
+                break
+            case "fax": {
+                const val = parseFloat(value)
+                result += isNaN(val) ? `\\fax${value}` : `\\fax${round(val * (compensate ? ry / rx : 1))}`
+                break
+            }
+            case "fay": {
+                const val = parseFloat(value)
+                result += isNaN(val) ? `\\fay${value}` : `\\fay${round(val * (compensate ? rx / ry : 1))}`
+                break
+            }
             default:
                 // Non-scalable tag — pass through
                 result += inner.substring(tagStart, i)
@@ -354,7 +410,7 @@ function resampleDrawingCommands(commands: string, rx: number, ry: number): stri
 /**
  * Resample tags inside \t(...) — the inner content can contain override tags
  */
-function resampleTContent(content: string, rx: number, ry: number): string {
+function resampleTContent(content: string, rx: number, ry: number, compensate: boolean): string {
     // \t has format: \t([t1,t2,][accel,]style_tags)
     // We need to find where the style tags start (after optional timing params)
     // and resample only those
@@ -379,7 +435,7 @@ function resampleTContent(content: string, rx: number, ry: number): string {
     const tagPart = parts.slice(tagStartIdx).join(",")
 
     // Wrap in braces so resampleTagBlock can process it, then unwrap
-    const resampledTags = resampleTagBlock(`{${tagPart}}`, rx, ry).slice(1, -1)
+    const resampledTags = resampleTagBlock(`{${tagPart}}`, rx, ry, compensate).slice(1, -1)
 
     if (timingParts.length > 0) {
         return timingParts.join(",") + "," + resampledTags
