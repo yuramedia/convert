@@ -264,6 +264,29 @@ describe("resample — Anamorphic (rx≠ry)", () => {
     it("\\pos x scales by rx, y by ry", () => {
         expect(result.events[1].Text).toContain("\\pos(960,360)")
     })
+
+    it("adjusts \\frz for non-uniform scaling", () => {
+        // \frz45 with rx=1.5, ry=1.0
+        // new_angle = atan2(1.0 * sin(45), 1.5 * cos(45)) = atan2(0.707, 1.0605) = 33.69
+        expect(result.events[4].Text).toContain("\\frz33.69")
+    })
+
+    it("scales \\fscx and \\fscy", () => {
+        const withScale = `[Events]\nDialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,{\\fscx100\\fscy100}Test`
+        const res = convertResampleTs(parseAss(withScale), anaOpts)
+        expect(res).toContain("\\fscx150") // 100 * 1.5
+        expect(res).toContain("\\fscy100") // 100 * 1.0
+    })
+
+    it("scales \\fax and \\fay", () => {
+        const withShear = `[Events]\nDialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,{\\fax0.5\\fay0.5}Test`
+        const res = convertResampleTs(parseAss(withShear), anaOpts)
+        // rx=1.5, ry=1.0
+        // fax_new = 0.5 * (1.0 / 1.5) = 0.33
+        // fay_new = 0.5 * (1.5 / 1.0) = 0.75
+        expect(res).toContain("\\fax0.33")
+        expect(res).toContain("\\fay0.75")
+    })
 })
 
 // ─── SRT output ─────────────────────────────────────────────────────────────
