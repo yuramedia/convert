@@ -61,7 +61,7 @@ const track = parseAss(SAMPLE)
 // ─── Normal SRT — tag stripping behaviour ────────────────────────────────────
 
 describe("convertNormalSrt — basic tag stripping", () => {
-    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
+    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
     it("keeps plain text unchanged", () => {
         expect(srt).toContain("Plain text")
@@ -96,7 +96,7 @@ describe("convertNormalSrt — basic tag stripping", () => {
 })
 
 describe("convertNormalSrt — ASS positioning/style tags stripped", () => {
-    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
+    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
     it("strips \\pos, keeps text", () => {
         expect(srt).toContain("Positioned")
@@ -182,7 +182,7 @@ describe("convertNormalSrt — ASS positioning/style tags stripped", () => {
 })
 
 describe("convertNormalSrt — drawing line handling", () => {
-    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
+    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
     it("strips pure drawing line (no text after \\p0)", () => {
         // Line: {\\p1}m 0 0 l 100 0...{\\p0} — no visible text
@@ -215,7 +215,7 @@ describe("convertNormalSrt — special text commands", () => {
 })
 
 describe("convertNormalSrt — extradata stripping", () => {
-    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
+    const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
     it("strips {=N} extradata blocks, keeps tag content", () => {
         expect(srt).toContain("Extradata line")
@@ -231,19 +231,19 @@ describe("convertNormalSrt — extradata stripping", () => {
 
 describe("convertNormalSrt — style-based initial formatting", () => {
     it("applies italic from Italic style", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
         expect(srt).toContain("<i>Style italic text</i>")
     })
 
     it("does NOT apply bold from Bold style (inline \\b required)", () => {
         // Bold style has Bold=-1, but per design bold is only applied via inline {\\b1}
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
         // No <b> wrapping around "Style italic text" or other non-inline-bold lines
         expect(srt).not.toMatch(/<b>[^<]*Style italic/)
     })
 
     it("useHtmlTags=false strips all formatting", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
         expect(srt).not.toContain("<b>")
         expect(srt).not.toContain("<i>")
         expect(srt).toContain("Bold normal")
@@ -488,7 +488,7 @@ Dialogue: 1,0:00:01.00,0:00:03.00,Default,,0000,0000,0000,,Layer1
 describe("convertNormalSrt — layer-aware sorting", () => {
     it("sorts same-timestamp lines by layer ascending", () => {
         const layerTrack = parseAss(LAYER_SAMPLE)
-        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
         // Lines at 0:00:05-07 should appear in layer order: 0, 1, 2
         const borderIdx = srt.indexOf("Border layer")
@@ -500,7 +500,7 @@ describe("convertNormalSrt — layer-aware sorting", () => {
 
     it("sorts reversed-layer input correctly", () => {
         const revTrack = parseAss(LAYER_REVERSED)
-        const srt = convertNormalSrt(revTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(revTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
         // Input was Layer2, Layer0, Layer1 — output should be Layer0, Layer1, Layer2
         const idx0 = srt.indexOf("Layer0")
@@ -512,7 +512,7 @@ describe("convertNormalSrt — layer-aware sorting", () => {
 
     it("sorts by start time first, then layer", () => {
         const layerTrack = parseAss(LAYER_SAMPLE)
-        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
         // "First line" at 0:00:01 should come before all sign lines at 0:00:05
         const firstIdx = srt.indexOf("First line")
@@ -522,7 +522,7 @@ describe("convertNormalSrt — layer-aware sorting", () => {
 
     it("layer 0 appears before layer 10 at same timestamp", () => {
         const layerTrack = parseAss(LAYER_SAMPLE)
-        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(layerTrack, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
         // At 0:00:09: Layer 0 "Low layer dialogue" before Layer 10 "High layer dialogue"
         const lowIdx = srt.indexOf("Low layer dialogue")
@@ -590,7 +590,7 @@ Dialogue: 0,0:00:05.00,0:00:10.00,Default,,0000,0000,0000,,LongLowLayer
 describe("layer sorting — layer takes priority over end time", () => {
     it("normalSrt: low layer appears first even when its end time is later", () => {
         const t = parseAss(LAYER_DIFF_END)
-        const srt = convertNormalSrt(t, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        const srt = convertNormalSrt(t, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
 
         // Layer 0 (long, ends at 10s) should come BEFORE Layer 1 (short, ends at 6s)
         // because layer takes priority over end time

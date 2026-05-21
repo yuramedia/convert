@@ -97,6 +97,19 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, stripEmptyLines: c })}
                             />
                         </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Strip Typesetting / Signs</FieldLabel>
+                                <FieldDescription>
+                                    Remove positioned signs and typesetting. Recommended for clean SRT — use Keep TS
+                                    mode to preserve them.
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={normalOptions.stripSigns ?? true}
+                                onCheckedChange={c => setNormalOptions({ ...normalOptions, stripSigns: c })}
+                            />
+                        </Field>
                     </FieldGroup>
 
                     <div className="pt-6 border-t">

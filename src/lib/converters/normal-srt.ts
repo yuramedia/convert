@@ -17,6 +17,10 @@ export interface NormalSrtOptions {
     useHtmlTags: boolean
     mergeDuplicates: boolean
     stripEmptyLines: boolean
+    /** Strip typesetting/sign lines from output. Default true.
+     *  Signs use \pos, \clip, etc. which SRT doesn't support,
+     *  so they are useless in plain SRT. Use Keep-TS mode instead. */
+    stripSigns?: boolean
     /** Snap threshold value. Default 0 (disabled). */
     snapThreshold?: number
     /** Unit for snap threshold: 'ms' or 'frames'. Default 'ms'. */
@@ -33,6 +37,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     useHtmlTags: true,
     mergeDuplicates: true,
     stripEmptyLines: true,
+    stripSigns: true,
     snapThreshold: 0,
     snapUnit: "ms",
     minGap: 0,
@@ -112,12 +117,17 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
         const segments = tokenizeText(event.Text)
         const style = styleMap.get(event.Style)
+        const isSign = isLikelySign(segments, style)
+
+        // Filter out sign/TS lines when stripSigns is enabled
+        if (fullOptions.stripSigns && isSign) return []
+
         return [
             {
                 event,
                 segments,
                 style,
-                isSign: isLikelySign(segments, style)
+                isSign
             }
         ]
     })
@@ -183,6 +193,9 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
             const current = entries[i]
             const next = entries[i + 1]
             const gap = next.startMs - current.endMs
+
+            // Skip overlapping entries — snap/gap only applies to sequential gaps
+            if (gap < 0) continue
 
             // Option 1: Snap (extend current to meet next)
             // Only if gap is positive and within threshold
