@@ -429,7 +429,8 @@ describe("convertKeepTs — SRT format validity", () => {
     })
 
     it("entries are sequential and sorted", () => {
-        const times = [...srt.matchAll(/(\d{2}:\d{2}:\d{2},\d{3}) -->/g)].map(m => m[1])
+        const srtSorted = convertKeepTs(track, { injectAn2: false, signFirst: false })
+        const times = [...srtSorted.matchAll(/(\d{2}:\d{2}:\d{2},\d{3}) -->/g)].map(m => m[1])
         for (let i = 1; i < times.length; i++) {
             expect(times[i] >= times[i - 1]).toBe(true)
         }

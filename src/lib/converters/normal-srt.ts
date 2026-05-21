@@ -53,7 +53,7 @@ const SIGN_KEYWORDS = ["sign", "ts", "typeset", "op", "ed", "song"]
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
  * Signs should appear before dialogue in merged SRT blocks (so dialogue stays at the bottom).
  */
-function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
+export function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
     for (let i = 0; i < segments.length; i++) {
         const segTags = segments[i].tags
         if (!segTags) continue

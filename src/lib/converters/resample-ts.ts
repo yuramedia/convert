@@ -23,6 +23,8 @@ export interface ResampleOptions {
     injectAn2?: boolean
     /** When true, adjusts rotations (\frz) and scale (\fscx, \fscy) to preserve visual appearance when aspect ratio changes. Default: true */
     compensateAspectRatio?: boolean
+    /** When true, sort sign/TS lines before dialogue in SRT output so dialogue renders on top. Only used when outputFormat is "srt". Default: true */
+    signFirst?: boolean
 }
 
 export const RESOLUTION_PRESETS: { label: string; width: number; height: number }[] = [
@@ -117,7 +119,7 @@ export function convertResampleTs(track: AssTrack, options: ResampleOptions): st
     if (options.outputFormat === "ass") {
         return writeAss(resampled)
     } else {
-        return convertKeepTs(resampled, { injectAn2: options.injectAn2 ?? false })
+        return convertKeepTs(resampled, { injectAn2: options.injectAn2 ?? false, signFirst: options.signFirst ?? true })
     }
 }
 

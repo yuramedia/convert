@@ -80,11 +80,19 @@ describe("convertKeepTs", () => {
         expect(srt).toContain("m 0 0")
     })
 
-    it("sorts by start time", () => {
-        const srt = convertKeepTs(track)
+    it("sorts by start time when signFirst=false", () => {
+        const srt = convertKeepTs(track, { injectAn2: false, signFirst: false })
         const timestamps = [...srt.matchAll(/(\d{2}:\d{2}:\d{2},\d{3}) -->/g)].map(m => m[1])
         for (let i = 1; i < timestamps.length; i++) {
             expect(timestamps[i] >= timestamps[i - 1]).toBe(true)
         }
+    })
+
+    it("sorts sign lines before dialogue when signFirst=true", () => {
+        const srt = convertKeepTs(track, { injectAn2: false, signFirst: true })
+        // TopCenter style line (has \pos → sign) should appear before Default dialogue lines
+        const signIdx = srt.indexOf("Complex TS")
+        const dialogueIdx = srt.indexOf("Plain text")
+        expect(signIdx).toBeLessThan(dialogueIdx)
     })
 })

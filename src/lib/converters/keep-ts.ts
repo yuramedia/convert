@@ -11,35 +11,66 @@
  * Output is SRT with embedded ASS override tags, renderable by mpv/VLC (libass).
  */
 
-import { type AssTrack } from "../ass-parser"
+import { type AssTrack, type AssStyle } from "../ass-parser"
 import { tokenizeText } from "../ass-tags"
 import { type SrtEntry, writeSrt, reindex } from "../srt-writer"
+import { isLikelySign } from "./normal-srt"
 
 export interface KeepTsOptions {
     /** When true, explicitly inject \an2 even though it's the libass global default. Default: false */
     injectAn2: boolean
+    /** When true, sort sign/TS entries before dialogue entries in SRT output.
+     *  This ensures dialogue renders on top (highest z-order) in libass-based players,
+     *  since later SRT entries render above earlier ones. Default: true */
+    signFirst?: boolean
 }
 
 export const DEFAULT_KEEPTS_OPTIONS: KeepTsOptions = {
-    injectAn2: false
+    injectAn2: false,
+    signFirst: true
 }
 
 const ALIGN_TAGS = new Set(["an", "a"])
 
 export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_KEEPTS_OPTIONS): string {
     const entries: SrtEntry[] = []
+    const signFirst = options.signFirst ?? true
 
     // Build style map for O(1) lookups
     const styleMap = new Map(track.styles.map(s => [s.Name, s]))
 
-    // Sort events by start time, then layer, then end time (preserves render stacking order)
-    const dialogues = track.events
+    // Pre-process: filter Dialogue, detect sign-ness
+    const eventsWithMeta = track.events
         .filter(e => e.type === "Dialogue")
-        .sort((a, b) => a.Start - b.Start || a.Layer - b.Layer || a.End - b.End)
+        .map(event => {
+            const style = styleMap.get(event.Style)
+            const segments = tokenizeText(event.Text)
+            return {
+                event,
+                style,
+                isSign: isLikelySign(segments, style)
+            }
+        })
 
-    for (const event of dialogues) {
+    // Sort events
+    if (signFirst) {
+        // Signs first, then dialogue — ensures dialogue renders on top in SRT (libass)
+        // Within each group: start time → layer → end time
+        eventsWithMeta.sort((a, b) => {
+            if (a.isSign !== b.isSign) return a.isSign ? -1 : 1
+            if (a.event.Start !== b.event.Start) return a.event.Start - b.event.Start
+            if (a.event.Layer !== b.event.Layer) return a.event.Layer - b.event.Layer
+            return a.event.End - b.event.End
+        })
+    } else {
+        // Classic: start time → layer → end time (preserves render stacking order)
+        eventsWithMeta.sort((a, b) =>
+            a.event.Start - b.event.Start || a.event.Layer - b.event.Layer || a.event.End - b.event.End
+        )
+    }
+
+    for (const { event, style } of eventsWithMeta) {
         // Find the style to get default alignment
-        const style = styleMap.get(event.Style)
         const defaultAlignment = style?.Alignment ?? 2
 
         // Process text — preserve all override tags, just handle \N/\n/\h
