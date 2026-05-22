@@ -37,7 +37,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     useHtmlTags: true,
     mergeDuplicates: true,
     stripEmptyLines: true,
-    stripSigns: true,
+    stripSigns: false,
     snapThreshold: 0,
     snapUnit: "ms",
     minGap: 0,

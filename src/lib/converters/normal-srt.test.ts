@@ -55,8 +55,8 @@ describe("convertNormalSrt", () => {
         expect(srt).toContain("Line with \nnewline")
     })
 
-    it("strips TS-only tags (\\pos, \\fscx) when stripSigns=false", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
+    it("strips TS-only tags (\\pos, \\fscx)", () => {
+        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
         expect(srt).toContain("TS only")
         expect(srt).not.toContain("\\pos")
         expect(srt).not.toContain("\\fscx")
@@ -120,15 +120,15 @@ Dialogue: 10,0:14:14.96,0:14:17.40,Default,,0,0,0,,Kudengar dia sangat menyukai 
 describe("convertNormalSrt — stripSigns", () => {
     const track = parseAss(OVERLAP_ASS)
 
-    it("strips all sign/TS lines by default (stripSigns=true)", () => {
-        const srt = convertNormalSrt(track)
+    it("strips all sign/TS lines when stripSigns=true", () => {
+        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: true, stripEmptyLines: true, stripSigns: true })
         expect(srt).not.toContain("Alasan Mengapa")
         expect(srt).not.toContain("Pengungkapan Eksklusif")
         expect(srt).not.toContain("Garis Depan")
     })
 
     it("keeps dialogue lines when stripSigns=true", () => {
-        const srt = convertNormalSrt(track)
+        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: true, stripEmptyLines: true, stripSigns: true })
         expect(srt).toContain("Dia itu lahir di Prancis")
         expect(srt).toContain("Kudengar dia sangat menyukai")
     })
@@ -142,8 +142,8 @@ describe("convertNormalSrt — stripSigns", () => {
         expect(blocks[1]).toContain("Kudengar dia sangat menyukai")
     })
 
-    it("keeps sign lines when stripSigns=false", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
+    it("keeps sign lines by default (stripSigns=false)", () => {
+        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
         expect(srt).toContain("Alasan Mengapa")
         expect(srt).toContain("Pengungkapan Eksklusif")
         expect(srt).toContain("Garis Depan")
@@ -151,7 +151,7 @@ describe("convertNormalSrt — stripSigns", () => {
     })
 
     it("dialogue stays at the end (higher index) when signs are kept", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: false })
+        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
         // At timestamp 14:14.73, signs should come before the dialogue at 14:14.96
         const signIdx = srt.indexOf("Alasan Mengapa")
         const dialogIdx = srt.indexOf("Kudengar dia sangat")
@@ -184,7 +184,6 @@ Dialogue: 0,0:00:08.00,0:00:10.00,Default,,0,0,0,,Line C after gap
             useHtmlTags: false,
             mergeDuplicates: false,
             stripEmptyLines: true,
-            stripSigns: false,
             snapThreshold: 200,
             minGap: 0
         })
@@ -200,7 +199,6 @@ Dialogue: 0,0:00:08.00,0:00:10.00,Default,,0,0,0,,Line C after gap
             useHtmlTags: false,
             mergeDuplicates: false,
             stripEmptyLines: true,
-            stripSigns: false,
             snapThreshold: 0,
             minGap: 100
         })
@@ -215,7 +213,6 @@ Dialogue: 0,0:00:08.00,0:00:10.00,Default,,0,0,0,,Line C after gap
             useHtmlTags: false,
             mergeDuplicates: false,
             stripEmptyLines: true,
-            stripSigns: false,
             snapThreshold: 1500, // Line B ends at 7000, Line C starts at 8000 — gap 1000ms < 1500
             minGap: 0
         })
