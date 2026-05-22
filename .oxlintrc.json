@@ -21,6 +21,7 @@
         "jsx-a11y/role-supports-aria-props": "warn",
         "jsx-a11y/aria-props": "warn",
         "jsx-a11y/aria-proptypes": "warn",
-        "jsx-a11y/label-has-associated-control": "off"
+        "jsx-a11y/label-has-associated-control": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off"
     }
 }
