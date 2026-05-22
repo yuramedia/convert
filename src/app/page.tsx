@@ -28,7 +28,8 @@ export default function Home() {
         targetHeight: 1080,
         outputFormat: "srt",
         injectAn2: false,
-        compensateAspectRatio: true
+        compensateAspectRatio: true,
+        signFirst: true
     })
 
     const [outputContent, setOutputContent] = useState<string>("")

@@ -58,7 +58,7 @@ export default function OptionsPanel({
                                 </FieldDescription>
                             </div>
                             <Switch
-                                checked={keeptOptions.signFirst ?? true}
+                                checked={keeptOptions.signFirst}
                                 onCheckedChange={c => setKeeptOptions({ ...keeptOptions, signFirst: c })}
                             />
                         </Field>
@@ -329,7 +329,7 @@ export default function OptionsPanel({
                                         </FieldDescription>
                                     </div>
                                     <Switch
-                                        checked={resampleOptions.signFirst ?? true}
+                                        checked={resampleOptions.signFirst}
                                         onCheckedChange={c => setResampleOptions({ ...resampleOptions, signFirst: c })}
                                     />
                                 </Field>

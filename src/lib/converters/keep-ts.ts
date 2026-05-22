@@ -21,8 +21,8 @@ export interface KeepTsOptions {
     injectAn2: boolean
     /** When true, sort sign/TS entries before dialogue entries in SRT output.
      *  This ensures dialogue renders on top (highest z-order) in libass-based players,
-     *  since later SRT entries render above earlier ones. Default: true */
-    signFirst?: boolean
+     *  since later SRT entries render above earlier ones. */
+    signFirst: boolean
 }
 
 export const DEFAULT_KEEPTS_OPTIONS: KeepTsOptions = {
@@ -34,7 +34,7 @@ const ALIGN_TAGS = new Set(["an", "a"])
 
 export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_KEEPTS_OPTIONS): string {
     const entries: SrtEntry[] = []
-    const signFirst = options.signFirst ?? true
+    const signFirst = options.signFirst
 
     // Build style map for O(1) lookups
     const styleMap = new Map(track.styles.map(s => [s.Name, s]))
