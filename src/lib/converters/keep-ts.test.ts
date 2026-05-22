@@ -88,11 +88,65 @@ describe("convertKeepTs", () => {
         }
     })
 
-    it("sorts sign lines before dialogue when signFirst=true", () => {
-        const srt = convertKeepTs(track, { injectAn2: false, signFirst: true })
-        // TopCenter style line (has \pos → sign) should appear before Default dialogue lines
-        const signIdx = srt.indexOf("Complex TS")
-        const dialogueIdx = srt.indexOf("Plain text")
+    it("sorts sign lines before dialogue within overlapping groups", () => {
+        // Build a fixture where sign and dialogue overlap in time
+        const overlapTrack = parseAss(`[Script Info]
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Sign,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,8,20,20,15,1
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 10,0:00:01.00,0:00:05.00,Default,,0,0,0,,Early dialogue
+Dialogue: 0,0:00:10.00,0:00:18.00,Sign,,0,0,0,,{\\pos(640,100)}Overlapping sign
+Dialogue: 10,0:00:12.00,0:00:20.00,Default,,0,0,0,,Overlapping dialogue
+Dialogue: 10,0:00:25.00,0:00:30.00,Default,,0,0,0,,Later dialogue
+`)
+        const srt = convertKeepTs(overlapTrack, { injectAn2: false, signFirst: true })
+
+        // Within the overlap group (10s-20s): sign should come before dialogue
+        const signIdx = srt.indexOf("Overlapping sign")
+        const dialogueIdx = srt.indexOf("Overlapping dialogue")
         expect(signIdx).toBeLessThan(dialogueIdx)
+
+        // Non-overlapping entries stay chronological:
+        // "Early dialogue" (1s) before the overlap group (10s)
+        // "Later dialogue" (25s) after the overlap group
+        const earlyIdx = srt.indexOf("Early dialogue")
+        const laterIdx = srt.indexOf("Later dialogue")
+        expect(earlyIdx).toBeLessThan(signIdx)
+        expect(laterIdx).toBeGreaterThan(dialogueIdx)
+    })
+
+    it("keeps non-overlapping entries in chronological order with signFirst=true", () => {
+        // Sign at 1s, dialogue at 10s — no overlap, should stay chronological
+        const noOverlapTrack = parseAss(`[Script Info]
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Sign,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,8,20,20,15,1
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:05.00,Sign,,0,0,0,,{\\pos(640,100)}Early sign
+Dialogue: 10,0:00:10.00,0:00:15.00,Default,,0,0,0,,Later dialogue
+`)
+        const srt = convertKeepTs(noOverlapTrack, { injectAn2: false, signFirst: true })
+
+        // No overlap → chronological order preserved: sign at 1s before dialogue at 10s
+        const signIdx = srt.indexOf("Early sign")
+        const dialogueIdx = srt.indexOf("Later dialogue")
+        expect(signIdx).toBeLessThan(dialogueIdx)
+
+        // Timestamps should also be chronological
+        const timestamps = [...srt.matchAll(/(\d{2}:\d{2}:\d{2},\d{3}) -->/g)].map(m => m[1])
+        for (let i = 1; i < timestamps.length; i++) {
+            expect(timestamps[i] >= timestamps[i - 1]).toBe(true)
+        }
     })
 })

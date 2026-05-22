@@ -52,21 +52,51 @@ export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_
             }
         })
 
-    // Sort events
+    // Sort events chronologically first (start time → layer → end time)
+    eventsWithMeta.sort((a, b) =>
+        a.event.Start - b.event.Start || a.event.Layer - b.event.Layer || a.event.End - b.event.End
+    )
+
+    // When signFirst is enabled, reorder within overlapping timestamp groups
+    // so signs come before dialogue. Non-overlapping entries stay chronological.
+    // In SRT, later entries render on top (highest z-order in libass), so putting
+    // dialogue after signs ensures dialogue is always visible.
     if (signFirst) {
-        // Signs first, then dialogue — ensures dialogue renders on top in SRT (libass)
-        // Within each group: start time → layer → end time
-        eventsWithMeta.sort((a, b) => {
-            if (a.isSign !== b.isSign) return a.isSign ? -1 : 1
-            if (a.event.Start !== b.event.Start) return a.event.Start - b.event.Start
-            if (a.event.Layer !== b.event.Layer) return a.event.Layer - b.event.Layer
-            return a.event.End - b.event.End
-        })
-    } else {
-        // Classic: start time → layer → end time (preserves render stacking order)
-        eventsWithMeta.sort((a, b) =>
-            a.event.Start - b.event.Start || a.event.Layer - b.event.Layer || a.event.End - b.event.End
-        )
+        const reordered: typeof eventsWithMeta = []
+        let i = 0
+
+        while (i < eventsWithMeta.length) {
+            // Find the extent of the current overlap group
+            let groupMaxEnd = eventsWithMeta[i].event.End
+            let j = i + 1
+
+            while (j < eventsWithMeta.length && eventsWithMeta[j].event.Start < groupMaxEnd) {
+                groupMaxEnd = Math.max(groupMaxEnd, eventsWithMeta[j].event.End)
+                j++
+            }
+
+            // Group is [i, j). If single entry or no mixed types, push as-is.
+            if (j - i <= 1) {
+                reordered.push(eventsWithMeta[i])
+            } else {
+                // Stable partition: signs first, then dialogue (preserves relative order within each)
+                const signs: typeof eventsWithMeta = []
+                const dialogues: typeof eventsWithMeta = []
+                for (let k = i; k < j; k++) {
+                    if (eventsWithMeta[k].isSign) {
+                        signs.push(eventsWithMeta[k])
+                    } else {
+                        dialogues.push(eventsWithMeta[k])
+                    }
+                }
+                reordered.push(...signs, ...dialogues)
+            }
+
+            i = j
+        }
+
+        eventsWithMeta.length = 0
+        eventsWithMeta.push(...reordered)
     }
 
     for (const { event, style } of eventsWithMeta) {
