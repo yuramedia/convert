@@ -76,15 +76,16 @@ export function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean
                     if (align === 5 || align === 6 || align === 7 || align === 9 || align === 10 || align === 11)
                         return true
                 } else {
-                    // \an values 4-9 are middle/top
-                    if (align >= 4) return true
+                    // \an values 4-9 are middle/top (valid range is 1-9)
+                    if (align >= 4 && align <= 9) return true
                 }
             }
         }
     }
 
     // 4. Check Style's default alignment if no tag override exists
-    if (style && style.Alignment >= 4) {
+    // Guard: only valid ASS numpad alignments 1-9; treat 0/negative/huge as default (not sign)
+    if (style && style.Alignment >= 4 && style.Alignment <= 9) {
         return true
     }
 

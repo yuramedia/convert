@@ -101,7 +101,10 @@ export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_
 
     for (const { event, style } of eventsWithMeta) {
         // Find the style to get default alignment
-        const defaultAlignment = style?.Alignment ?? 2
+        // Guard: clamp to valid ASS numpad range 1-9; treat 0/negative/huge as default 2
+        // (libass/libass#262: zero, negative, and huge alignment values have undefined behavior)
+        const rawAlignment = style?.Alignment ?? 2
+        const defaultAlignment = (rawAlignment >= 1 && rawAlignment <= 9) ? rawAlignment : 2
 
         // Process text — preserve all override tags, just handle \N/\n/\h
         let text = processTextKeepTags(event.Text, defaultAlignment, options.injectAn2)
