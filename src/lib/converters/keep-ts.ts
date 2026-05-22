@@ -11,7 +11,7 @@
  * Output is SRT with embedded ASS override tags, renderable by mpv/VLC (libass).
  */
 
-import { type AssTrack, type AssStyle } from "../ass-parser"
+import { type AssTrack } from "../ass-parser"
 import { tokenizeText } from "../ass-tags"
 import { type SrtEntry, writeSrt, reindex } from "../srt-writer"
 import { isLikelySign } from "./normal-srt"
@@ -53,8 +53,8 @@ export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_
         })
 
     // Sort events chronologically first (start time → layer → end time)
-    eventsWithMeta.sort((a, b) =>
-        a.event.Start - b.event.Start || a.event.Layer - b.event.Layer || a.event.End - b.event.End
+    eventsWithMeta.sort(
+        (a, b) => a.event.Start - b.event.Start || a.event.Layer - b.event.Layer || a.event.End - b.event.End
     )
 
     // When signFirst is enabled, reorder within overlapping timestamp groups
@@ -104,7 +104,7 @@ export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_
         // Guard: clamp to valid ASS numpad range 1-9; treat 0/negative/huge as default 2
         // (libass/libass#262: zero, negative, and huge alignment values have undefined behavior)
         const rawAlignment = style?.Alignment ?? 2
-        const defaultAlignment = (rawAlignment >= 1 && rawAlignment <= 9) ? rawAlignment : 2
+        const defaultAlignment = rawAlignment >= 1 && rawAlignment <= 9 ? rawAlignment : 2
 
         // Process text — preserve all override tags, just handle \N/\n/\h
         let text = processTextKeepTags(event.Text, defaultAlignment, options.injectAn2)

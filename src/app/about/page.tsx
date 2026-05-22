@@ -137,8 +137,8 @@ export default function AboutPage() {
                                 <p>
                                     For standard SRT output, the engine performs high-velocity{" "}
                                     <strong>Deduplication</strong>. It identifies overlapping signs that share identical
-                                    text and merges them into single events to prevent "flickering" in modern video
-                                    players.
+                                    text and merges them into single events to prevent &quot;flickering&quot; in modern
+                                    video players.
                                 </p>
                             </CardContent>
                         </Card>
@@ -156,7 +156,7 @@ export default function AboutPage() {
                     <p className="text-sm leading-relaxed">
                         Unlike traditional converters that upload files to a server, this tool operates on a{" "}
                         <strong>Zero-Trust model</strong>. Every single byte of your subtitle file is processed within
-                        your browser's RAM.
+                        your browser&apos;s RAM.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                         <div className="flex gap-4">

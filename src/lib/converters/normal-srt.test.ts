@@ -121,20 +121,35 @@ describe("convertNormalSrt — stripSigns", () => {
     const track = parseAss(OVERLAP_ASS)
 
     it("strips all sign/TS lines when stripSigns=true", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: true, stripEmptyLines: true, stripSigns: true })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: true,
+            stripEmptyLines: true,
+            stripSigns: true
+        })
         expect(srt).not.toContain("Alasan Mengapa")
         expect(srt).not.toContain("Pengungkapan Eksklusif")
         expect(srt).not.toContain("Garis Depan")
     })
 
     it("keeps dialogue lines when stripSigns=true", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: true, stripEmptyLines: true, stripSigns: true })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: true,
+            stripEmptyLines: true,
+            stripSigns: true
+        })
         expect(srt).toContain("Dia itu lahir di Prancis")
         expect(srt).toContain("Kudengar dia sangat menyukai")
     })
 
     it("output is clean SRT with only dialogue when stripSigns=true", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: true, stripEmptyLines: true, stripSigns: true })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: true,
+            stripEmptyLines: true,
+            stripSigns: true
+        })
         const blocks = srt.trim().split(/\n\n+/)
         // Should only have 2 entries (the two dialogue lines)
         expect(blocks).toHaveLength(2)

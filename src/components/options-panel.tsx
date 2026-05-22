@@ -330,9 +330,7 @@ export default function OptionsPanel({
                                     </div>
                                     <Switch
                                         checked={resampleOptions.signFirst ?? true}
-                                        onCheckedChange={c =>
-                                            setResampleOptions({ ...resampleOptions, signFirst: c })
-                                        }
+                                        onCheckedChange={c => setResampleOptions({ ...resampleOptions, signFirst: c })}
                                     />
                                 </Field>
                             </>
