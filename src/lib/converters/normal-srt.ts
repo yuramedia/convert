@@ -47,7 +47,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
 const ALIGN_TAGS = new Set(["an", "a"])
-const SIGN_KEYWORDS = ["sign", "ts", "typeset", "op", "ed", "song"]
+const SIGN_KEYWORDS = ["sign", "ts", "typeset", "op", "ed"]
 
 /**
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
