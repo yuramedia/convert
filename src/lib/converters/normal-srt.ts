@@ -17,6 +17,10 @@ export interface NormalSrtOptions {
     useHtmlTags: boolean
     mergeDuplicates: boolean
     stripEmptyLines: boolean
+    /** Strip typesetting/sign lines from output. Default true.
+     *  Signs use \pos, \clip, etc. which SRT doesn't support,
+     *  so they are useless in plain SRT. Use Keep-TS mode instead. */
+    stripSigns?: boolean
     /** Snap threshold value. Default 0 (disabled). */
     snapThreshold?: number
     /** Unit for snap threshold: 'ms' or 'frames'. Default 'ms'. */
@@ -33,6 +37,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     useHtmlTags: true,
     mergeDuplicates: true,
     stripEmptyLines: true,
+    stripSigns: false,
     snapThreshold: 0,
     snapUnit: "ms",
     minGap: 0,
@@ -42,13 +47,13 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
 const ALIGN_TAGS = new Set(["an", "a"])
-const SIGN_KEYWORDS = ["sign", "ts", "typeset", "op", "ed", "song"]
+const SIGN_KEYWORDS = ["sign", "ts", "typeset", "op", "ed"]
 
 /**
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
  * Signs should appear before dialogue in merged SRT blocks (so dialogue stays at the bottom).
  */
-function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
+export function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
     for (let i = 0; i < segments.length; i++) {
         const segTags = segments[i].tags
         if (!segTags) continue
@@ -65,21 +70,22 @@ function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
 
             // 3. Check for Alignment tags (4-9 are middle/top, usually signs or top-subs)
             if (ALIGN_TAGS.has(nameLower)) {
-                let align = parseInt(t.value, 10)
+                const align = parseInt(t.value, 10)
                 // \a is legacy alignment: 5,6,7 are top; 9,10,11 are middle
                 if (nameLower === "a") {
                     if (align === 5 || align === 6 || align === 7 || align === 9 || align === 10 || align === 11)
                         return true
                 } else {
-                    // \an values 4-9 are middle/top
-                    if (align >= 4) return true
+                    // \an values 4-9 are middle/top (valid range is 1-9)
+                    if (align >= 4 && align <= 9) return true
                 }
             }
         }
     }
 
     // 4. Check Style's default alignment if no tag override exists
-    if (style && style.Alignment >= 4) {
+    // Guard: only valid ASS numpad alignments 1-9; treat 0/negative/huge as default (not sign)
+    if (style && style.Alignment >= 4 && style.Alignment <= 9) {
         return true
     }
 
@@ -112,12 +118,17 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
         const segments = tokenizeText(event.Text)
         const style = styleMap.get(event.Style)
+        const isSign = isLikelySign(segments, style)
+
+        // Filter out sign/TS lines when stripSigns is enabled
+        if (fullOptions.stripSigns && isSign) return []
+
         return [
             {
                 event,
                 segments,
                 style,
-                isSign: isLikelySign(segments, style)
+                isSign
             }
         ]
     })
@@ -183,6 +194,9 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
             const current = entries[i]
             const next = entries[i + 1]
             const gap = next.startMs - current.endMs
+
+            // Skip overlapping entries — snap/gap only applies to sequential gaps
+            if (gap < 0) continue
 
             // Option 1: Snap (extend current to meet next)
             // Only if gap is positive and within threshold

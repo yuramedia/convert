@@ -124,7 +124,14 @@ export default function FileDropzone({ onFileLoaded, parsedTrack, fileName, onCl
             onDragLeave={handleDragLeave}
             onClick={handleClick}
         >
-            <input ref={inputRef} type="file" accept=".ass,.ssa" className="hidden" onChange={handleInputChange} />
+            <input
+                ref={inputRef}
+                type="file"
+                accept=".ass,.ssa"
+                className="hidden"
+                onChange={handleInputChange}
+                aria-label="Upload subtitle file"
+            />
             {isLoading ? (
                 <div className="flex flex-col items-center gap-3">
                     <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />

@@ -49,6 +49,19 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setKeeptOptions({ ...keeptOptions, injectAn2: c })}
                             />
                         </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Sign-First Ordering</FieldLabel>
+                                <FieldDescription>
+                                    Sort signs/TS before dialogue in SRT output so dialogue always renders on top
+                                    (libass z-order).
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={keeptOptions.signFirst ?? true}
+                                onCheckedChange={c => setKeeptOptions({ ...keeptOptions, signFirst: c })}
+                            />
+                        </Field>
                     </FieldGroup>
                 </CardContent>
             </Card>
@@ -95,6 +108,19 @@ export default function OptionsPanel({
                             <Switch
                                 checked={normalOptions.stripEmptyLines}
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, stripEmptyLines: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Strip Typesetting / Signs</FieldLabel>
+                                <FieldDescription>
+                                    Remove positioned signs and typesetting. Recommended for clean SRT — use Keep TS
+                                    mode to preserve them.
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={normalOptions.stripSigns ?? true}
+                                onCheckedChange={c => setNormalOptions({ ...normalOptions, stripSigns: c })}
                             />
                         </Field>
                     </FieldGroup>
@@ -284,16 +310,30 @@ export default function OptionsPanel({
                         </Field>
 
                         {resampleOptions.outputFormat === "srt" ? (
-                            <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-6 border-t">
-                                <div className="flex-1">
-                                    <FieldLabel>Explicit Alignment</FieldLabel>
-                                    <FieldDescription>Force inject \\an2 tags.</FieldDescription>
-                                </div>
-                                <Switch
-                                    checked={resampleOptions.injectAn2 ?? false}
-                                    onCheckedChange={c => setResampleOptions({ ...resampleOptions, injectAn2: c })}
-                                />
-                            </Field>
+                            <>
+                                <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-6 border-t">
+                                    <div className="flex-1">
+                                        <FieldLabel>Explicit Alignment</FieldLabel>
+                                        <FieldDescription>Force inject \\an2 tags.</FieldDescription>
+                                    </div>
+                                    <Switch
+                                        checked={resampleOptions.injectAn2 ?? false}
+                                        onCheckedChange={c => setResampleOptions({ ...resampleOptions, injectAn2: c })}
+                                    />
+                                </Field>
+                                <Field orientation="horizontal" className="col-span-1 md:col-span-2">
+                                    <div className="flex-1">
+                                        <FieldLabel>Sign-First Ordering</FieldLabel>
+                                        <FieldDescription>
+                                            Sort signs/TS before dialogue so dialogue renders on top (libass z-order).
+                                        </FieldDescription>
+                                    </div>
+                                    <Switch
+                                        checked={resampleOptions.signFirst ?? true}
+                                        onCheckedChange={c => setResampleOptions({ ...resampleOptions, signFirst: c })}
+                                    />
+                                </Field>
+                            </>
                         ) : null}
 
                         <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-6 border-t">

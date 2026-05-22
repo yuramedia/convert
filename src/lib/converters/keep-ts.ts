@@ -14,33 +14,97 @@
 import { type AssTrack } from "../ass-parser"
 import { tokenizeText } from "../ass-tags"
 import { type SrtEntry, writeSrt, reindex } from "../srt-writer"
+import { isLikelySign } from "./normal-srt"
 
 export interface KeepTsOptions {
     /** When true, explicitly inject \an2 even though it's the libass global default. Default: false */
     injectAn2: boolean
+    /** When true, sort sign/TS entries before dialogue entries in SRT output.
+     *  This ensures dialogue renders on top (highest z-order) in libass-based players,
+     *  since later SRT entries render above earlier ones. Default: true */
+    signFirst?: boolean
 }
 
 export const DEFAULT_KEEPTS_OPTIONS: KeepTsOptions = {
-    injectAn2: false
+    injectAn2: false,
+    signFirst: true
 }
 
 const ALIGN_TAGS = new Set(["an", "a"])
 
 export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_KEEPTS_OPTIONS): string {
     const entries: SrtEntry[] = []
+    const signFirst = options.signFirst ?? true
 
     // Build style map for O(1) lookups
     const styleMap = new Map(track.styles.map(s => [s.Name, s]))
 
-    // Sort events by start time, then layer, then end time (preserves render stacking order)
-    const dialogues = track.events
+    // Pre-process: filter Dialogue, detect sign-ness
+    const eventsWithMeta = track.events
         .filter(e => e.type === "Dialogue")
-        .sort((a, b) => a.Start - b.Start || a.Layer - b.Layer || a.End - b.End)
+        .map(event => {
+            const style = styleMap.get(event.Style)
+            const segments = tokenizeText(event.Text)
+            return {
+                event,
+                style,
+                isSign: isLikelySign(segments, style)
+            }
+        })
 
-    for (const event of dialogues) {
+    // Sort events chronologically first (start time → layer → end time)
+    eventsWithMeta.sort(
+        (a, b) => a.event.Start - b.event.Start || a.event.Layer - b.event.Layer || a.event.End - b.event.End
+    )
+
+    // When signFirst is enabled, reorder within overlapping timestamp groups
+    // so signs come before dialogue. Non-overlapping entries stay chronological.
+    // In SRT, later entries render on top (highest z-order in libass), so putting
+    // dialogue after signs ensures dialogue is always visible.
+    if (signFirst) {
+        const reordered: typeof eventsWithMeta = []
+        let i = 0
+
+        while (i < eventsWithMeta.length) {
+            // Find the extent of the current overlap group
+            let groupMaxEnd = eventsWithMeta[i].event.End
+            let j = i + 1
+
+            while (j < eventsWithMeta.length && eventsWithMeta[j].event.Start < groupMaxEnd) {
+                groupMaxEnd = Math.max(groupMaxEnd, eventsWithMeta[j].event.End)
+                j++
+            }
+
+            // Group is [i, j). If single entry or no mixed types, push as-is.
+            if (j - i <= 1) {
+                reordered.push(eventsWithMeta[i])
+            } else {
+                // Stable partition: signs first, then dialogue (preserves relative order within each)
+                const signs: typeof eventsWithMeta = []
+                const dialogues: typeof eventsWithMeta = []
+                for (let k = i; k < j; k++) {
+                    if (eventsWithMeta[k].isSign) {
+                        signs.push(eventsWithMeta[k])
+                    } else {
+                        dialogues.push(eventsWithMeta[k])
+                    }
+                }
+                reordered.push(...signs, ...dialogues)
+            }
+
+            i = j
+        }
+
+        eventsWithMeta.length = 0
+        eventsWithMeta.push(...reordered)
+    }
+
+    for (const { event, style } of eventsWithMeta) {
         // Find the style to get default alignment
-        const style = styleMap.get(event.Style)
-        const defaultAlignment = style?.Alignment ?? 2
+        // Guard: clamp to valid ASS numpad range 1-9; treat 0/negative/huge as default 2
+        // (libass/libass#262: zero, negative, and huge alignment values have undefined behavior)
+        const rawAlignment = style?.Alignment ?? 2
+        const defaultAlignment = rawAlignment >= 1 && rawAlignment <= 9 ? rawAlignment : 2
 
         // Process text — preserve all override tags, just handle \N/\n/\h
         let text = processTextKeepTags(event.Text, defaultAlignment, options.injectAn2)

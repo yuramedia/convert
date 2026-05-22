@@ -56,7 +56,7 @@ describe("convertNormalSrt", () => {
     })
 
     it("strips TS-only tags (\\pos, \\fscx)", () => {
-        const srt = convertNormalSrt(track)
+        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true })
         expect(srt).toContain("TS only")
         expect(srt).not.toContain("\\pos")
         expect(srt).not.toContain("\\fscx")
@@ -92,5 +92,146 @@ describe("convertNormalSrt", () => {
         for (let i = 1; i < timestamps.length; i++) {
             expect(timestamps[i] >= timestamps[i - 1]).toBe(true)
         }
+    })
+})
+
+// ─── stripSigns option ───────────────────────────────────────────────────────
+
+const OVERLAP_ASS = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Calibri,78,&H00FFFFFF,&H000000FF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,1,3,1,2,30,30,45,1
+Style: Sign,Arial,60,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,5,1,8,90,90,76,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:14:14.73,0:14:16.46,Sign,,0,0,0,,{\\an2\\pos(642,324)\\bord6\\b1\\shad0\\fs40\\frz-4.66}Alasan Mengapa Komedian Pria
+Dialogue: 1,0:14:14.73,0:14:16.46,Sign,,0,0,0,,{\\an2\\pos(642,324)\\bord3\\b1\\shad0\\fs40\\frz-4.66}Alasan Mengapa Komedian Pria
+Dialogue: 0,0:14:14.73,0:14:16.46,Sign,,0,0,0,,{\\an7\\pos(1479.78,393.02)\\fs30\\b1\\shad0\\frz8.64}Pengungkapan Eksklusif
+Dialogue: 0,0:14:14.73,0:14:16.46,Sign,,0,0,0,,{\\an7\\pos(1376.34,881.7)\\bord8\\b1\\shad0\\frz15.34}Garis Depan Pemulihan
+Dialogue: 10,0:14:09.54,0:14:14.96,Default,,0,0,0,,Dia itu lahir di Prancis, tapi ayahnya\\Nasal Prancis dan ibunya asal Jepang.
+Dialogue: 10,0:14:14.96,0:14:17.40,Default,,0,0,0,,Kudengar dia sangat menyukai {\\i1}wine{\\i0}.
+`
+
+describe("convertNormalSrt — stripSigns", () => {
+    const track = parseAss(OVERLAP_ASS)
+
+    it("strips all sign/TS lines when stripSigns=true", () => {
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: true,
+            stripEmptyLines: true,
+            stripSigns: true
+        })
+        expect(srt).not.toContain("Alasan Mengapa")
+        expect(srt).not.toContain("Pengungkapan Eksklusif")
+        expect(srt).not.toContain("Garis Depan")
+    })
+
+    it("keeps dialogue lines when stripSigns=true", () => {
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: true,
+            stripEmptyLines: true,
+            stripSigns: true
+        })
+        expect(srt).toContain("Dia itu lahir di Prancis")
+        expect(srt).toContain("Kudengar dia sangat menyukai")
+    })
+
+    it("output is clean SRT with only dialogue when stripSigns=true", () => {
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: true,
+            stripEmptyLines: true,
+            stripSigns: true
+        })
+        const blocks = srt.trim().split(/\n\n+/)
+        // Should only have 2 entries (the two dialogue lines)
+        expect(blocks).toHaveLength(2)
+        expect(blocks[0]).toContain("Dia itu lahir di Prancis")
+        expect(blocks[1]).toContain("Kudengar dia sangat menyukai")
+    })
+
+    it("keeps sign lines by default (stripSigns=false)", () => {
+        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        expect(srt).toContain("Alasan Mengapa")
+        expect(srt).toContain("Pengungkapan Eksklusif")
+        expect(srt).toContain("Garis Depan")
+        expect(srt).toContain("Dia itu lahir di Prancis")
+    })
+
+    it("dialogue stays at the end (higher index) when signs are kept", () => {
+        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true })
+        // At timestamp 14:14.73, signs should come before the dialogue at 14:14.96
+        const signIdx = srt.indexOf("Alasan Mengapa")
+        const dialogIdx = srt.indexOf("Kudengar dia sangat")
+        expect(signIdx).toBeLessThan(dialogIdx)
+    })
+})
+
+// ─── Overlap-aware snap/gap ──────────────────────────────────────────────────
+
+describe("convertNormalSrt — overlap-aware snap/gap", () => {
+    const OVERLAPPING_ASS = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:05.00,Default,,0,0,0,,Line A
+Dialogue: 0,0:00:03.00,0:00:07.00,Default,,0,0,0,,Line B overlaps A
+Dialogue: 0,0:00:08.00,0:00:10.00,Default,,0,0,0,,Line C after gap
+`
+
+    it("does not corrupt timestamps when entries overlap and snap is active", () => {
+        const track = parseAss(OVERLAPPING_ASS)
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            snapThreshold: 200,
+            minGap: 0
+        })
+        // Line A ends at 5000, Line B starts at 3000 (overlap) — snap should be skipped
+        expect(srt).toContain("00:00:01,000 --> 00:00:05,000")
+        // Line B should remain unchanged
+        expect(srt).toContain("00:00:03,000 --> 00:00:07,000")
+    })
+
+    it("does not corrupt timestamps when entries overlap and minGap is active", () => {
+        const track = parseAss(OVERLAPPING_ASS)
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            snapThreshold: 0,
+            minGap: 100
+        })
+        // Overlap: Line A (1-5s) and Line B (3-7s) — gap is negative, skip
+        expect(srt).toContain("00:00:01,000 --> 00:00:05,000")
+        expect(srt).toContain("00:00:03,000 --> 00:00:07,000")
+    })
+
+    it("still applies snap to non-overlapping sequential entries", () => {
+        const track = parseAss(OVERLAPPING_ASS)
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            snapThreshold: 1500, // Line B ends at 7000, Line C starts at 8000 — gap 1000ms < 1500
+            minGap: 0
+        })
+        // Line B should snap to Line C's start
+        expect(srt).toContain("00:00:03,000 --> 00:00:08,000")
     })
 })
