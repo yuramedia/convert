@@ -8,7 +8,7 @@ import {
     cleanSheetName,
     createCombinedXlsxBuffer
 } from "./xlsx-export"
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx-js-style"
 
 const SAMPLE_ASS = `[Script Info]
 ScriptType: v4.00+

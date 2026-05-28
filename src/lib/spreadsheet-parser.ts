@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx-js-style"
 import { type AssTrack, type AssEvent, type AssStyle } from "./ass-parser"
 
 export interface ColumnMapping {

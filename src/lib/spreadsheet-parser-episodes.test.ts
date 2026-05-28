@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx-js-style"
 import {
     detectEpisodes,
     getSpreadsheetPreview,
