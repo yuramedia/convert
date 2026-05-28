@@ -3,12 +3,11 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Layers, Info, Cpu } from "lucide-react"
-import FileDropzone from "@/components/file-dropzone"
+import FileDropzone, { type QueuedFile } from "@/components/file-dropzone"
 import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
 import OptionsPanel from "@/components/options-panel"
 import OutputPreview from "@/components/output-preview"
 import ColumnMapper from "@/components/column-mapper"
-import { type AssTrack } from "@/lib/ass-parser"
 import { convertNormalSrt, DEFAULT_NORMAL_OPTIONS, type NormalSrtOptions } from "@/lib/converters/normal-srt"
 import { convertKeepTs, DEFAULT_KEEPTS_OPTIONS, type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { convertResampleTs, type ResampleOptions } from "@/lib/converters/resample-ts"
@@ -19,15 +18,18 @@ import {
     DEFAULT_XLSX_OPTIONS,
     type XlsxExportOptions
 } from "@/lib/converters/xlsx-export"
-import { type SpreadsheetPreview, type ColumnMapping, parseSpreadsheet } from "@/lib/spreadsheet-parser"
+import { type ColumnMapping, parseSpreadsheet } from "@/lib/spreadsheet-parser"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
 export default function Home() {
-    const [parsedTrack, setParsedTrack] = useState<AssTrack | null>(null)
-    const [fileName, setFileName] = useState<string>("")
+    const [files, setFiles] = useState<QueuedFile[]>([])
     const [mode, setMode] = useState<ConversionMode>("normal")
+    const [isConverting, setIsConverting] = useState(false)
+    const [activePreviewId, setActivePreviewId] = useState<string | null>(null)
+    const [mappingFileId, setMappingFileId] = useState<string | null>(null)
 
+    // Global settings options
     const [normalOptions, setNormalOptions] = useState<NormalSrtOptions>(DEFAULT_NORMAL_OPTIONS)
     const [keeptOptions, setKeeptOptions] = useState<KeepTsOptions>(DEFAULT_KEEPTS_OPTIONS)
     const [resampleOptions, setResampleOptions] = useState<ResampleOptions>({
@@ -40,118 +42,192 @@ export default function Home() {
         compensateAspectRatio: true,
         signFirst: true
     })
-
-    // CSV & Excel settings
     const [csvOptions, setCsvOptions] = useState<CsvExportOptions>(DEFAULT_CSV_OPTIONS)
     const [xlsxOptions, setXlsxOptions] = useState<XlsxExportOptions>(DEFAULT_XLSX_OPTIONS)
 
-    // Spreadsheet import states
-    const [spreadsheetPreview, setSpreadsheetPreview] = useState<SpreadsheetPreview | null>(null)
-    const [spreadsheetBuffer, setSpreadsheetBuffer] = useState<ArrayBuffer | null>(null)
+    const handleFilesAdded = (newFiles: QueuedFile[]) => {
+        setFiles(prev => {
+            const updated = [...prev, ...newFiles]
 
-    // Excel preview/download data
-    const [xlsxData, setXlsxData] = useState<any[]>([])
-    const [xlsxBuffer, setXlsxBuffer] = useState<Uint8Array | null>(null)
+            // Heuristic resolution setup from first subtitle file containing script resolution info
+            const firstWithRes = newFiles.find(f => f.track && f.track.scriptInfo.PlayResX)
+            if (firstWithRes && firstWithRes.track) {
+                setResampleOptions(prevOpts => {
+                    if (prevOpts.sourceWidth === 0) {
+                        return {
+                            ...prevOpts,
+                            sourceWidth: firstWithRes.track!.scriptInfo.PlayResX || 0,
+                            sourceHeight: firstWithRes.track!.scriptInfo.PlayResY || 0
+                        }
+                    }
+                    return prevOpts
+                })
+            }
 
-    const [outputContent, setOutputContent] = useState<string>("")
-    const [isConverting, setIsConverting] = useState(false)
-
-    const handleFileLoaded = (content: string, name: string, track: AssTrack) => {
-        setParsedTrack(track)
-        setFileName(name)
-        setOutputContent("")
-        setSpreadsheetPreview(null)
-        setSpreadsheetBuffer(null)
-        setXlsxData([])
-        setXlsxBuffer(null)
-
-        if (track && track.scriptInfo) {
-            setResampleOptions(prev => ({
-                ...prev,
-                sourceWidth: track.scriptInfo.PlayResX || 0,
-                sourceHeight: track.scriptInfo.PlayResY || 0
-            }))
-        }
+            return updated
+        })
     }
 
-    const handleSpreadsheetUploaded = (preview: SpreadsheetPreview, name: string, buffer: ArrayBuffer) => {
-        setSpreadsheetPreview(preview)
-        setSpreadsheetBuffer(buffer)
-        setFileName(name)
-        setParsedTrack(null)
-        setOutputContent("")
-        setXlsxData([])
-        setXlsxBuffer(null)
+    const handleRemoveFile = (id: string) => {
+        setFiles(prev => {
+            const filtered = prev.filter(f => f.id !== id)
+            if (activePreviewId === id) {
+                const nextConverted = filtered.find(f => f.status === "converted")
+                setActivePreviewId(nextConverted ? nextConverted.id : null)
+            }
+            return filtered
+        })
     }
 
-    const handleColumnMappingConfirm = (mapping: ColumnMapping, hasHeader: boolean, fps: number) => {
-        if (!spreadsheetBuffer) return
+    const handleColumnMappingConfirm = (id: string, mapping: ColumnMapping, hasHeader: boolean, fps: number) => {
+        const file = files.find(f => f.id === id)
+        if (!file || !file.spreadsheetBuffer) return
+
         try {
-            const track = parseSpreadsheet(spreadsheetBuffer, mapping, hasHeader, fps)
-            setParsedTrack(track)
-            setSpreadsheetPreview(null)
+            const track = parseSpreadsheet(file.spreadsheetBuffer, mapping, hasHeader, fps)
+            setFiles(prev =>
+                prev.map(f =>
+                    f.id === id
+                        ? {
+                              ...f,
+                              track,
+                              status: "ready" as const
+                          }
+                        : f
+                )
+            )
+
+            // Auto-setup source width/height for resampler if this is the first loaded track with resolutions set
+            if (track && track.scriptInfo.PlayResX) {
+                setResampleOptions(prevOpts => {
+                    if (prevOpts.sourceWidth === 0) {
+                        return {
+                            ...prevOpts,
+                            sourceWidth: track.scriptInfo.PlayResX || 0,
+                            sourceHeight: track.scriptInfo.PlayResY || 0
+                        }
+                    }
+                    return prevOpts
+                })
+            }
+
+            if (mappingFileId === id) {
+                setMappingFileId(null)
+            }
         } catch (err) {
             console.error("Failed to parse spreadsheet:", err)
-            alert("Failed to parse the spreadsheet. Please verify the columns and layout.")
+            alert(`Failed to parse spreadsheet "${file.name}". Please verify the columns and layout.`)
         }
     }
 
-    const handleCancelSpreadsheet = () => {
-        setSpreadsheetPreview(null)
-        setSpreadsheetBuffer(null)
-        setFileName("")
+    const handleColumnMappingCancel = (id: string) => {
+        handleRemoveFile(id)
+        if (mappingFileId === id) {
+            setMappingFileId(null)
+        }
     }
 
-    const handleClear = () => {
-        setParsedTrack(null)
-        setFileName("")
-        setOutputContent("")
-        setSpreadsheetPreview(null)
-        setSpreadsheetBuffer(null)
-        setXlsxData([])
-        setXlsxBuffer(null)
+    const handleClearAll = () => {
+        setFiles([])
+        setActivePreviewId(null)
+        setMappingFileId(null)
     }
 
     const handleConvert = async () => {
-        if (!parsedTrack) return
+        const convertibles = files.filter(f => f.status === "ready" || f.status === "converted")
+        if (convertibles.length === 0) return
 
         setIsConverting(true)
-
-        // Slight delay to allow UI to update to loading state
         await new Promise(resolve => setTimeout(resolve, 50))
 
         try {
-            let result = ""
-            if (mode === "normal") {
-                result = convertNormalSrt(parsedTrack, normalOptions)
-                setXlsxData([])
-                setXlsxBuffer(null)
-            } else if (mode === "keepts") {
-                result = convertKeepTs(parsedTrack, keeptOptions)
-                setXlsxData([])
-                setXlsxBuffer(null)
-            } else if (mode === "resample") {
-                result = convertResampleTs(parsedTrack, resampleOptions)
-                setXlsxData([])
-                setXlsxBuffer(null)
-            } else if (mode === "csv") {
-                result = convertToCsv(parsedTrack, csvOptions)
-                setXlsxData([])
-                setXlsxBuffer(null)
-            } else if (mode === "xlsx") {
-                const data = convertToXlsxData(parsedTrack, xlsxOptions)
-                const buffer = convertToXlsxBuffer(parsedTrack, xlsxOptions)
-                setXlsxData(data)
-                setXlsxBuffer(buffer)
-                result = "EXCEL_EXPORT_SUCCESS"
+            const updatedFiles = await Promise.all(
+                convertibles.map(async file => {
+                    if (!file.track) return file
+                    try {
+                        let outputContent = ""
+                        let xlsxData: any[] | undefined = undefined
+                        let xlsxBuffer: Uint8Array | null = null
+
+                        if (mode === "normal") {
+                            outputContent = convertNormalSrt(file.track, normalOptions)
+                        } else if (mode === "keepts") {
+                            outputContent = convertKeepTs(file.track, keeptOptions)
+                        } else if (mode === "resample") {
+                            outputContent = convertResampleTs(file.track, resampleOptions)
+                        } else if (mode === "csv") {
+                            outputContent = convertToCsv(file.track, csvOptions)
+                        } else if (mode === "xlsx") {
+                            xlsxData = convertToXlsxData(file.track, xlsxOptions)
+                            xlsxBuffer = convertToXlsxBuffer(file.track, xlsxOptions)
+                            outputContent = "EXCEL_EXPORT_SUCCESS"
+                        }
+
+                        return {
+                            ...file,
+                            status: "converted" as const,
+                            outputContent,
+                            xlsxData,
+                            xlsxBuffer
+                        }
+                    } catch (err) {
+                        console.error(`Conversion failed for ${file.name}:`, err)
+                        return {
+                            ...file,
+                            status: "error" as const,
+                            error: "Conversion failed"
+                        }
+                    }
+                })
+            )
+
+            setFiles(prev =>
+                prev.map(f => {
+                    const updated = updatedFiles.find(uf => uf.id === f.id)
+                    return updated ? updated : f
+                })
+            )
+
+            // Default active preview to first successfully converted file in the batch
+            const firstConverted = updatedFiles.find(uf => uf.status === "converted")
+            if (firstConverted) {
+                setActivePreviewId(firstConverted.id)
             }
-            setOutputContent(result)
         } catch (err) {
-            console.error("Conversion failed", err)
-            alert("Conversion failed. Please check the console for details.")
+            console.error("Batch conversion failed:", err)
         } finally {
             setIsConverting(false)
         }
+    }
+
+    const handleDownloadAll = () => {
+        const convertedFiles = files.filter(f => f.status === "converted")
+        if (convertedFiles.length === 0) return
+
+        convertedFiles.forEach((file, index) => {
+            setTimeout(() => {
+                let blob: Blob
+                const format = getOutputFormat()
+
+                if (format === "xlsx" && file.xlsxBuffer) {
+                    blob = new Blob([file.xlsxBuffer as any], {
+                        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    })
+                } else {
+                    blob = new Blob([file.outputContent], { type: "text/plain" })
+                }
+
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement("a")
+                a.href = url
+                const baseName = file.name.replace(/\.[^/.]+$/, "")
+                a.download = `${baseName}.${format}`
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                URL.revokeObjectURL(url)
+            }, index * 300) // 300ms staggered delay to prevent browser blockages on multiple tab downloads
+        })
     }
 
     const getOutputFormat = () => {
@@ -160,6 +236,11 @@ export default function Home() {
         if (mode === "xlsx") return "xlsx"
         return "srt"
     }
+
+    // Sequentially map files: map manually selected files first, or map the first unmapped file in queue
+    const fileToMap =
+        files.find(f => f.id === mappingFileId && f.status === "pending_mapping") ||
+        files.find(f => f.status === "pending_mapping")
 
     return (
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-12 flex flex-col gap-10 relative z-10">
@@ -196,23 +277,25 @@ export default function Home() {
             {/* Main Form Area */}
             <div className="flex flex-col gap-6">
                 <FileDropzone
-                    onFileLoaded={handleFileLoaded}
-                    onSpreadsheetUploaded={handleSpreadsheetUploaded}
-                    parsedTrack={parsedTrack}
-                    fileName={fileName}
-                    onClear={handleClear}
+                    files={files}
+                    onFilesAdded={handleFilesAdded}
+                    onRemoveFile={handleRemoveFile}
+                    onMapFile={setMappingFileId}
+                    onClear={handleClearAll}
                 />
 
-                {spreadsheetPreview && !parsedTrack ? (
+                {fileToMap ? (
                     <ColumnMapper
-                        preview={spreadsheetPreview}
-                        fileName={fileName}
-                        onCancel={handleCancelSpreadsheet}
-                        onConfirm={handleColumnMappingConfirm}
+                        preview={fileToMap.spreadsheetPreview!}
+                        fileName={fileToMap.name}
+                        onCancel={() => handleColumnMappingCancel(fileToMap.id)}
+                        onConfirm={(mapping, hasHeader, fps) =>
+                            handleColumnMappingConfirm(fileToMap.id, mapping, hasHeader, fps)
+                        }
                     />
                 ) : null}
 
-                {parsedTrack ? (
+                {files.length > 0 && !fileToMap ? (
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <Card className="p-5 flex flex-col gap-4 animate-in fade-in duration-500">
                             <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
@@ -235,31 +318,36 @@ export default function Home() {
                             setXlsxOptions={setXlsxOptions}
                         />
 
-                        <div className="flex justify-end">
-                            <Button
-                                onClick={handleConvert}
-                                disabled={isConverting}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 h-11"
-                            >
-                                {isConverting ? (
-                                    <>
-                                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                        Converting...
-                                    </>
-                                ) : (
-                                    "Convert File"
-                                )}
-                            </Button>
-                        </div>
+                        {files.some(f => f.status === "ready" || f.status === "converted") && (
+                            <div className="flex justify-end">
+                                <Button
+                                    onClick={handleConvert}
+                                    disabled={isConverting}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 h-11"
+                                >
+                                    {isConverting ? (
+                                        <>
+                                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                            Converting...
+                                        </>
+                                    ) : files.filter(f => f.status === "ready" || f.status === "converted").length >
+                                      1 ? (
+                                        `Convert ${files.filter(f => f.status === "ready" || f.status === "converted").length} Files`
+                                    ) : (
+                                        "Convert File"
+                                    )}
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 ) : null}
             </div>
 
             <OutputPreview
-                content={outputContent}
-                xlsxData={xlsxData}
-                xlsxBuffer={xlsxBuffer}
-                originalFileName={fileName}
+                files={files}
+                activePreviewId={activePreviewId}
+                onSelectPreview={setActivePreviewId}
+                onDownloadAll={handleDownloadAll}
                 outputFormat={getOutputFormat()}
             />
 
