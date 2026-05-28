@@ -7,10 +7,19 @@ import FileDropzone from "@/components/file-dropzone"
 import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
 import OptionsPanel from "@/components/options-panel"
 import OutputPreview from "@/components/output-preview"
+import ColumnMapper from "@/components/column-mapper"
 import { type AssTrack } from "@/lib/ass-parser"
 import { convertNormalSrt, DEFAULT_NORMAL_OPTIONS, type NormalSrtOptions } from "@/lib/converters/normal-srt"
 import { convertKeepTs, DEFAULT_KEEPTS_OPTIONS, type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { convertResampleTs, type ResampleOptions } from "@/lib/converters/resample-ts"
+import { convertToCsv, DEFAULT_CSV_OPTIONS, type CsvExportOptions } from "@/lib/converters/csv-export"
+import {
+    convertToXlsxData,
+    convertToXlsxBuffer,
+    DEFAULT_XLSX_OPTIONS,
+    type XlsxExportOptions
+} from "@/lib/converters/xlsx-export"
+import { type SpreadsheetPreview, type ColumnMapping, parseSpreadsheet } from "@/lib/spreadsheet-parser"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
@@ -32,6 +41,18 @@ export default function Home() {
         signFirst: true
     })
 
+    // CSV & Excel settings
+    const [csvOptions, setCsvOptions] = useState<CsvExportOptions>(DEFAULT_CSV_OPTIONS)
+    const [xlsxOptions, setXlsxOptions] = useState<XlsxExportOptions>(DEFAULT_XLSX_OPTIONS)
+
+    // Spreadsheet import states
+    const [spreadsheetPreview, setSpreadsheetPreview] = useState<SpreadsheetPreview | null>(null)
+    const [spreadsheetBuffer, setSpreadsheetBuffer] = useState<ArrayBuffer | null>(null)
+
+    // Excel preview/download data
+    const [xlsxData, setXlsxData] = useState<any[]>([])
+    const [xlsxBuffer, setXlsxBuffer] = useState<Uint8Array | null>(null)
+
     const [outputContent, setOutputContent] = useState<string>("")
     const [isConverting, setIsConverting] = useState(false)
 
@@ -39,6 +60,10 @@ export default function Home() {
         setParsedTrack(track)
         setFileName(name)
         setOutputContent("")
+        setSpreadsheetPreview(null)
+        setSpreadsheetBuffer(null)
+        setXlsxData([])
+        setXlsxBuffer(null)
 
         if (track && track.scriptInfo) {
             setResampleOptions(prev => ({
@@ -49,10 +74,42 @@ export default function Home() {
         }
     }
 
+    const handleSpreadsheetUploaded = (preview: SpreadsheetPreview, name: string, buffer: ArrayBuffer) => {
+        setSpreadsheetPreview(preview)
+        setSpreadsheetBuffer(buffer)
+        setFileName(name)
+        setParsedTrack(null)
+        setOutputContent("")
+        setXlsxData([])
+        setXlsxBuffer(null)
+    }
+
+    const handleColumnMappingConfirm = (mapping: ColumnMapping, hasHeader: boolean, fps: number) => {
+        if (!spreadsheetBuffer) return
+        try {
+            const track = parseSpreadsheet(spreadsheetBuffer, mapping, hasHeader, fps)
+            setParsedTrack(track)
+            setSpreadsheetPreview(null)
+        } catch (err) {
+            console.error("Failed to parse spreadsheet:", err)
+            alert("Failed to parse the spreadsheet. Please verify the columns and layout.")
+        }
+    }
+
+    const handleCancelSpreadsheet = () => {
+        setSpreadsheetPreview(null)
+        setSpreadsheetBuffer(null)
+        setFileName("")
+    }
+
     const handleClear = () => {
         setParsedTrack(null)
         setFileName("")
         setOutputContent("")
+        setSpreadsheetPreview(null)
+        setSpreadsheetBuffer(null)
+        setXlsxData([])
+        setXlsxBuffer(null)
     }
 
     const handleConvert = async () => {
@@ -67,10 +124,26 @@ export default function Home() {
             let result = ""
             if (mode === "normal") {
                 result = convertNormalSrt(parsedTrack, normalOptions)
+                setXlsxData([])
+                setXlsxBuffer(null)
             } else if (mode === "keepts") {
                 result = convertKeepTs(parsedTrack, keeptOptions)
+                setXlsxData([])
+                setXlsxBuffer(null)
             } else if (mode === "resample") {
                 result = convertResampleTs(parsedTrack, resampleOptions)
+                setXlsxData([])
+                setXlsxBuffer(null)
+            } else if (mode === "csv") {
+                result = convertToCsv(parsedTrack, csvOptions)
+                setXlsxData([])
+                setXlsxBuffer(null)
+            } else if (mode === "xlsx") {
+                const data = convertToXlsxData(parsedTrack, xlsxOptions)
+                const buffer = convertToXlsxBuffer(parsedTrack, xlsxOptions)
+                setXlsxData(data)
+                setXlsxBuffer(buffer)
+                result = "EXCEL_EXPORT_SUCCESS"
             }
             setOutputContent(result)
         } catch (err) {
@@ -83,6 +156,8 @@ export default function Home() {
 
     const getOutputFormat = () => {
         if (mode === "resample") return resampleOptions.outputFormat
+        if (mode === "csv") return "csv"
+        if (mode === "xlsx") return "xlsx"
         return "srt"
     }
 
@@ -122,14 +197,27 @@ export default function Home() {
             <div className="flex flex-col gap-6">
                 <FileDropzone
                     onFileLoaded={handleFileLoaded}
+                    onSpreadsheetUploaded={handleSpreadsheetUploaded}
                     parsedTrack={parsedTrack}
                     fileName={fileName}
                     onClear={handleClear}
                 />
 
+                {spreadsheetPreview && !parsedTrack ? (
+                    <ColumnMapper
+                        preview={spreadsheetPreview}
+                        fileName={fileName}
+                        onCancel={handleCancelSpreadsheet}
+                        onConfirm={handleColumnMappingConfirm}
+                    />
+                ) : null}
+
                 {parsedTrack ? (
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <Card className="p-1">
+                        <Card className="p-5 flex flex-col gap-4 animate-in fade-in duration-500">
+                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
+                                Convert Mode
+                            </h3>
                             <ModeSelector mode={mode} onModeChange={setMode} />
                         </Card>
 
@@ -141,6 +229,10 @@ export default function Home() {
                             setKeeptOptions={setKeeptOptions}
                             resampleOptions={resampleOptions}
                             setResampleOptions={setResampleOptions}
+                            csvOptions={csvOptions}
+                            setCsvOptions={setCsvOptions}
+                            xlsxOptions={xlsxOptions}
+                            setXlsxOptions={setXlsxOptions}
                         />
 
                         <div className="flex justify-end">
@@ -163,7 +255,13 @@ export default function Home() {
                 ) : null}
             </div>
 
-            <OutputPreview content={outputContent} originalFileName={fileName} outputFormat={getOutputFormat()} />
+            <OutputPreview
+                content={outputContent}
+                xlsxData={xlsxData}
+                xlsxBuffer={xlsxBuffer}
+                originalFileName={fileName}
+                outputFormat={getOutputFormat()}
+            />
 
             {/* Footer */}
             <footer className="mt-auto pt-16 pb-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4 text-[11px] font-medium text-zinc-600 uppercase tracking-wider">

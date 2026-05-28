@@ -4,6 +4,8 @@ import { type ConversionMode } from "./mode-selector"
 import { type NormalSrtOptions } from "@/lib/converters/normal-srt"
 import { type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { type ResampleOptions, RESOLUTION_PRESETS } from "@/lib/converters/resample-ts"
+import { type CsvExportOptions } from "@/lib/converters/csv-export"
+import { type XlsxExportOptions } from "@/lib/converters/xlsx-export"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,6 +20,10 @@ interface OptionsPanelProps {
     setKeeptOptions: (opts: KeepTsOptions) => void
     resampleOptions: ResampleOptions
     setResampleOptions: (opts: ResampleOptions) => void
+    csvOptions: CsvExportOptions
+    setCsvOptions: (opts: CsvExportOptions) => void
+    xlsxOptions: XlsxExportOptions
+    setXlsxOptions: (opts: XlsxExportOptions) => void
 }
 
 export default function OptionsPanel({
@@ -27,8 +33,148 @@ export default function OptionsPanel({
     keeptOptions,
     setKeeptOptions,
     resampleOptions,
-    setResampleOptions
+    setResampleOptions,
+    csvOptions,
+    setCsvOptions,
+    xlsxOptions,
+    setXlsxOptions
 }: OptionsPanelProps) {
+    if (mode === "csv") {
+        return (
+            <Card className="animate-in fade-in duration-500">
+                <CardHeader>
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                        CSV Spreadsheet Settings
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>HTML Tag Mapping</FieldLabel>
+                                <FieldDescription>
+                                    Convert basic ASS tags to HTML equivalents ({"<b>"}, etc.).
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={csvOptions.useHtmlTags}
+                                onCheckedChange={c => setCsvOptions({ ...csvOptions, useHtmlTags: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Strip Typesetting / Signs</FieldLabel>
+                                <FieldDescription>Remove signs and drawings based on position/styles.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={csvOptions.stripSigns ?? false}
+                                onCheckedChange={c => setCsvOptions({ ...csvOptions, stripSigns: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Include Style Column</FieldLabel>
+                                <FieldDescription>Include a column showing the event style.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={csvOptions.includeStyle}
+                                onCheckedChange={c => setCsvOptions({ ...csvOptions, includeStyle: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Include Layer Column</FieldLabel>
+                                <FieldDescription>Include a column showing the dialogue layer.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={csvOptions.includeLayer}
+                                onCheckedChange={c => setCsvOptions({ ...csvOptions, includeLayer: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Include Actor Column</FieldLabel>
+                                <FieldDescription>Include a column showing the actor/speaker.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={csvOptions.includeActor}
+                                onCheckedChange={c => setCsvOptions({ ...csvOptions, includeActor: c })}
+                            />
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (mode === "xlsx") {
+        return (
+            <Card className="animate-in fade-in duration-500">
+                <CardHeader>
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                        Excel Spreadsheet Settings
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>HTML Tag Mapping</FieldLabel>
+                                <FieldDescription>
+                                    Convert basic ASS tags to HTML equivalents ({"<b>"}, etc.).
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={xlsxOptions.useHtmlTags}
+                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, useHtmlTags: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Strip Typesetting / Signs</FieldLabel>
+                                <FieldDescription>Remove signs and drawings based on position/styles.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={xlsxOptions.stripSigns ?? false}
+                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, stripSigns: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Include Style Column</FieldLabel>
+                                <FieldDescription>Include a column showing the event style.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={xlsxOptions.includeStyle}
+                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, includeStyle: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Include Layer Column</FieldLabel>
+                                <FieldDescription>Include a column showing the dialogue layer.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={xlsxOptions.includeLayer}
+                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, includeLayer: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Include Actor Column</FieldLabel>
+                                <FieldDescription>Include a column showing the actor/speaker.</FieldDescription>
+                            </div>
+                            <Switch
+                                checked={xlsxOptions.includeActor}
+                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, includeActor: c })}
+                            />
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+        )
+    }
+
     if (mode === "keepts") {
         return (
             <Card className="animate-in fade-in duration-500">

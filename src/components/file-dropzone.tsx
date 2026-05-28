@@ -3,43 +3,61 @@
 import { useCallback, useRef, useState } from "react"
 import { Upload, FileText, X } from "lucide-react"
 import { type AssTrack } from "@/lib/ass-parser"
+import { type SpreadsheetPreview } from "@/lib/spreadsheet-parser"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
 interface FileDropzoneProps {
     onFileLoaded: (content: string, fileName: string, track: AssTrack) => void
+    onSpreadsheetUploaded: (preview: SpreadsheetPreview, fileName: string, buffer: ArrayBuffer) => void
     parsedTrack: AssTrack | null
     fileName: string
     onClear: () => void
 }
 
-export default function FileDropzone({ onFileLoaded, parsedTrack, fileName, onClear }: FileDropzoneProps) {
+export default function FileDropzone({
+    onFileLoaded,
+    onSpreadsheetUploaded,
+    parsedTrack,
+    fileName,
+    onClear
+}: FileDropzoneProps) {
     const [isDragOver, setIsDragOver] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
 
     const handleFile = useCallback(
         async (file: File) => {
-            if (!file.name.match(/\.(ass|ssa)$/i)) {
-                alert("Please select an .ass or .ssa file")
+            const isSpreadsheet = !!file.name.match(/\.(csv|tsv|xlsx|xls|txt)$/i)
+            const isSubtitle = !!file.name.match(/\.(ass|ssa)$/i)
+
+            if (!isSpreadsheet && !isSubtitle) {
+                alert("Please select a supported subtitle (.ass, .ssa) or spreadsheet (.csv, .tsv, .xlsx, .xls) file.")
                 return
             }
 
             setIsLoading(true)
             try {
-                const text = await file.text()
-                const { parseAss } = await import("@/lib/ass-parser")
-                const track = parseAss(text)
-                onFileLoaded(text, file.name, track)
+                if (isSubtitle) {
+                    const text = await file.text()
+                    const { parseAss } = await import("@/lib/ass-parser")
+                    const track = parseAss(text)
+                    onFileLoaded(text, file.name, track)
+                } else {
+                    const buffer = await file.arrayBuffer()
+                    const { getSpreadsheetPreview } = await import("@/lib/spreadsheet-parser")
+                    const preview = getSpreadsheetPreview(buffer)
+                    onSpreadsheetUploaded(preview, file.name, buffer)
+                }
             } catch (err) {
                 console.error("Failed to parse file:", err)
-                alert("Failed to parse the subtitle file. Please check the format.")
+                alert("Failed to parse the file. Please check that it is a valid format.")
             } finally {
                 setIsLoading(false)
             }
         },
-        [onFileLoaded]
+        [onFileLoaded, onSpreadsheetUploaded]
     )
 
     const handleDrop = useCallback(
@@ -127,10 +145,10 @@ export default function FileDropzone({ onFileLoaded, parsedTrack, fileName, onCl
             <input
                 ref={inputRef}
                 type="file"
-                accept=".ass,.ssa"
+                accept=".ass,.ssa,.csv,.tsv,.xlsx,.xls,.txt"
                 className="hidden"
                 onChange={handleInputChange}
-                aria-label="Upload subtitle file"
+                aria-label="Upload subtitle or spreadsheet file"
             />
             {isLoading ? (
                 <div className="flex flex-col items-center gap-3">
@@ -143,8 +161,10 @@ export default function FileDropzone({ onFileLoaded, parsedTrack, fileName, onCl
                         <Upload size={24} className="text-zinc-600 group-hover:text-blue-500 transition-colors" />
                     </div>
                     <div className="space-y-1">
-                        <p className="text-sm font-bold text-zinc-300">Upload Subtitle File</p>
-                        <p className="text-xs text-zinc-500">Drag and drop .ass or .ssa here</p>
+                        <p className="text-sm font-bold text-zinc-300">Upload Subtitle or Spreadsheet File</p>
+                        <p className="text-xs text-zinc-500">
+                            Drag and drop .ass, .ssa, .csv, .tsv, .xlsx, or .xls here
+                        </p>
                     </div>
                 </div>
             )}
