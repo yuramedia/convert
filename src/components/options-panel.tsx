@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
+import { Check } from "lucide-react"
 
 interface CustomCheckboxProps {
     label: string
@@ -30,15 +31,7 @@ function CustomCheckbox({ label, checked, onChange }: CustomCheckboxProps) {
                     aria-label={label}
                 />
                 <div className="h-[18px] w-[18px] rounded border border-zinc-700 bg-zinc-900 transition-all peer-checked:bg-purple-600 peer-checked:border-purple-600 flex items-center justify-center">
-                    <svg
-                        className="h-3 w-3 text-white scale-0 transition-transform peer-checked:scale-100"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={3.5}
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                    <Check className="h-3 w-3 text-white hidden peer-checked:block" strokeWidth={3.5} />
                 </div>
             </div>
             <span className="text-sm font-medium">{label}</span>
@@ -107,9 +100,6 @@ export default function OptionsPanel({
                         </Field>
 
                         <div className="mt-4 pt-6 border-t border-zinc-900/50">
-                            <div className="w-full py-2.5 px-4 mb-4 border border-zinc-800/80 rounded-lg text-center text-sm font-medium text-zinc-200">
-                                customize columns
-                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4 px-2">
                                 <CustomCheckbox
                                     label="No."
@@ -193,9 +183,6 @@ export default function OptionsPanel({
                         </Field>
 
                         <div className="mt-4 pt-6 border-t border-zinc-900/50">
-                            <div className="w-full py-2.5 px-4 mb-4 border border-zinc-800/80 rounded-lg text-center text-sm font-medium text-zinc-200">
-                                customize columns
-                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4 px-2">
                                 <CustomCheckbox
                                     label="No."
