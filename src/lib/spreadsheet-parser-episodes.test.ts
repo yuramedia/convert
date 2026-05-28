@@ -100,7 +100,10 @@ describe("Spreadsheet Episode Segmentation", () => {
         }
 
         const nodeBuffer = fs.readFileSync(filePath)
-        const arrayBuffer = nodeBuffer.buffer.slice(nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength) as ArrayBuffer
+        const arrayBuffer = nodeBuffer.buffer.slice(
+            nodeBuffer.byteOffset,
+            nodeBuffer.byteOffset + nodeBuffer.byteLength
+        ) as ArrayBuffer
         const rows = readSpreadsheetRows(arrayBuffer)
 
         const segments = detectEpisodes(rows)

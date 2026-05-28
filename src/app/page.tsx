@@ -275,7 +275,7 @@ export default function Home() {
             const url = URL.createObjectURL(blob)
             const a = document.createElement("a")
             a.href = url
-            
+
             const firstBaseName = filesData[0].name.replace(/\.[^/.]+$/, "")
             let baseTitle = firstBaseName
             const epIndex = baseTitle.lastIndexOf(" - EP")
@@ -283,7 +283,7 @@ export default function Home() {
                 baseTitle = baseTitle.substring(0, epIndex)
             }
             const downloadName = filesData.length > 1 ? `${baseTitle} - Combined.xlsx` : `${baseTitle}.xlsx`
-            
+
             a.download = downloadName
             document.body.appendChild(a)
             a.click()

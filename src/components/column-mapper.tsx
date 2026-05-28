@@ -19,7 +19,6 @@ export default function ColumnMapper({ preview, fileName, onCancel, onConfirm }:
     const [hasHeader, setHasHeader] = useState(true)
     const [fps, setFps] = useState(23.976)
 
-
     const handleSelectChange = (field: keyof ColumnMapping, value: string) => {
         const idx = parseInt(value, 10)
         setMapping(prev => ({ ...prev, [field]: idx }))

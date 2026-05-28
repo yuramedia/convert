@@ -363,7 +363,7 @@ export function parseSpreadsheet(
 
         let layerVal = 0
         if (mapping.layer !== -1 && row[mapping.layer] !== undefined) {
-            const layerInt = parseInt(row[mapping.layer], 10)
+            const layerInt = parseInt(String(row[mapping.layer]), 10)
             if (!isNaN(layerInt)) layerVal = layerInt
         }
 
@@ -546,7 +546,7 @@ export function parseSpreadsheetSegment(
 
         let layerVal = 0
         if (mapping.layer !== -1 && row[mapping.layer] !== undefined) {
-            const layerInt = parseInt(row[mapping.layer], 10)
+            const layerInt = parseInt(String(row[mapping.layer]), 10)
             if (!isNaN(layerInt)) layerVal = layerInt
         }
 

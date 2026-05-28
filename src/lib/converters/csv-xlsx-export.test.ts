@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest"
 import { parseAss } from "../ass-parser"
 import { convertToCsv } from "./csv-export"
-import { convertToXlsxData, convertToXlsxBuffer, DEFAULT_XLSX_OPTIONS, cleanSheetName, createCombinedXlsxBuffer } from "./xlsx-export"
+import {
+    convertToXlsxData,
+    convertToXlsxBuffer,
+    DEFAULT_XLSX_OPTIONS,
+    cleanSheetName,
+    createCombinedXlsxBuffer
+} from "./xlsx-export"
 import * as XLSX from "xlsx"
 
 const SAMPLE_ASS = `[Script Info]
@@ -120,19 +126,19 @@ describe("XLSX Export Converter", () => {
 describe("XLSX Consolidated Export", () => {
     it("cleanSheetName cleans invalid characters and respects length limits", () => {
         const usedNames = new Set<string>()
-        
+
         // Clean basic name
         expect(cleanSheetName("Episode 1.ass", 0, usedNames)).toBe("Episode 1")
-        
+
         // Remove invalid characters like \ / ? * [ ] :
         expect(cleanSheetName("Ep\\1 / ? * [ ] : Test", 1, usedNames)).toBe("Ep1 Test")
-        
+
         // Truncate to 30 characters
         const longName = "A".repeat(50) + ".ass"
         const cleanedLong = cleanSheetName(longName, 2, usedNames)
         expect(cleanedLong.length).toBeLessThanOrEqual(30)
         expect(cleanedLong).toBe("A".repeat(30))
-        
+
         // Resolve duplicates
         expect(cleanSheetName("Episode 1.ass", 3, usedNames)).toBe("Episode 1_1")
         expect(cleanSheetName("Episode 1.ass", 4, usedNames)).toBe("Episode 1_2")
@@ -142,15 +148,11 @@ describe("XLSX Consolidated Export", () => {
         const filesData = [
             {
                 name: "Ep1.ass",
-                data: [
-                    { "No.": 1, "Subtitle": "Hello from Episode 1" }
-                ]
+                data: [{ "No.": 1, Subtitle: "Hello from Episode 1" }]
             },
             {
                 name: "Ep2.ass",
-                data: [
-                    { "No.": 1, "Subtitle": "Hello from Episode 2" }
-                ]
+                data: [{ "No.": 1, Subtitle: "Hello from Episode 2" }]
             }
         ]
 

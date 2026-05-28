@@ -157,21 +157,21 @@ export function convertToXlsxBuffer(track: AssTrack, options: XlsxExportOptions 
 export function cleanSheetName(name: string, index: number, usedNames: Set<string>): string {
     // Strip file extension first
     const baseName = name.replace(/\.[^/.]+$/, "")
-    
+
     // Clean invalid characters: \ / ? * [ ] :
     let clean = baseName.replace(/[\\/?*[\]:]/g, "")
     // Collapse consecutive spaces
     clean = clean.replace(/\s+/g, " ").trim()
-    
+
     // Excel sheet name limit is 31 chars
     if (clean.length > 30) {
         clean = clean.substring(0, 30)
     }
-    
+
     if (!clean) {
         clean = `Sheet_${index + 1}`
     }
-    
+
     // Resolve duplicates
     let uniqueName = clean
     let counter = 1
@@ -181,12 +181,14 @@ export function cleanSheetName(name: string, index: number, usedNames: Set<strin
         uniqueName = clean.substring(0, maxLen) + suffix
         counter++
     }
-    
+
     usedNames.add(uniqueName.toLowerCase())
     return uniqueName
 }
 
-export function createCombinedXlsxBuffer(filesData: { name: string, data: Record<string, string | number>[] }[]): Uint8Array {
+export function createCombinedXlsxBuffer(
+    filesData: { name: string; data: Record<string, string | number>[] }[]
+): Uint8Array {
     const workbook = XLSX.utils.book_new()
     const usedNames = new Set<string>()
 
@@ -199,4 +201,3 @@ export function createCombinedXlsxBuffer(filesData: { name: string, data: Record
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
     return new Uint8Array(excelBuffer)
 }
-
