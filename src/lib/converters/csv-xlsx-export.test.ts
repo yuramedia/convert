@@ -116,7 +116,8 @@ describe("XLSX Export Converter", () => {
         const sheetName = workbook.SheetNames[0]
         expect(sheetName).toBe("Subtitles")
 
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName])
+        // Parse starting from row index 3 (4th row) to skip title & spacing rows
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], { range: 3 })
         expect(rows).toHaveLength(3)
         expect(rows[0]["Subtitle"]).toBe("Hello World")
         expect(rows[0]["Style"]).toBe("Default")
@@ -163,11 +164,12 @@ describe("XLSX Consolidated Export", () => {
         const workbook = XLSX.read(buffer, { type: "array" })
         expect(workbook.SheetNames).toEqual(["Ep1", "Ep2"])
 
-        const ep1Rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Ep1"])
+        // Parse starting from row index 3
+        const ep1Rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Ep1"], { range: 3 })
         expect(ep1Rows).toHaveLength(1)
         expect(ep1Rows[0]["Subtitle"]).toBe("Hello from Episode 1")
 
-        const ep2Rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Ep2"])
+        const ep2Rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Ep2"], { range: 3 })
         expect(ep2Rows).toHaveLength(1)
         expect(ep2Rows[0]["Subtitle"]).toBe("Hello from Episode 2")
     })
@@ -194,12 +196,23 @@ describe("XLSX Consolidated Export", () => {
         const worksheet = workbook.Sheets["Subtitles"]
         const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: "" })
 
-        expect(rows[0][0]).toBe("Ep1")
-        expect(rows[1]).toEqual(["No.", "Subtitle"])
-        expect(rows[2]).toEqual([1, "Hello from Episode 1"])
-
-        expect(rows[4][0]).toBe("Ep2")
-        expect(rows[5]).toEqual(["No.", "Subtitle"])
-        expect(rows[6]).toEqual([1, "Hello from Episode 2"])
+        // Row 0: Title row
+        expect(rows[0][0]).toBe("Ep1\nScript Indonesia")
+        // Row 1: Spacing row
+        expect(rows[1][0]).toBe("")
+        // Row 2: Episode Marker
+        expect(rows[2][0]).toBe("Ep1")
+        // Row 3: Header Row
+        expect(rows[3]).toEqual(["No.", "Subtitle"])
+        // Row 4: Data Row
+        expect(rows[4]).toEqual([1, "Hello from Episode 1"])
+        // Row 5: Spacing row between episodes
+        expect(rows[5][0]).toBe("")
+        // Row 6: Episode Marker
+        expect(rows[6][0]).toBe("Ep2")
+        // Row 7: Header Row
+        expect(rows[7]).toEqual(["No.", "Subtitle"])
+        // Row 8: Data Row
+        expect(rows[8]).toEqual([1, "Hello from Episode 2"])
     })
 })

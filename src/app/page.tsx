@@ -213,7 +213,7 @@ export default function Home() {
                             outputContent = convertToCsv(file.track, csvOptions)
                         } else if (mode === "xlsx") {
                             xlsxData = convertToXlsxData(file.track, xlsxOptions)
-                            xlsxBuffer = convertToXlsxBuffer(file.track, xlsxOptions)
+                            xlsxBuffer = convertToXlsxBuffer(file.track, xlsxOptions, file.name)
                             outputContent = "EXCEL_EXPORT_SUCCESS"
                         }
 
@@ -268,7 +268,7 @@ export default function Home() {
         if (filesData.length === 0) return
 
         try {
-            const combinedBuffer = createCombinedXlsxBuffer(filesData)
+            const combinedBuffer = createCombinedXlsxBuffer(filesData, xlsxOptions.combinedMode)
             const blob = new Blob([combinedBuffer as unknown as BlobPart], {
                 type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             })

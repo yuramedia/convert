@@ -195,7 +195,11 @@ export default function OptionsPanel({
                                 }
                             >
                                 <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Select mode" />
+                                    <SelectValue placeholder="Select mode">
+                                        {xlsxOptions.combinedMode === "single"
+                                            ? "Single Sheet (Stacked)"
+                                            : "Separate Sheets (Tabs)"}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
@@ -392,7 +396,9 @@ export default function OptionsPanel({
                                         }
                                     >
                                         <SelectTrigger className="w-[80px]">
-                                            <SelectValue />
+                                            <SelectValue>
+                                                {normalOptions.snapUnit === "frames" ? "fr" : "ms"}
+                                            </SelectValue>
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectGroup>
@@ -426,7 +432,9 @@ export default function OptionsPanel({
                                         }
                                     >
                                         <SelectTrigger className="w-[80px]">
-                                            <SelectValue />
+                                            <SelectValue>
+                                                {normalOptions.gapUnit === "frames" ? "fr" : "ms"}
+                                            </SelectValue>
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectGroup>
@@ -469,7 +477,16 @@ export default function OptionsPanel({
                                 }}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select resolution" />
+                                    <SelectValue placeholder="Select resolution">
+                                        {(() => {
+                                            const preset = RESOLUTION_PRESETS.find(
+                                                p => `${p.width}x${p.height}` === currentResolution
+                                            )
+                                            return preset
+                                                ? `${preset.label} (${preset.width}x${preset.height})`
+                                                : "Custom Matrix"
+                                        })()}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
@@ -496,7 +513,9 @@ export default function OptionsPanel({
                                 }
                             >
                                 <SelectTrigger>
-                                    <SelectValue />
+                                    <SelectValue>
+                                        {resampleOptions.outputFormat === "ass" ? "ASS (.ass)" : "SRT (.srt)"}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
