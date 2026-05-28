@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { parseAss } from "../ass-parser"
 import { convertToCsv } from "./csv-export"
-import { convertToXlsxData, convertToXlsxBuffer, DEFAULT_XLSX_OPTIONS } from "./xlsx-export"
+import { convertToXlsxData, convertToXlsxBuffer, DEFAULT_XLSX_OPTIONS, cleanSheetName, createCombinedXlsxBuffer } from "./xlsx-export"
 import * as XLSX from "xlsx"
 
 const SAMPLE_ASS = `[Script Info]
@@ -110,9 +110,63 @@ describe("XLSX Export Converter", () => {
         const sheetName = workbook.SheetNames[0]
         expect(sheetName).toBe("Subtitles")
 
-        const rows = XLSX.utils.sheet_to_json<any>(workbook.Sheets[sheetName])
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName])
         expect(rows).toHaveLength(3)
         expect(rows[0]["Subtitle"]).toBe("Hello World")
         expect(rows[0]["Style"]).toBe("Default")
+    })
+})
+
+describe("XLSX Consolidated Export", () => {
+    it("cleanSheetName cleans invalid characters and respects length limits", () => {
+        const usedNames = new Set<string>()
+        
+        // Clean basic name
+        expect(cleanSheetName("Episode 1.ass", 0, usedNames)).toBe("Episode 1")
+        
+        // Remove invalid characters like \ / ? * [ ] :
+        expect(cleanSheetName("Ep\\1 / ? * [ ] : Test", 1, usedNames)).toBe("Ep1 Test")
+        
+        // Truncate to 30 characters
+        const longName = "A".repeat(50) + ".ass"
+        const cleanedLong = cleanSheetName(longName, 2, usedNames)
+        expect(cleanedLong.length).toBeLessThanOrEqual(30)
+        expect(cleanedLong).toBe("A".repeat(30))
+        
+        // Resolve duplicates
+        expect(cleanSheetName("Episode 1.ass", 3, usedNames)).toBe("Episode 1_1")
+        expect(cleanSheetName("Episode 1.ass", 4, usedNames)).toBe("Episode 1_2")
+    })
+
+    it("createCombinedXlsxBuffer creates a workbook with multiple sheets", () => {
+        const filesData = [
+            {
+                name: "Ep1.ass",
+                data: [
+                    { "No.": 1, "Subtitle": "Hello from Episode 1" }
+                ]
+            },
+            {
+                name: "Ep2.ass",
+                data: [
+                    { "No.": 1, "Subtitle": "Hello from Episode 2" }
+                ]
+            }
+        ]
+
+        const buffer = createCombinedXlsxBuffer(filesData)
+        expect(buffer).toBeInstanceOf(Uint8Array)
+
+        // Verify sheet structures by parsing back
+        const workbook = XLSX.read(buffer, { type: "array" })
+        expect(workbook.SheetNames).toEqual(["Ep1", "Ep2"])
+
+        const ep1Rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Ep1"])
+        expect(ep1Rows).toHaveLength(1)
+        expect(ep1Rows[0]["Subtitle"]).toBe("Hello from Episode 1")
+
+        const ep2Rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Ep2"])
+        expect(ep2Rows).toHaveLength(1)
+        expect(ep2Rows[0]["Subtitle"]).toBe("Hello from Episode 2")
     })
 })

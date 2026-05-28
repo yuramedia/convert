@@ -11,6 +11,7 @@ interface OutputPreviewProps {
     activePreviewId: string | null
     onSelectPreview: (id: string) => void
     onDownloadAll: () => void
+    onDownloadCombined?: () => void
     outputFormat: "srt" | "ass" | "csv" | "xlsx"
 }
 
@@ -19,6 +20,7 @@ export default function OutputPreview({
     activePreviewId,
     onSelectPreview,
     onDownloadAll,
+    onDownloadCombined,
     outputFormat
 }: OutputPreviewProps) {
     const [copied, setCopied] = useState(false)
@@ -85,7 +87,7 @@ export default function OutputPreview({
         if (!activeFile) return
         let blob: Blob
         if (outputFormat === "xlsx" && activeFile.xlsxBuffer) {
-            blob = new Blob([activeFile.xlsxBuffer as any], {
+            blob = new Blob([activeFile.xlsxBuffer as BlobPart], {
                 type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             })
         } else {
@@ -125,17 +127,32 @@ export default function OutputPreview({
                         </span>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     {convertedFiles.length > 1 && (
-                        <Button
-                            onClick={onDownloadAll}
-                            variant="secondary"
-                            size="sm"
-                            className="h-9 px-4 text-xs font-bold rounded-md transition-all border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
-                        >
-                            <Download size={14} />
-                            <span className="ml-2">Download All</span>
-                        </Button>
+                        <>
+                            {outputFormat === "xlsx" && onDownloadCombined && (
+                                <Button
+                                    onClick={onDownloadCombined}
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-9 px-4 text-xs font-bold rounded-md transition-all border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
+                                >
+                                    <Download size={14} />
+                                    <span className="ml-2">Download Combined Excel</span>
+                                </Button>
+                            )}
+                            <Button
+                                onClick={onDownloadAll}
+                                variant="secondary"
+                                size="sm"
+                                className="h-9 px-4 text-xs font-bold rounded-md transition-all border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
+                            >
+                                <Download size={14} />
+                                <span className="ml-2">
+                                    {outputFormat === "xlsx" ? "Download All (Zip/Individual)" : "Download All"}
+                                </span>
+                            </Button>
+                        </>
                     )}
                     {outputFormat !== "xlsx" && (
                         <Button

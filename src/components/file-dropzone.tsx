@@ -17,7 +17,7 @@ export interface QueuedFile {
     spreadsheetBuffer?: ArrayBuffer
     track: AssTrack | null
     outputContent: string
-    xlsxData?: any[]
+    xlsxData?: Record<string, string | number>[]
     xlsxBuffer?: Uint8Array | null
     status: "pending_mapping" | "ready" | "converting" | "converted" | "error"
     error?: string

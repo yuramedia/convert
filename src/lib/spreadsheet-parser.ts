@@ -11,10 +11,17 @@ export interface ColumnMapping {
     layer: number // -1 if none
 }
 
+export interface EpisodeSegment {
+    name: string
+    startIndex: number // Index of the episode marker row
+    endIndex: number // Index of the next episode marker row (or rows.length)
+}
+
 export interface SpreadsheetPreview {
     headers: string[]
     rows: string[][]
     autoMapping: ColumnMapping
+    segments?: EpisodeSegment[]
 }
 
 export function autoDetectColumns(headers: string[]): ColumnMapping {
@@ -119,7 +126,36 @@ export function autoDetectColumns(headers: string[]): ColumnMapping {
     return mapping
 }
 
-export function parseSpreadsheetTimestamp(value: any, fps: number = 23.976): number {
+const EP_MARKER_REGEX = /^(EP|Episode|Ep\.?|Chapter|Ch\.?|E)\s*\d+$/i
+
+export function detectEpisodes(rows: unknown[][]): EpisodeSegment[] {
+    const segments: EpisodeSegment[] = []
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row || row.length === 0) continue
+
+        const val0 = String(row[0] || "").trim()
+        if (EP_MARKER_REGEX.test(val0)) {
+            // Check if other columns are empty (or undefined)
+            const isOtherEmpty = row.slice(1).every(cell => String(cell || "").trim() === "")
+            if (isOtherEmpty) {
+                if (segments.length > 0) {
+                    segments[segments.length - 1].endIndex = i
+                }
+                segments.push({
+                    name: val0,
+                    startIndex: i,
+                    endIndex: rows.length
+                })
+            }
+        }
+    }
+
+    return segments
+}
+
+export function parseSpreadsheetTimestamp(value: unknown, fps: number = 23.976): number {
     if (value === null || value === undefined) return 0
 
     // Heuristics for numbers
@@ -213,21 +249,40 @@ export function getSpreadsheetPreview(arrayBuffer: ArrayBuffer): SpreadsheetPrev
     }
 
     const worksheet = workbook.Sheets[firstSheetName]
-    const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" })
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: "" })
 
     if (rows.length === 0) {
         return { headers: [], rows: [], autoMapping: autoDetectColumns([]) }
     }
 
-    // Extract headers (first row)
-    const rawHeaders = rows[0]
-    const headers = rawHeaders.map((cell, idx) => {
+    const segments = detectEpisodes(rows)
+
+    let headersRow: unknown[] = []
+    let previewStartIdx = 1
+
+    if (segments.length > 0) {
+        const firstSegment = segments[0]
+        const headerIdx = firstSegment.startIndex + 1
+        if (headerIdx < rows.length) {
+            headersRow = rows[headerIdx] || []
+        }
+        previewStartIdx = headerIdx + 1
+    } else {
+        headersRow = rows[0] || []
+        previewStartIdx = 1
+    }
+
+    // Extract headers
+    const headers = headersRow.map((cell, idx) => {
         const label = String(cell).trim()
         return label || `Column ${String.fromCharCode(65 + idx)}` // fallback to Column A, B, C...
     })
 
     // Get up to 10 rows for preview (excluding headers)
-    const previewRows = rows.slice(1, 11).map(row => {
+    const previewEndIdx =
+        segments.length > 0 ? Math.min(previewStartIdx + 10, segments[0].endIndex) : previewStartIdx + 10
+
+    const previewRows = rows.slice(previewStartIdx, previewEndIdx).map(row => {
         // Ensure row array length matches headers
         const paddedRow: string[] = []
         for (let i = 0; i < headers.length; i++) {
@@ -241,7 +296,8 @@ export function getSpreadsheetPreview(arrayBuffer: ArrayBuffer): SpreadsheetPrev
     return {
         headers,
         rows: previewRows,
-        autoMapping
+        autoMapping,
+        segments: segments.length > 0 ? segments : undefined
     }
 }
 
@@ -258,7 +314,7 @@ export function parseSpreadsheet(
     }
 
     const worksheet = workbook.Sheets[firstSheetName]
-    const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" })
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: "" })
 
     const startIdx = hasHeader ? 1 : 0
     const events: AssEvent[] = []
@@ -432,4 +488,197 @@ export function parseSpreadsheet(
         trackType: "ASS",
         rawSections: []
     }
+}
+
+export function parseSpreadsheetSegment(
+    rows: unknown[][],
+    segment: EpisodeSegment,
+    mapping: ColumnMapping,
+    hasHeader: boolean = true,
+    fps: number = 23.976
+): AssTrack {
+    // Determine where dialogue rows start
+    const startIdx = segment.startIndex + (hasHeader ? 2 : 1)
+    const endIdx = segment.endIndex
+
+    const events: AssEvent[] = []
+    const stylesSet = new Set<string>()
+    let prevEndMs = 0
+
+    for (let i = startIdx; i < endIdx; i++) {
+        const row = rows[i]
+        if (!row || row.length === 0) continue
+
+        // Extract and parse Text (required)
+        const textVal = mapping.text !== -1 && row[mapping.text] !== undefined ? String(row[mapping.text]).trim() : ""
+        if (!textVal) continue // Skip empty lines
+
+        // Extract and parse timings
+        let startMs = 0
+        const startVal = mapping.start !== -1 ? row[mapping.start] : undefined
+        if (startVal !== undefined && startVal !== null && String(startVal).trim() !== "") {
+            startMs = parseSpreadsheetTimestamp(startVal, fps)
+        } else {
+            startMs = prevEndMs
+        }
+
+        let endMs = 0
+        const endVal = mapping.end !== -1 ? row[mapping.end] : undefined
+        if (endVal !== undefined && endVal !== null && String(endVal).trim() !== "") {
+            endMs = parseSpreadsheetTimestamp(endVal, fps)
+        } else {
+            const durVal = mapping.duration !== -1 ? row[mapping.duration] : undefined
+            if (durVal !== undefined && durVal !== null && String(durVal).trim() !== "") {
+                const durationMs = parseSpreadsheetTimestamp(durVal, fps)
+                endMs = startMs + durationMs
+            } else {
+                endMs = startMs + 2000 // default 2 seconds
+            }
+        }
+
+        prevEndMs = endMs
+
+        // Style, Actor, Layer
+        const styleName = mapping.style !== -1 && row[mapping.style] ? String(row[mapping.style]).trim() : "Default"
+        stylesSet.add(styleName)
+
+        const actorName = mapping.actor !== -1 && row[mapping.actor] ? String(row[mapping.actor]).trim() : ""
+
+        let layerVal = 0
+        if (mapping.layer !== -1 && row[mapping.layer] !== undefined) {
+            const layerInt = parseInt(row[mapping.layer], 10)
+            if (!isNaN(layerInt)) layerVal = layerInt
+        }
+
+        events.push({
+            type: "Dialogue",
+            Layer: layerVal,
+            Start: startMs,
+            End: endMs,
+            Style: styleName,
+            Name: actorName,
+            MarginL: 0,
+            MarginR: 0,
+            MarginV: 0,
+            Effect: "",
+            Text: textVal.replace(/\r?\n/g, "\\N")
+        })
+    }
+
+    // Construct default styles list
+    const styles: AssStyle[] = Array.from(stylesSet).map(name => ({
+        Name: name,
+        FontName: "Arial",
+        FontSize: 48,
+        PrimaryColour: "&H00FFFFFF",
+        SecondaryColour: "&H000000FF",
+        OutlineColour: "&H00000000",
+        BackColour: "&H00000000",
+        Bold: false,
+        Italic: false,
+        Underline: false,
+        StrikeOut: false,
+        ScaleX: 100,
+        ScaleY: 100,
+        Spacing: 0,
+        Angle: 0,
+        BorderStyle: 1,
+        Outline: 2,
+        Shadow: 2,
+        Alignment: 2, // center bottom
+        MarginL: 10,
+        MarginR: 10,
+        MarginV: 10,
+        Encoding: 1,
+        Blur: 0,
+        Justify: 0,
+        _raw: {}
+    }))
+
+    if (styles.length === 0) {
+        styles.push({
+            Name: "Default",
+            FontName: "Arial",
+            FontSize: 48,
+            PrimaryColour: "&H00FFFFFF",
+            SecondaryColour: "&H000000FF",
+            OutlineColour: "&H00000000",
+            BackColour: "&H00000000",
+            Bold: false,
+            Italic: false,
+            Underline: false,
+            StrikeOut: false,
+            ScaleX: 100,
+            ScaleY: 100,
+            Spacing: 0,
+            Angle: 0,
+            BorderStyle: 1,
+            Outline: 2,
+            Shadow: 2,
+            Alignment: 2,
+            MarginL: 10,
+            MarginR: 10,
+            MarginV: 10,
+            Encoding: 1,
+            Blur: 0,
+            Justify: 0,
+            _raw: {}
+        })
+    }
+
+    return {
+        scriptInfo: {
+            Title: `Spreadsheet Import - ${segment.name}`,
+            ScriptType: "v4.00+",
+            PlayResX: 1920,
+            PlayResY: 1080,
+            WrapStyle: 0,
+            ScaledBorderAndShadow: true,
+            Timer: 100,
+            YCbCrMatrix: "",
+            Kerning: true,
+            LayoutResX: 1920,
+            LayoutResY: 1080
+        },
+        styles,
+        events,
+        styleFormat: [
+            "Name",
+            "Fontname",
+            "Fontsize",
+            "PrimaryColour",
+            "SecondaryColour",
+            "OutlineColour",
+            "BackColour",
+            "Bold",
+            "Italic",
+            "Underline",
+            "StrikeOut",
+            "ScaleX",
+            "ScaleY",
+            "Spacing",
+            "Angle",
+            "BorderStyle",
+            "Outline",
+            "Shadow",
+            "Alignment",
+            "MarginL",
+            "MarginR",
+            "MarginV",
+            "Encoding"
+        ],
+        eventFormat: ["Layer", "Start", "End", "Style", "Name", "MarginL", "MarginR", "MarginV", "Effect", "Text"],
+        trackType: "ASS",
+        rawSections: []
+    }
+}
+
+export function readSpreadsheetRows(arrayBuffer: ArrayBuffer): unknown[][] {
+    const workbook = XLSX.read(arrayBuffer, { type: "array" })
+    const firstSheetName = workbook.SheetNames[0]
+    if (!firstSheetName) {
+        throw new Error("Spreadsheet contains no sheets")
+    }
+    const worksheet = workbook.Sheets[firstSheetName]
+    return XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: "" })
 }

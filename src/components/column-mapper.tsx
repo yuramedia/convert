@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { type ColumnMapping, type SpreadsheetPreview } from "@/lib/spreadsheet-parser"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -19,10 +19,6 @@ export default function ColumnMapper({ preview, fileName, onCancel, onConfirm }:
     const [hasHeader, setHasHeader] = useState(true)
     const [fps, setFps] = useState(23.976)
 
-    // Sync when preview changes
-    useEffect(() => {
-        setMapping({ ...preview.autoMapping })
-    }, [preview])
 
     const handleSelectChange = (field: keyof ColumnMapping, value: string) => {
         const idx = parseInt(value, 10)

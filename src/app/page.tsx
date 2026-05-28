@@ -16,9 +16,15 @@ import {
     convertToXlsxData,
     convertToXlsxBuffer,
     DEFAULT_XLSX_OPTIONS,
-    type XlsxExportOptions
+    type XlsxExportOptions,
+    createCombinedXlsxBuffer
 } from "@/lib/converters/xlsx-export"
-import { type ColumnMapping, parseSpreadsheet } from "@/lib/spreadsheet-parser"
+import {
+    type ColumnMapping,
+    parseSpreadsheet,
+    parseSpreadsheetSegment,
+    readSpreadsheetRows
+} from "@/lib/spreadsheet-parser"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
@@ -84,31 +90,79 @@ export default function Home() {
         if (!file || !file.spreadsheetBuffer) return
 
         try {
-            const track = parseSpreadsheet(file.spreadsheetBuffer, mapping, hasHeader, fps)
-            setFiles(prev =>
-                prev.map(f =>
-                    f.id === id
-                        ? {
-                              ...f,
-                              track,
-                              status: "ready" as const
-                          }
-                        : f
-                )
-            )
+            // Check if multiple segments are present in preview
+            if (file.spreadsheetPreview?.segments && file.spreadsheetPreview.segments.length > 0) {
+                const rows = readSpreadsheetRows(file.spreadsheetBuffer)
+                const extension = file.name.substring(file.name.lastIndexOf("."))
+                const baseName = file.name.substring(0, file.name.lastIndexOf("."))
 
-            // Auto-setup source width/height for resampler if this is the first loaded track with resolutions set
-            if (track && track.scriptInfo.PlayResX) {
-                setResampleOptions(prevOpts => {
-                    if (prevOpts.sourceWidth === 0) {
-                        return {
-                            ...prevOpts,
-                            sourceWidth: track.scriptInfo.PlayResX || 0,
-                            sourceHeight: track.scriptInfo.PlayResY || 0
+                const segmentFiles = file.spreadsheetPreview.segments.map(segment => {
+                    const track = parseSpreadsheetSegment(rows, segment, mapping, hasHeader, fps)
+                    const virtualName = `${baseName} - ${segment.name}${extension}`
+                    return {
+                        id: `${file.id}-${segment.name}`,
+                        name: virtualName,
+                        size: file.size,
+                        type: "spreadsheet" as const,
+                        track,
+                        status: "ready" as const,
+                        outputContent: ""
+                    }
+                })
+
+                setFiles(prev => {
+                    const updated: QueuedFile[] = []
+                    for (const f of prev) {
+                        if (f.id === id) {
+                            updated.push(...segmentFiles)
+                        } else {
+                            updated.push(f)
                         }
                     }
-                    return prevOpts
+                    return updated
                 })
+
+                // Auto-setup source width/height from the first segment track if available
+                const firstTrack = segmentFiles[0]?.track
+                if (firstTrack && firstTrack.scriptInfo.PlayResX) {
+                    setResampleOptions(prevOpts => {
+                        if (prevOpts.sourceWidth === 0) {
+                            return {
+                                ...prevOpts,
+                                sourceWidth: firstTrack.scriptInfo.PlayResX || 0,
+                                sourceHeight: firstTrack.scriptInfo.PlayResY || 0
+                            }
+                        }
+                        return prevOpts
+                    })
+                }
+            } else {
+                const track = parseSpreadsheet(file.spreadsheetBuffer, mapping, hasHeader, fps)
+                setFiles(prev =>
+                    prev.map(f =>
+                        f.id === id
+                            ? {
+                                  ...f,
+                                  track,
+                                  status: "ready" as const
+                              }
+                            : f
+                    )
+                )
+
+                // Auto-setup source width/height for resampler if this is the first loaded track with resolutions set
+                if (track && track.scriptInfo.PlayResX) {
+                    setResampleOptions(prevOpts => {
+                        if (prevOpts.sourceWidth === 0) {
+                            return {
+                                ...prevOpts,
+                                sourceWidth: track.scriptInfo.PlayResX || 0,
+                                sourceHeight: track.scriptInfo.PlayResY || 0
+                            }
+                        }
+                        return prevOpts
+                    })
+                }
             }
 
             if (mappingFileId === id) {
@@ -146,7 +200,7 @@ export default function Home() {
                     if (!file.track) return file
                     try {
                         let outputContent = ""
-                        let xlsxData: any[] | undefined = undefined
+                        let xlsxData: Record<string, string | number>[] | undefined = undefined
                         let xlsxBuffer: Uint8Array | null = null
 
                         if (mode === "normal") {
@@ -200,6 +254,47 @@ export default function Home() {
         }
     }
 
+    const handleDownloadCombinedXlsx = () => {
+        const convertedFiles = files.filter(f => f.status === "converted")
+        if (convertedFiles.length === 0) return
+
+        const filesData = convertedFiles
+            .filter(f => f.xlsxData && f.xlsxData.length > 0)
+            .map(f => ({
+                name: f.name,
+                data: f.xlsxData!
+            }))
+
+        if (filesData.length === 0) return
+
+        try {
+            const combinedBuffer = createCombinedXlsxBuffer(filesData)
+            const blob = new Blob([combinedBuffer as unknown as BlobPart], {
+                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url
+            
+            const firstBaseName = filesData[0].name.replace(/\.[^/.]+$/, "")
+            let baseTitle = firstBaseName
+            const epIndex = baseTitle.lastIndexOf(" - EP")
+            if (epIndex !== -1) {
+                baseTitle = baseTitle.substring(0, epIndex)
+            }
+            const downloadName = filesData.length > 1 ? `${baseTitle} - Combined.xlsx` : `${baseTitle}.xlsx`
+            
+            a.download = downloadName
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+        } catch (err) {
+            console.error("Failed to generate combined Excel workbook:", err)
+            alert("Failed to generate combined Excel workbook. Please download individual files instead.")
+        }
+    }
+
     const handleDownloadAll = () => {
         const convertedFiles = files.filter(f => f.status === "converted")
         if (convertedFiles.length === 0) return
@@ -210,7 +305,7 @@ export default function Home() {
                 const format = getOutputFormat()
 
                 if (format === "xlsx" && file.xlsxBuffer) {
-                    blob = new Blob([file.xlsxBuffer as any], {
+                    blob = new Blob([file.xlsxBuffer as BlobPart], {
                         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     })
                 } else {
@@ -286,6 +381,7 @@ export default function Home() {
 
                 {fileToMap ? (
                     <ColumnMapper
+                        key={fileToMap.id}
                         preview={fileToMap.spreadsheetPreview!}
                         fileName={fileToMap.name}
                         onCancel={() => handleColumnMappingCancel(fileToMap.id)}
@@ -348,6 +444,7 @@ export default function Home() {
                 activePreviewId={activePreviewId}
                 onSelectPreview={setActivePreviewId}
                 onDownloadAll={handleDownloadAll}
+                onDownloadCombined={handleDownloadCombinedXlsx}
                 outputFormat={getOutputFormat()}
             />
 
