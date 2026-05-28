@@ -171,4 +171,35 @@ describe("XLSX Consolidated Export", () => {
         expect(ep2Rows).toHaveLength(1)
         expect(ep2Rows[0]["Subtitle"]).toBe("Hello from Episode 2")
     })
+
+    it("createCombinedXlsxBuffer creates a workbook with a single stacked sheet", () => {
+        const filesData = [
+            {
+                name: "Ep1.ass",
+                data: [{ "No.": 1, Subtitle: "Hello from Episode 1" }]
+            },
+            {
+                name: "Ep2.ass",
+                data: [{ "No.": 1, Subtitle: "Hello from Episode 2" }]
+            }
+        ]
+
+        const buffer = createCombinedXlsxBuffer(filesData, "single")
+        expect(buffer).toBeInstanceOf(Uint8Array)
+
+        // Verify sheet structures by parsing back
+        const workbook = XLSX.read(buffer, { type: "array" })
+        expect(workbook.SheetNames).toEqual(["Subtitles"])
+
+        const worksheet = workbook.Sheets["Subtitles"]
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: "" })
+
+        expect(rows[0][0]).toBe("Ep1")
+        expect(rows[1]).toEqual(["No.", "Subtitle"])
+        expect(rows[2]).toEqual([1, "Hello from Episode 1"])
+
+        expect(rows[4][0]).toBe("Ep2")
+        expect(rows[5]).toEqual(["No.", "Subtitle"])
+        expect(rows[6]).toEqual([1, "Hello from Episode 2"])
+    })
 })

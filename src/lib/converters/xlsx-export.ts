@@ -13,6 +13,7 @@ export interface XlsxExportOptions {
     showStyle: boolean
     showLayer: boolean
     showText: boolean
+    combinedMode?: "sheets" | "single"
 }
 
 export const DEFAULT_XLSX_OPTIONS: Required<XlsxExportOptions> = {
@@ -25,7 +26,8 @@ export const DEFAULT_XLSX_OPTIONS: Required<XlsxExportOptions> = {
     showActor: true,
     showStyle: false,
     showLayer: false,
-    showText: true
+    showText: true,
+    combinedMode: "sheets"
 }
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
@@ -187,16 +189,44 @@ export function cleanSheetName(name: string, index: number, usedNames: Set<strin
 }
 
 export function createCombinedXlsxBuffer(
-    filesData: { name: string; data: Record<string, string | number>[] }[]
+    filesData: { name: string; data: Record<string, string | number>[] }[],
+    combinedMode: "sheets" | "single" = "sheets"
 ): Uint8Array {
     const workbook = XLSX.utils.book_new()
     const usedNames = new Set<string>()
 
-    filesData.forEach((file, index) => {
-        const worksheet = XLSX.utils.json_to_sheet(file.data)
-        const sheetName = cleanSheetName(file.name, index, usedNames)
-        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
-    })
+    if (combinedMode === "single") {
+        const aoa: (string | number)[][] = []
+        filesData.forEach((file, index) => {
+            const sheetName = cleanSheetName(file.name, index, usedNames)
+            // Add episode marker row
+            aoa.push([sheetName])
+
+            if (file.data.length > 0) {
+                // Add headers row
+                const headers = Object.keys(file.data[0])
+                aoa.push(headers)
+
+                // Add data rows
+                file.data.forEach(row => {
+                    const rowValues = headers.map(key => (row[key] !== undefined ? row[key] : ""))
+                    aoa.push(rowValues)
+                })
+            }
+
+            // Add blank spacing row
+            aoa.push([])
+        })
+
+        const worksheet = XLSX.utils.aoa_to_sheet(aoa)
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Subtitles")
+    } else {
+        filesData.forEach((file, index) => {
+            const worksheet = XLSX.utils.json_to_sheet(file.data)
+            const sheetName = cleanSheetName(file.name, index, usedNames)
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+        })
+    }
 
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
     return new Uint8Array(excelBuffer)

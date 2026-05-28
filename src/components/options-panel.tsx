@@ -181,6 +181,30 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, stripSigns: c })}
                             />
                         </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Combined Export Mode</FieldLabel>
+                                <FieldDescription>
+                                    Structure multiple tracks as separate tabs or stacked in a single sheet.
+                                </FieldDescription>
+                            </div>
+                            <Select
+                                value={xlsxOptions.combinedMode || "sheets"}
+                                onValueChange={v =>
+                                    setXlsxOptions({ ...xlsxOptions, combinedMode: v as "sheets" | "single" })
+                                }
+                            >
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Select mode" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="sheets">Separate Sheets (Tabs)</SelectItem>
+                                        <SelectItem value="single">Single Sheet (Stacked)</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </Field>
 
                         <div className="mt-4 pt-6 border-t border-zinc-900/50">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4 px-2">
