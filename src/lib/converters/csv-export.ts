@@ -4,17 +4,27 @@ import { convertTagsToHtml, stripTags, tokenizeText, type TextSegment } from "..
 export interface CsvExportOptions {
     useHtmlTags: boolean
     stripSigns?: boolean
-    includeStyle: boolean
-    includeLayer: boolean
-    includeActor: boolean
+    showIndex: boolean
+    showStart: boolean
+    showEnd: boolean
+    showDuration: boolean
+    showActor: boolean
+    showStyle: boolean
+    showLayer: boolean
+    showText: boolean
 }
 
 export const DEFAULT_CSV_OPTIONS: Required<CsvExportOptions> = {
     useHtmlTags: true,
     stripSigns: false,
-    includeStyle: false,
-    includeLayer: false,
-    includeActor: true
+    showIndex: true,
+    showStart: true,
+    showEnd: true,
+    showDuration: true,
+    showActor: true,
+    showStyle: false,
+    showLayer: false,
+    showText: true
 }
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
@@ -83,10 +93,15 @@ export function convertToCsv(track: AssTrack, options: CsvExportOptions = DEFAUL
     const fullOptions = { ...DEFAULT_CSV_OPTIONS, ...options }
     const styleMap = new Map(track.styles.map(s => [s.Name, s]))
 
-    const headers: string[] = ["Index", "Start", "End", "Text"]
-    if (fullOptions.includeStyle) headers.push("Style")
-    if (fullOptions.includeLayer) headers.push("Layer")
-    if (fullOptions.includeActor) headers.push("Actor")
+    const headers: string[] = []
+    if (fullOptions.showIndex) headers.push("No.")
+    if (fullOptions.showStart) headers.push("Timecode In")
+    if (fullOptions.showEnd) headers.push("Timecode Out")
+    if (fullOptions.showDuration) headers.push("Duration")
+    if (fullOptions.showActor) headers.push("Name")
+    if (fullOptions.showStyle) headers.push("Style")
+    if (fullOptions.showLayer) headers.push("Layer")
+    if (fullOptions.showText) headers.push("Subtitle")
 
     const rows: string[][] = [headers]
 
@@ -114,11 +129,15 @@ export function convertToCsv(track: AssTrack, options: CsvExportOptions = DEFAUL
         text = text.trim()
         if (!text) continue
 
-        const row: string[] = [String(index), formatTime(event.Start), formatTime(event.End), text]
-
-        if (fullOptions.includeStyle) row.push(event.Style)
-        if (fullOptions.includeLayer) row.push(String(event.Layer))
-        if (fullOptions.includeActor) row.push(event.Name)
+        const row: string[] = []
+        if (fullOptions.showIndex) row.push(String(index))
+        if (fullOptions.showStart) row.push(formatTime(event.Start))
+        if (fullOptions.showEnd) row.push(formatTime(event.End))
+        if (fullOptions.showDuration) row.push(formatTime(event.End - event.Start))
+        if (fullOptions.showActor) row.push(event.Name)
+        if (fullOptions.showStyle) row.push(event.Style)
+        if (fullOptions.showLayer) row.push(String(event.Layer))
+        if (fullOptions.showText) row.push(text)
 
         rows.push(row)
         index++

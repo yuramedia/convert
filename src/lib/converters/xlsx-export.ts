@@ -5,17 +5,27 @@ import { convertTagsToHtml, stripTags, tokenizeText, type TextSegment } from "..
 export interface XlsxExportOptions {
     useHtmlTags: boolean
     stripSigns?: boolean
-    includeStyle: boolean
-    includeLayer: boolean
-    includeActor: boolean
+    showIndex: boolean
+    showStart: boolean
+    showEnd: boolean
+    showDuration: boolean
+    showActor: boolean
+    showStyle: boolean
+    showLayer: boolean
+    showText: boolean
 }
 
 export const DEFAULT_XLSX_OPTIONS: Required<XlsxExportOptions> = {
     useHtmlTags: true,
     stripSigns: false,
-    includeStyle: false,
-    includeLayer: false,
-    includeActor: true
+    showIndex: true,
+    showStart: true,
+    showEnd: true,
+    showDuration: true,
+    showActor: true,
+    showStyle: false,
+    showLayer: false,
+    showText: true
 }
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
@@ -106,16 +116,16 @@ export function convertToXlsxData(track: AssTrack, options: XlsxExportOptions = 
         text = text.trim()
         if (!text) continue
 
-        const row: XlsxRow = {
-            Index: index,
-            Start: formatTime(event.Start),
-            End: formatTime(event.End),
-            Text: text
-        }
+        const row: XlsxRow = {}
 
-        if (fullOptions.includeStyle) row.Style = event.Style
-        if (fullOptions.includeLayer) row.Layer = event.Layer
-        if (fullOptions.includeActor) row.Actor = event.Name
+        if (fullOptions.showIndex) row["No."] = index
+        if (fullOptions.showStart) row["Timecode In"] = formatTime(event.Start)
+        if (fullOptions.showEnd) row["Timecode Out"] = formatTime(event.End)
+        if (fullOptions.showDuration) row["Duration"] = formatTime(event.End - event.Start)
+        if (fullOptions.showActor) row["Name"] = event.Name
+        if (fullOptions.showStyle) row["Style"] = event.Style
+        if (fullOptions.showLayer) row["Layer"] = event.Layer
+        if (fullOptions.showText) row["Subtitle"] = text
 
         rows.push(row)
         index++

@@ -28,25 +28,35 @@ describe("CSV Export Converter", () => {
         const csv = convertToCsv(track, {
             useHtmlTags: true,
             stripSigns: false,
-            includeStyle: true,
-            includeLayer: true,
-            includeActor: true
+            showIndex: true,
+            showStart: true,
+            showEnd: true,
+            showDuration: true,
+            showActor: true,
+            showStyle: true,
+            showLayer: true,
+            showText: true
         })
 
         const lines = csv.split("\n")
-        expect(lines[0]).toBe("Index,Start,End,Text,Style,Layer,Actor")
-        expect(lines[1]).toBe("1,00:00:01.000,00:00:03.500,Hello World,Default,0,Actor1")
-        expect(lines[2]).toBe("2,00:00:04.000,00:00:06.000,<i>Italic</i> line,Default,1,Actor2")
-        expect(lines[3]).toBe("3,00:00:07.000,00:00:09.000,Positioned Sign,SignStyle,0,")
+        expect(lines[0]).toBe("No.,Timecode In,Timecode Out,Duration,Name,Style,Layer,Subtitle")
+        expect(lines[1]).toBe("1,00:00:01.000,00:00:03.500,00:00:02.500,Actor1,Default,0,Hello World")
+        expect(lines[2]).toBe("2,00:00:04.000,00:00:06.000,00:00:02.000,Actor2,Default,1,<i>Italic</i> line")
+        expect(lines[3]).toBe("3,00:00:07.000,00:00:09.000,00:00:02.000,,SignStyle,0,Positioned Sign")
     })
 
     it("strips signs when stripSigns option is true", () => {
         const csv = convertToCsv(track, {
             useHtmlTags: true,
             stripSigns: true,
-            includeStyle: false,
-            includeLayer: false,
-            includeActor: false
+            showIndex: true,
+            showStart: true,
+            showEnd: true,
+            showDuration: false,
+            showActor: false,
+            showStyle: false,
+            showLayer: false,
+            showText: true
         })
 
         const lines = csv.split("\n")
@@ -63,28 +73,34 @@ describe("XLSX Export Converter", () => {
         const rows = convertToXlsxData(track, {
             useHtmlTags: false,
             stripSigns: false,
-            includeStyle: true,
-            includeLayer: true,
-            includeActor: true
+            showIndex: true,
+            showStart: true,
+            showEnd: true,
+            showDuration: true,
+            showActor: true,
+            showStyle: true,
+            showLayer: true,
+            showText: true
         })
 
         expect(rows).toHaveLength(3)
         expect(rows[0]).toEqual({
-            Index: 1,
-            Start: "00:00:01.000",
-            End: "00:00:03.500",
-            Text: "Hello World",
+            "No.": 1,
+            "Timecode In": "00:00:01.000",
+            "Timecode Out": "00:00:03.500",
+            Duration: "00:00:02.500",
+            Name: "Actor1",
             Style: "Default",
             Layer: 0,
-            Actor: "Actor1"
+            Subtitle: "Hello World"
         })
-        expect(rows[1].Text).toBe("Italic line") // tags stripped
+        expect(rows[1]["Subtitle"]).toBe("Italic line") // tags stripped
     })
 
     it("generates a valid xlsx binary workbook", () => {
         const buffer = convertToXlsxBuffer(track, {
             ...DEFAULT_XLSX_OPTIONS,
-            includeStyle: true
+            showStyle: true
         })
         expect(buffer).toBeInstanceOf(Uint8Array)
         expect(buffer.byteLength).toBeGreaterThan(100)
@@ -96,7 +112,7 @@ describe("XLSX Export Converter", () => {
 
         const rows = XLSX.utils.sheet_to_json<any>(workbook.Sheets[sheetName])
         expect(rows).toHaveLength(3)
-        expect(rows[0].Text).toBe("Hello World")
-        expect(rows[0].Style).toBe("Default")
+        expect(rows[0]["Subtitle"]).toBe("Hello World")
+        expect(rows[0]["Style"]).toBe("Default")
     })
 })

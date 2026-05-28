@@ -12,6 +12,40 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
 
+interface CustomCheckboxProps {
+    label: string
+    checked: boolean
+    onChange: (checked: boolean) => void
+}
+
+function CustomCheckbox({ label, checked, onChange }: CustomCheckboxProps) {
+    return (
+        <label className="flex items-center gap-3 cursor-pointer select-none text-zinc-300 hover:text-zinc-100 transition-colors py-1">
+            <div className="relative flex items-center justify-center">
+                <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={checked}
+                    onChange={e => onChange(e.target.checked)}
+                    aria-label={label}
+                />
+                <div className="h-[18px] w-[18px] rounded border border-zinc-700 bg-zinc-900 transition-all peer-checked:bg-purple-600 peer-checked:border-purple-600 flex items-center justify-center">
+                    <svg
+                        className="h-3 w-3 text-white scale-0 transition-transform peer-checked:scale-100"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3.5}
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+            </div>
+            <span className="text-sm font-medium">{label}</span>
+        </label>
+    )
+}
+
 interface OptionsPanelProps {
     mode: ConversionMode
     normalOptions: NormalSrtOptions
@@ -71,36 +105,54 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setCsvOptions({ ...csvOptions, stripSigns: c })}
                             />
                         </Field>
-                        <Field orientation="horizontal">
-                            <div className="flex-1">
-                                <FieldLabel>Include Style Column</FieldLabel>
-                                <FieldDescription>Include a column showing the event style.</FieldDescription>
+
+                        <div className="mt-4 pt-6 border-t border-zinc-900/50">
+                            <div className="w-full py-2.5 px-4 mb-4 border border-zinc-800/80 rounded-lg text-center text-sm font-medium text-zinc-200">
+                                customize columns
                             </div>
-                            <Switch
-                                checked={csvOptions.includeStyle}
-                                onCheckedChange={c => setCsvOptions({ ...csvOptions, includeStyle: c })}
-                            />
-                        </Field>
-                        <Field orientation="horizontal">
-                            <div className="flex-1">
-                                <FieldLabel>Include Layer Column</FieldLabel>
-                                <FieldDescription>Include a column showing the dialogue layer.</FieldDescription>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4 px-2">
+                                <CustomCheckbox
+                                    label="No."
+                                    checked={csvOptions.showIndex}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showIndex: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Timecode In"
+                                    checked={csvOptions.showStart}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showStart: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Timecode Out"
+                                    checked={csvOptions.showEnd}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showEnd: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Duration"
+                                    checked={csvOptions.showDuration}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showDuration: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Name"
+                                    checked={csvOptions.showActor}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showActor: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Subtitle"
+                                    checked={csvOptions.showText}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showText: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Style"
+                                    checked={csvOptions.showStyle}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showStyle: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Layer"
+                                    checked={csvOptions.showLayer}
+                                    onChange={checked => setCsvOptions({ ...csvOptions, showLayer: checked })}
+                                />
                             </div>
-                            <Switch
-                                checked={csvOptions.includeLayer}
-                                onCheckedChange={c => setCsvOptions({ ...csvOptions, includeLayer: c })}
-                            />
-                        </Field>
-                        <Field orientation="horizontal">
-                            <div className="flex-1">
-                                <FieldLabel>Include Actor Column</FieldLabel>
-                                <FieldDescription>Include a column showing the actor/speaker.</FieldDescription>
-                            </div>
-                            <Switch
-                                checked={csvOptions.includeActor}
-                                onCheckedChange={c => setCsvOptions({ ...csvOptions, includeActor: c })}
-                            />
-                        </Field>
+                        </div>
                     </FieldGroup>
                 </CardContent>
             </Card>
@@ -139,36 +191,54 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, stripSigns: c })}
                             />
                         </Field>
-                        <Field orientation="horizontal">
-                            <div className="flex-1">
-                                <FieldLabel>Include Style Column</FieldLabel>
-                                <FieldDescription>Include a column showing the event style.</FieldDescription>
+
+                        <div className="mt-4 pt-6 border-t border-zinc-900/50">
+                            <div className="w-full py-2.5 px-4 mb-4 border border-zinc-800/80 rounded-lg text-center text-sm font-medium text-zinc-200">
+                                customize columns
                             </div>
-                            <Switch
-                                checked={xlsxOptions.includeStyle}
-                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, includeStyle: c })}
-                            />
-                        </Field>
-                        <Field orientation="horizontal">
-                            <div className="flex-1">
-                                <FieldLabel>Include Layer Column</FieldLabel>
-                                <FieldDescription>Include a column showing the dialogue layer.</FieldDescription>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4 px-2">
+                                <CustomCheckbox
+                                    label="No."
+                                    checked={xlsxOptions.showIndex}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showIndex: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Timecode In"
+                                    checked={xlsxOptions.showStart}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showStart: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Timecode Out"
+                                    checked={xlsxOptions.showEnd}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showEnd: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Duration"
+                                    checked={xlsxOptions.showDuration}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showDuration: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Name"
+                                    checked={xlsxOptions.showActor}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showActor: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Subtitle"
+                                    checked={xlsxOptions.showText}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showText: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Style"
+                                    checked={xlsxOptions.showStyle}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showStyle: checked })}
+                                />
+                                <CustomCheckbox
+                                    label="Layer"
+                                    checked={xlsxOptions.showLayer}
+                                    onChange={checked => setXlsxOptions({ ...xlsxOptions, showLayer: checked })}
+                                />
                             </div>
-                            <Switch
-                                checked={xlsxOptions.includeLayer}
-                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, includeLayer: c })}
-                            />
-                        </Field>
-                        <Field orientation="horizontal">
-                            <div className="flex-1">
-                                <FieldLabel>Include Actor Column</FieldLabel>
-                                <FieldDescription>Include a column showing the actor/speaker.</FieldDescription>
-                            </div>
-                            <Switch
-                                checked={xlsxOptions.includeActor}
-                                onCheckedChange={c => setXlsxOptions({ ...xlsxOptions, includeActor: c })}
-                            />
-                        </Field>
+                        </div>
                     </FieldGroup>
                 </CardContent>
             </Card>
