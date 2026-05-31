@@ -276,7 +276,7 @@ describe("resample — Anamorphic (rx≠ry)", () => {
         const res = convertResampleTs(parseAss(withScale), anaOpts)
         expect(res).toContain("\\fscx150") // 100 * (1.5 / 1.0)
         expect(res).toContain("\\fscy100") // 100 (unchanged)
-        
+
         // Test with ry != 1.0
         const anaOpts2 = {
             ...anaOpts,

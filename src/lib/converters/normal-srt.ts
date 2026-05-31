@@ -70,7 +70,7 @@ export function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean
 
             // 3. Check for Alignment tags (4-9 are middle/top, usually signs or top-subs)
             if (ALIGN_TAGS.has(nameLower)) {
-                let align = parseInt(t.value, 10)
+                const align = parseInt(t.value, 10)
                 // \a is legacy alignment: 5,6,7 are top; 9,10,11 are middle
                 if (nameLower === "a") {
                     if (align === 5 || align === 6 || align === 7 || align === 9 || align === 10 || align === 11)

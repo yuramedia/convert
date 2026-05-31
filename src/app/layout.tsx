@@ -25,10 +25,17 @@ export const metadata: Metadata = {
         "aegisub",
         "resolution resample"
     ],
+    manifest: "/manifest.json",
     openGraph: {
         title: "Yuuume ASS Converter",
         description: "Convert ASS subtitles to SRT with TS preservation, resolution resampling, or clean output.",
-        type: "website"
+        type: "website",
+        url: "https://convert.yuramedia.com"
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "Yuuume ASS Converter",
+        description: "Convert ASS subtitles to SRT with TS preservation, resolution resampling, or clean output."
     }
 }
 

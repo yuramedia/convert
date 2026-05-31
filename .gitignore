@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.antigravitycli
 
 # testing
 /coverage
@@ -19,6 +20,7 @@
 
 # production
 /build
+/reference
 
 # misc
 .DS_Store

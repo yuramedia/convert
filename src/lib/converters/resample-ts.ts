@@ -23,7 +23,7 @@ export interface ResampleOptions {
     injectAn2?: boolean
     /** When true, adjusts rotations (\frz) and scale (\fscx, \fscy) to preserve visual appearance when aspect ratio changes. Default: true */
     compensateAspectRatio?: boolean
-    /** When true, sort sign/TS lines before dialogue in SRT output so dialogue renders on top. Only used when outputFormat is "srt". Default: true */
+    /** When true, sort sign/TS lines before dialogue in SRT output so dialogue renders on top. Only used when outputFormat is "srt". */
     signFirst?: boolean
 }
 

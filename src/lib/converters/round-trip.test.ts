@@ -67,21 +67,30 @@ describe("round-trip — alignment edge cases (libass#262)", () => {
     describe("isLikelySign alignment guards", () => {
         it("does not classify Alignment 0 lines as signs", () => {
             const srt = convertNormalSrt(track, {
-                useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: true
+                useHtmlTags: false,
+                mergeDuplicates: false,
+                stripEmptyLines: true,
+                stripSigns: true
             })
             expect(srt).toContain("Zero align line")
         })
 
         it("does not classify negative Alignment lines as signs", () => {
             const srt = convertNormalSrt(track, {
-                useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: true
+                useHtmlTags: false,
+                mergeDuplicates: false,
+                stripEmptyLines: true,
+                stripSigns: true
             })
             expect(srt).toContain("Negative align line")
         })
 
         it("does not classify huge Alignment (99) lines as signs", () => {
             const srt = convertNormalSrt(track, {
-                useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: true
+                useHtmlTags: false,
+                mergeDuplicates: false,
+                stripEmptyLines: true,
+                stripSigns: true
             })
             expect(srt).toContain("Huge align line")
         })
@@ -99,7 +108,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:01.00,0:00:05.00,TopSign,,0,0,0,,Top sign line
 `)
             const srt = convertNormalSrt(an8Track, {
-                useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: true
+                useHtmlTags: false,
+                mergeDuplicates: false,
+                stripEmptyLines: true,
+                stripSigns: true
             })
             expect(srt).not.toContain("Top sign line")
         })
@@ -170,7 +182,9 @@ describe("round-trip — override tag preservation (keepTs)", () => {
 
     it("normalSrt preserves text content (strips tags)", () => {
         const normal = convertNormalSrt(track, {
-            useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true
         })
         expect(normal).toContain("Positioned text")
         expect(normal).toContain("Scaled text")

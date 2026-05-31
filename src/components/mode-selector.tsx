@@ -1,9 +1,9 @@
 "use client"
 
-import { FileOutput, Brackets, Scaling } from "lucide-react"
+import { FileOutput, Brackets, Scaling, Table, FileSpreadsheet } from "lucide-react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
-export type ConversionMode = "normal" | "keepts" | "resample"
+export type ConversionMode = "normal" | "keepts" | "resample" | "csv" | "xlsx"
 
 interface ModeSelectorProps {
     mode: ConversionMode
@@ -15,19 +15,31 @@ const MODES: { id: ConversionMode; label: string; description: string; icon: Rea
         id: "normal",
         label: "Normal",
         description: "Standard strip / basic HTML.",
-        icon: <FileOutput />
+        icon: <FileOutput size={18} />
     },
     {
         id: "keepts",
         label: "Keep TS",
         description: "Preserve all override tags.",
-        icon: <Brackets />
+        icon: <Brackets size={18} />
     },
     {
         id: "resample",
         label: "Resample",
         description: "Scale coordinate metrics.",
-        icon: <Scaling />
+        icon: <Scaling size={18} />
+    },
+    {
+        id: "csv",
+        label: "CSV",
+        description: "Convert to CSV spreadsheet.",
+        icon: <FileSpreadsheet size={18} />
+    },
+    {
+        id: "xlsx",
+        label: "Excel",
+        description: "Convert to XLSX spreadsheet.",
+        icon: <Table size={18} />
     }
 ]
 
