@@ -51,10 +51,12 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
 
             for (const file of fileList) {
                 const isSpreadsheet = !!file.name.match(/\.(csv|tsv|xlsx|xls|txt)$/i)
-                const isSubtitle = !!file.name.match(/\.(ass|ssa)$/i)
+                const isSubtitle = !!file.name.match(/\.(ass|ssa|srt)$/i)
 
                 if (!isSpreadsheet && !isSubtitle) {
-                    alert(`File "${file.name}" is not supported. Please select .ass, .ssa, .csv, .tsv, .xlsx, or .xls.`)
+                    alert(
+                        `File "${file.name}" is not supported. Please select .ass, .ssa, .srt, .csv, .tsv, .xlsx, or .xls.`
+                    )
                     continue
                 }
 
@@ -62,8 +64,14 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                     const id = Math.random().toString(36).substring(2, 9)
                     if (isSubtitle) {
                         const text = await file.text()
-                        const { parseAss } = await import("@/lib/ass-parser")
-                        const track = parseAss(text)
+                        let track
+                        if (file.name.match(/\.srt$/i)) {
+                            const { parseSrt } = await import("@/lib/srt-parser")
+                            track = parseSrt(text)
+                        } else {
+                            const { parseAss } = await import("@/lib/ass-parser")
+                            track = parseAss(text)
+                        }
                         newFiles.push({
                             id,
                             name: file.name,
@@ -173,7 +181,7 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                 <input
                     ref={inputRef}
                     type="file"
-                    accept=".ass,.ssa,.csv,.tsv,.xlsx,.xls,.txt"
+                    accept=".ass,.ssa,.srt,.csv,.tsv,.xlsx,.xls,.txt"
                     className="hidden"
                     multiple
                     onChange={handleInputChange}
@@ -201,7 +209,7 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                                 {files.length > 0 ? "Add More Files" : "Upload Subtitle or Spreadsheet Files"}
                             </p>
                             <p id="dropzone-hint" className="text-xs text-zinc-500">
-                                Drag and drop .ass, .ssa, .csv, .tsv, .xlsx, or .xls here
+                                Drag and drop .ass, .ssa, .srt, .csv, .tsv, .xlsx, or .xls here
                             </p>
                         </div>
                     </div>
