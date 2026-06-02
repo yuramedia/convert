@@ -110,15 +110,24 @@ export default function OutputPreview({
     if (convertedFiles.length === 0 || !activeFile) return null
 
     return (
-        <Card className="overflow-hidden flex flex-col mt-8 bg-zinc-950 border-zinc-800 animate-in fade-in duration-500 shadow-xl">
+        <Card
+            className="overflow-hidden flex flex-col mt-8 bg-zinc-950 border-zinc-800 animate-in fade-in duration-500 shadow-xl"
+            role="region"
+            aria-label="Output preview"
+        >
+            {/* aria-live announces copy action result */}
+            <div aria-live="polite" aria-atomic="true" className="sr-only">
+                {copied ? "Output copied to clipboard." : ""}
+            </div>
+
             {/* Header info */}
             <div className="flex items-center justify-between p-4 border-b border-zinc-900 bg-zinc-900/20">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <FileCode size={16} className="text-blue-500" />
+                        <FileCode size={16} className="text-blue-500" aria-hidden="true" />
                         <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-100">Output Preview</h3>
                     </div>
-                    <div className="hidden sm:flex items-center gap-3">
+                    <div className="hidden sm:flex items-center gap-3" aria-hidden="true">
                         <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
                             {lineCount} {outputFormat === "xlsx" ? "rows" : "lines"}
                         </span>
@@ -135,9 +144,10 @@ export default function OutputPreview({
                                     onClick={onDownloadCombined}
                                     variant="secondary"
                                     size="sm"
+                                    aria-label="Download all files as a combined Excel workbook"
                                     className="h-9 px-4 text-xs font-bold rounded-md transition-all border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
                                 >
-                                    <Download size={14} />
+                                    <Download size={14} aria-hidden="true" />
                                     <span className="ml-2">Download Combined Excel</span>
                                 </Button>
                             )}
@@ -145,9 +155,10 @@ export default function OutputPreview({
                                 onClick={onDownloadAll}
                                 variant="secondary"
                                 size="sm"
+                                aria-label={`Download all ${convertedFiles.length} converted files`}
                                 className="h-9 px-4 text-xs font-bold rounded-md transition-all border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
                             >
-                                <Download size={14} />
+                                <Download size={14} aria-hidden="true" />
                                 <span className="ml-2">
                                     {outputFormat === "xlsx" ? "Download All (Zip/Individual)" : "Download All"}
                                 </span>
@@ -159,9 +170,14 @@ export default function OutputPreview({
                             onClick={handleCopy}
                             variant="secondary"
                             size="sm"
+                            aria-label={copied ? "Copied to clipboard" : "Copy output to clipboard"}
                             className="h-9 px-4 text-xs font-bold rounded-md transition-all"
                         >
-                            {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                            {copied ? (
+                                <Check size={14} className="text-green-500" aria-hidden="true" />
+                            ) : (
+                                <Copy size={14} aria-hidden="true" />
+                            )}
                             <span className="ml-2">{copied ? "Copied" : "Copy"}</span>
                         </Button>
                     )}
@@ -169,9 +185,10 @@ export default function OutputPreview({
                         onClick={handleDownload}
                         variant="default"
                         size="sm"
+                        aria-label={`Download ${activeFile.name} as .${outputFormat}`}
                         className="h-9 px-4 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-md"
                     >
-                        <Download size={14} />
+                        <Download size={14} aria-hidden="true" />
                         <span className="ml-2">Download</span>
                     </Button>
                 </div>
@@ -179,10 +196,16 @@ export default function OutputPreview({
 
             {/* Tab selector for multiple converted files */}
             {convertedFiles.length > 1 && (
-                <div className="flex gap-2 p-2 border-b border-zinc-900 bg-zinc-950/80 overflow-x-auto scrollbar-thin">
+                <div
+                    role="tablist"
+                    aria-label="Converted files"
+                    className="flex gap-2 p-2 border-b border-zinc-900 bg-zinc-950/80 overflow-x-auto scrollbar-thin"
+                >
                     {convertedFiles.map(f => (
                         <button
                             key={f.id}
+                            role="tab"
+                            aria-selected={f.id === activePreviewId}
                             onClick={() => onSelectPreview(f.id)}
                             className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-colors border ${
                                 f.id === activePreviewId
@@ -197,19 +220,24 @@ export default function OutputPreview({
             )}
 
             {/* Preview content grid */}
-            <div className="p-6 relative bg-black/40">
-                <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
+            <div className="p-6 relative bg-black/40" role="tabpanel" aria-label={`Preview of ${activeFile.name}`}>
+                <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20" aria-hidden="true">
                     <span className="font-mono text-[10px] font-bold text-zinc-400">{outputFormat.toUpperCase()}</span>
                 </div>
 
                 {outputFormat === "xlsx" && activeFile.xlsxData ? (
                     <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
-                        <table className="w-full text-left border-collapse text-xs">
+                        <table
+                            className="w-full text-left border-collapse text-xs"
+                            aria-label={`Preview of ${activeFile.name}`}
+                        >
+                            <caption className="sr-only">Converted subtitle data with {lineCount} rows</caption>
                             <thead>
                                 <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 backdrop-blur-md">
                                     {xlsxHeaders.map(h => (
                                         <th
                                             key={h}
+                                            scope="col"
                                             className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 last:border-0"
                                         >
                                             {h}
@@ -237,14 +265,21 @@ export default function OutputPreview({
                         </table>
                     </div>
                 ) : (
-                    <pre className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre">
+                    <pre
+                        className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre"
+                        aria-label={`${outputFormat.toUpperCase()} output text`}
+                        tabIndex={0}
+                    >
                         {displayContent}
                     </pre>
                 )}
 
                 {isTruncated ? (
-                    <div className="mt-4 p-3 bg-blue-900/20 border border-blue-900/30 rounded flex items-center gap-3">
-                        <AlertCircle size={16} className="text-blue-500 shrink-0" />
+                    <div
+                        role="alert"
+                        className="mt-4 p-3 bg-blue-900/20 border border-blue-900/30 rounded flex items-center gap-3"
+                    >
+                        <AlertCircle size={16} className="text-blue-500 shrink-0" aria-hidden="true" />
                         <p className="text-[11px] text-blue-300 font-medium uppercase tracking-wider">
                             Preview truncated for performance ({lineCount - 1000} lines hidden). Download to see full
                             content.
