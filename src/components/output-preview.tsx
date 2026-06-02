@@ -112,7 +112,7 @@ export default function OutputPreview({
     return (
         <Card
             className="overflow-hidden flex flex-col mt-8 bg-zinc-950 border-zinc-800 animate-in fade-in duration-500 shadow-xl"
-            role="region"
+            as="section"
             aria-label="Output preview"
         >
             {/* aria-live announces copy action result */}
@@ -268,7 +268,6 @@ export default function OutputPreview({
                     <pre
                         className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre"
                         aria-label={`${outputFormat.toUpperCase()} output text`}
-                        tabIndex={0}
                     >
                         {displayContent}
                     </pre>

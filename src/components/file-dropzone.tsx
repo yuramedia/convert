@@ -154,7 +154,6 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
 
             <button
                 type="button"
-                role="region"
                 aria-label={dropzoneLabel}
                 aria-describedby="dropzone-hint"
                 aria-busy={isLoading}
@@ -182,13 +181,13 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                     aria-hidden="true"
                 />
                 {isLoading ? (
-                    <div className="flex flex-col items-center gap-3" role="status">
+                    <output className="flex flex-col items-center gap-3">
                         <div
                             className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
                             aria-hidden="true"
                         />
                         <p className="text-xs font-bold uppercase tracking-widest text-blue-500">Parsing...</p>
-                    </div>
+                    </output>
                 ) : (
                     <div className="flex flex-col items-center gap-2">
                         <div
@@ -212,7 +211,7 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
             {files.length > 0 ? (
                 <Card
                     className="p-4 bg-zinc-950 border-zinc-800 animate-in fade-in duration-300"
-                    role="region"
+                    as="section"
                     aria-label={`Uploaded files (${files.length})`}
                 >
                     <div className="flex items-center justify-between mb-4 pb-2 border-b border-zinc-900">

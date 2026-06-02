@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Layers } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 export default function NotFound() {
     return (
@@ -12,9 +13,15 @@ export default function NotFound() {
                 <h2 className="text-5xl font-extrabold tracking-tight text-zinc-50">404</h2>
                 <p className="text-sm text-zinc-500">Page not found.</p>
             </div>
-            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
-                <Link href="/">Back to converter</Link>
-            </Button>
+            <Link
+                href="/"
+                className={cn(
+                    buttonVariants({ variant: "default", size: "default" }),
+                    "bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                )}
+            >
+                Back to converter
+            </Link>
         </main>
     )
 }

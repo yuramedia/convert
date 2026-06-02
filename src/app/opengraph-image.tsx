@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og"
 
-export const runtime = "edge"
+export const dynamic = "force-static"
 export const alt = "Yuuume ASS Converter"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
@@ -45,10 +45,12 @@ export default async function OgImage() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 26
+                        fontSize: 26,
+                        fontWeight: 900,
+                        color: "#ffffff"
                     }}
                 >
-                    ◧
+                    A
                 </div>
                 <div
                     style={{
@@ -59,10 +61,12 @@ export default async function OgImage() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 26
+                        fontSize: 26,
+                        fontWeight: 900,
+                        color: "#ffffff"
                     }}
                 >
-                    ⬡
+                    S
                 </div>
             </div>
             {/* Title */}
@@ -73,10 +77,14 @@ export default async function OgImage() {
                     color: "#f4f4f5",
                     letterSpacing: "-2px",
                     textTransform: "uppercase",
-                    lineHeight: 1
+                    lineHeight: 1,
+                    display: "flex",
+                    alignItems: "center"
                 }}
             >
-                Yuuume <span style={{ color: "#3b82f6" }}>ASS</span> Converter
+                <span>Yuuume&nbsp;</span>
+                <span style={{ color: "#3b82f6" }}>ASS</span>
+                <span>&nbsp;Converter</span>
             </div>
             {/* Subtitle */}
             <div
@@ -87,7 +95,7 @@ export default async function OgImage() {
                     letterSpacing: "0.05em"
                 }}
             >
-                ASS → SRT · CSV · XLSX · Fully client-side
+                ASS to SRT | CSV | XLSX | Fully client-side
             </div>
         </div>,
         { ...size }
