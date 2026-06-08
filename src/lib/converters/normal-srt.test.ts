@@ -235,3 +235,106 @@ Dialogue: 0,0:00:08.00,0:00:10.00,Default,,0,0,0,,Line C after gap
         expect(srt).toContain("00:00:03,000 --> 00:00:08,000")
     })
 })
+
+// ─── isLikelySign keyword false-positive regression ──────────────────────────
+
+const KEYWORD_FALSE_POSITIVE_ASS = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Defaults,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Thoughts,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,-1,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Comments,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Effects,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Flashback,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Credited,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: TS,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
+Style: OP,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
+Style: ED,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
+Style: Sign-TS,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
+Style: OP Karaoke,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Default dialogue
+Dialogue: 0,0:00:03.00,0:00:05.00,Defaults,,0,0,0,,Defaults dialogue
+Dialogue: 0,0:00:05.00,0:00:07.00,Thoughts,,0,0,0,,Thoughts dialogue
+Dialogue: 0,0:00:07.00,0:00:09.00,Comments,,0,0,0,,Comments dialogue
+Dialogue: 0,0:00:09.00,0:00:11.00,Effects,,0,0,0,,Effects dialogue
+Dialogue: 0,0:00:11.00,0:00:13.00,Flashback,,0,0,0,,Flashback dialogue
+Dialogue: 0,0:00:13.00,0:00:15.00,Credited,,0,0,0,,Credited dialogue
+Dialogue: 0,0:00:15.00,0:00:17.00,TS,,0,0,0,,TS line should be stripped
+Dialogue: 0,0:00:17.00,0:00:19.00,OP,,0,0,0,,OP line should be stripped
+Dialogue: 0,0:00:19.00,0:00:21.00,ED,,0,0,0,,ED line should be stripped
+Dialogue: 0,0:00:21.00,0:00:23.00,Sign-TS,,0,0,0,,Sign-TS line should be stripped
+Dialogue: 0,0:00:23.00,0:00:25.00,OP Karaoke,,0,0,0,,OP Karaoke line should be stripped
+`
+
+describe("convertNormalSrt — keyword false-positive regression", () => {
+    const track = parseAss(KEYWORD_FALSE_POSITIVE_ASS)
+    const opts = { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: true }
+
+    it("does NOT strip 'Defaults' style (contains 'ts' as substring)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Defaults dialogue")
+    })
+
+    it("does NOT strip 'Thoughts' style (contains 'ts' as substring)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Thoughts dialogue")
+    })
+
+    it("does NOT strip 'Comments' style (contains 'ts' as substring)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Comments dialogue")
+    })
+
+    it("does NOT strip 'Effects' style (contains 'ts' as substring)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Effects dialogue")
+    })
+
+    it("does NOT strip 'Flashback' style (contains 'ed' as substring)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Flashback dialogue")
+    })
+
+    it("does NOT strip 'Credited' style (contains 'ed' as substring)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Credited dialogue")
+    })
+
+    it("DOES strip 'TS' style (exact word match)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).not.toContain("TS line should be stripped")
+    })
+
+    it("DOES strip 'OP' style (exact word match)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).not.toContain("OP line should be stripped")
+    })
+
+    it("DOES strip 'ED' style (exact word match)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).not.toContain("ED line should be stripped")
+    })
+
+    it("DOES strip 'Sign-TS' style (word boundary match)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).not.toContain("Sign-TS line should be stripped")
+    })
+
+    it("DOES strip 'OP Karaoke' style (word boundary match)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).not.toContain("OP Karaoke line should be stripped")
+    })
+
+    it("keeps Default style dialogue", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Default dialogue")
+    })
+})

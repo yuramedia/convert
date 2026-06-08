@@ -47,7 +47,12 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
 const ALIGN_TAGS = new Set(["an", "a"])
-const SIGN_KEYWORDS = ["sign", "ts", "typeset", "op", "ed"]
+/**
+ * Word-boundary regex patterns for style names that indicate typesetting.
+ * Uses \b to avoid false positives like "Defaults" matching "ts",
+ * "Closed" matching "ed", or "Proper" matching "op".
+ */
+const SIGN_KEYWORD_RE = /\b(?:sign|signs|ts|typeset|typesetting|op|ed)\b/i
 
 /**
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
@@ -89,14 +94,9 @@ export function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean
         return true
     }
 
-    // 5. Fallback to common style name keywords
-    if (style) {
-        const name = style.Name.toLowerCase()
-        for (let i = 0; i < SIGN_KEYWORDS.length; i++) {
-            if (name.includes(SIGN_KEYWORDS[i])) {
-                return true
-            }
-        }
+    // 5. Fallback to common style name keywords (word-boundary match)
+    if (style && SIGN_KEYWORD_RE.test(style.Name)) {
+        return true
     }
 
     return false
