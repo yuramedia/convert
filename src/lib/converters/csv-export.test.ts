@@ -150,6 +150,6 @@ Dialogue: 0,0:00:03.00,0:00:04.00,Default,,0000,0000,0000,,{\\p1}m 0 0 l 100 0 1
         })
         const lines = csv.split("\n")
         expect(lines).toHaveLength(2) // header + 1 real line (drawing stripped)
-        expect(lines[1]).toStartWith("1,")
+        expect(lines[1]).toBe("1,Real line")
     })
 })
