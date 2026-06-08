@@ -6,7 +6,8 @@ import {
     convertToXlsxJson,
     DEFAULT_XLSX_OPTIONS,
     cleanSheetName,
-    createCombinedXlsxBuffer
+    createCombinedXlsxBuffer,
+    regenerateXlsxBuffer
 } from "./xlsx-export"
 import * as XLSX from "xlsx-js-style"
 
@@ -193,5 +194,26 @@ describe("createCombinedXlsxBuffer", () => {
         const buffer = createCombinedXlsxBuffer(filesData)
         const workbook = XLSX.read(buffer, { type: "array" })
         expect(workbook.SheetNames).toEqual(["Ep1", "Ep2"])
+    })
+})
+
+describe("regenerateXlsxBuffer", () => {
+    const data = [
+        { "No.": 1, "Timecode In": "00:00:01.000", "Timecode Out": "00:00:03.500", Subtitle: "Hello Edited" },
+        { "No.": 2, "Timecode In": "00:00:04.000", "Timecode Out": "00:00:06.000", Subtitle: "Italic line" }
+    ]
+
+    it("successfully creates a valid Excel workbook from inline-edited data array", () => {
+        const buffer = regenerateXlsxBuffer(data, "TestFile.xlsx")
+        expect(buffer).toBeInstanceOf(Uint8Array)
+        expect(buffer.byteLength).toBeGreaterThan(100)
+
+        const workbook = XLSX.read(buffer, { type: "array" })
+        expect(workbook.SheetNames[0]).toBe("Subtitles")
+
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Subtitles"], { range: 3 })
+        expect(rows).toHaveLength(2)
+        expect(rows[0]["Subtitle"]).toBe("Hello Edited")
+        expect(rows[1]["Subtitle"]).toBe("Italic line")
     })
 })

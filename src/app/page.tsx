@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import Link from "next/link"
 import { Layers, Info, Cpu } from "lucide-react"
 import FileDropzone, { type QueuedFile } from "@/components/file-dropzone"
@@ -17,7 +17,8 @@ import {
     convertToXlsxBuffer,
     DEFAULT_XLSX_OPTIONS,
     type XlsxExportOptions,
-    createCombinedXlsxBuffer
+    createCombinedXlsxBuffer,
+    regenerateXlsxBuffer
 } from "@/lib/converters/xlsx-export"
 import {
     type ColumnMapping,
@@ -332,6 +333,24 @@ export default function Home() {
         return "srt"
     }
 
+    const handleUpdateOutput = useCallback((fileId: string, newContent: string) => {
+        setFiles(prev => prev.map(f => (f.id === fileId ? { ...f, outputContent: newContent } : f)))
+    }, [])
+
+    const handleUpdateXlsxData = useCallback((fileId: string, newData: Record<string, string | number>[]) => {
+        setFiles(prev =>
+            prev.map(f =>
+                f.id === fileId
+                    ? {
+                          ...f,
+                          xlsxData: newData,
+                          xlsxBuffer: regenerateXlsxBuffer(newData, f.name)
+                      }
+                    : f
+            )
+        )
+    }, [])
+
     // Sequentially map files: map manually selected files first, or map the first unmapped file in queue
     const fileToMap =
         files.find(f => f.id === mappingFileId && f.status === "pending_mapping") ||
@@ -445,6 +464,8 @@ export default function Home() {
                 onSelectPreview={setActivePreviewId}
                 onDownloadAll={handleDownloadAll}
                 onDownloadCombined={handleDownloadCombinedXlsx}
+                onUpdateOutput={handleUpdateOutput}
+                onUpdateXlsxData={handleUpdateXlsxData}
                 outputFormat={getOutputFormat()}
             />
 

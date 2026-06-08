@@ -1,10 +1,13 @@
 "use client"
 
-import { Copy, Download, Check, FileCode, AlertCircle } from "lucide-react"
-import { useState, useMemo } from "react"
+import { Copy, Download, Check, FileCode, AlertCircle, Table2, Code, Pencil } from "lucide-react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { type QueuedFile } from "./file-dropzone"
+import { parseSrtCues, parseSrtTimestamp } from "@/lib/srt-parser"
+import { formatSrtTimestamp, writeSrt, type SrtEntry } from "@/lib/srt-writer"
+import { cn } from "@/lib/utils"
 
 interface OutputPreviewProps {
     files: QueuedFile[]
@@ -12,8 +15,297 @@ interface OutputPreviewProps {
     onSelectPreview: (id: string) => void
     onDownloadAll: () => void
     onDownloadCombined?: () => void
+    onUpdateOutput?: (fileId: string, newContent: string) => void
+    onUpdateXlsxData?: (fileId: string, newData: Record<string, string | number>[]) => void
     outputFormat: "srt" | "ass" | "csv" | "xlsx"
 }
+
+// ─── Editable Cell Component ─────────────────────────────────────────────────
+
+interface EditableCellProps {
+    value: string
+    onCommit: (newValue: string) => void
+    className?: string
+    isTimecode?: boolean
+    multiline?: boolean
+}
+
+function EditableCell({ value, onCommit, className = "", isTimecode = false, multiline = false }: EditableCellProps) {
+    const [editing, setEditing] = useState(false)
+    const [editValue, setEditValue] = useState(value)
+    const [modified, setModified] = useState(false)
+    const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
+
+    useEffect(() => {
+        if (editing && inputRef.current) {
+            inputRef.current.focus()
+            inputRef.current.select()
+        }
+    }, [editing])
+
+    // Sync external value changes (e.g., re-conversion)
+    useEffect(() => {
+        if (!editing) {
+            setEditValue(value)
+        }
+    }, [value, editing])
+
+    const commit = useCallback(() => {
+        const trimmed = editValue.trim()
+        if (trimmed !== value) {
+            // Validate timecode format if this is a timecode cell
+            if (isTimecode) {
+                const ms = parseSrtTimestamp(trimmed)
+                if (ms === 0 && trimmed !== "00:00:00,000") {
+                    // Invalid format — revert
+                    setEditValue(value)
+                    setEditing(false)
+                    return
+                }
+            }
+            onCommit(trimmed)
+            setModified(true)
+        }
+        setEditing(false)
+    }, [editValue, value, onCommit, isTimecode])
+
+    const cancel = useCallback(() => {
+        setEditValue(value)
+        setEditing(false)
+    }, [value])
+
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.preventDefault()
+                cancel()
+            } else if (e.key === "Enter" && !multiline) {
+                e.preventDefault()
+                commit()
+            } else if (e.key === "Enter" && multiline && !e.shiftKey) {
+                e.preventDefault()
+                commit()
+            }
+        },
+        [commit, cancel, multiline]
+    )
+
+    if (editing) {
+        const sharedProps = {
+            value: editValue,
+            onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setEditValue(e.target.value),
+            onBlur: commit,
+            onKeyDown: handleKeyDown,
+            className: `w-full bg-zinc-900 border border-blue-500/50 rounded px-2 py-1 text-xs text-zinc-200 outline-none focus:ring-1 focus:ring-blue-500/30 ${isTimecode ? "font-mono tabular-nums" : ""}`,
+            autoComplete: "off" as const,
+            spellCheck: false
+        }
+
+        if (multiline) {
+            return (
+                <td className={cn(className, "p-0")}>
+                    <textarea
+                        ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+                        {...sharedProps}
+                        rows={Math.max(2, editValue.split("\n").length)}
+                        className={cn(sharedProps.className, "resize-y min-h-[2rem]")}
+                    />
+                </td>
+            )
+        }
+
+        return (
+            <td className={cn(className, "p-0")}>
+                <input ref={inputRef as React.RefObject<HTMLInputElement>} type="text" {...sharedProps} />
+            </td>
+        )
+    }
+
+    return (
+        <td
+            className={cn(className, "cursor-pointer group/cell relative", modified && "bg-blue-500/5")}
+            onClick={() => setEditing(true)}
+            title="Click to edit"
+        >
+            <span className={isTimecode ? "font-mono tabular-nums" : ""}>
+                {value || <span className="text-zinc-700 italic">empty</span>}
+            </span>
+            <Pencil
+                size={10}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-700 opacity-0 group-hover/cell:opacity-100 transition-opacity"
+                aria-hidden="true"
+            />
+        </td>
+    )
+}
+
+// ─── SRT Table View ──────────────────────────────────────────────────────────
+
+interface SrtTableEntry {
+    index: number
+    startMs: number
+    endMs: number
+    text: string
+}
+
+interface SrtTableViewProps {
+    entries: SrtTableEntry[]
+    onUpdate: (entries: SrtTableEntry[]) => void
+}
+
+function SrtTableView({ entries, onUpdate }: SrtTableViewProps) {
+    const handleCellEdit = useCallback(
+        (rowIdx: number, field: keyof SrtTableEntry, newValue: string) => {
+            const updated = [...entries]
+            const entry = { ...updated[rowIdx] }
+
+            if (field === "startMs") {
+                entry.startMs = parseSrtTimestamp(newValue)
+            } else if (field === "endMs") {
+                entry.endMs = parseSrtTimestamp(newValue)
+            } else if (field === "text") {
+                entry.text = newValue
+            }
+
+            updated[rowIdx] = entry
+            onUpdate(updated)
+        },
+        [entries, onUpdate]
+    )
+
+    if (entries.length === 0) {
+        return <p className="text-zinc-500 text-xs text-center py-8">No entries to display.</p>
+    }
+
+    return (
+        <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
+            <table className="w-full text-left border-collapse text-xs" aria-label="Editable subtitle preview">
+                <caption className="sr-only">Converted subtitle data — click any cell to edit</caption>
+                <thead>
+                    <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 z-10 backdrop-blur-md">
+                        <th
+                            scope="col"
+                            className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[50px] text-center"
+                        >
+                            No.
+                        </th>
+                        <th
+                            scope="col"
+                            className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[140px]"
+                        >
+                            Timecode In
+                        </th>
+                        <th
+                            scope="col"
+                            className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[140px]"
+                        >
+                            Timecode Out
+                        </th>
+                        <th scope="col" className="p-3 font-bold text-zinc-300 uppercase tracking-wider">
+                            Subtitle
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {entries.map((entry, idx) => (
+                        <tr
+                            key={`${entry.index}-${idx}`}
+                            className="border-b border-zinc-900/50 hover:bg-zinc-900/20 last:border-0 transition-colors"
+                        >
+                            <td className="p-3 text-zinc-600 text-center font-mono tabular-nums border-r border-zinc-900/50">
+                                {entry.index}
+                            </td>
+                            <EditableCell
+                                value={formatSrtTimestamp(entry.startMs)}
+                                onCommit={v => handleCellEdit(idx, "startMs", v)}
+                                className="p-3 text-zinc-400 border-r border-zinc-900/50"
+                                isTimecode
+                            />
+                            <EditableCell
+                                value={formatSrtTimestamp(entry.endMs)}
+                                onCommit={v => handleCellEdit(idx, "endMs", v)}
+                                className="p-3 text-zinc-400 border-r border-zinc-900/50"
+                                isTimecode
+                            />
+                            <EditableCell
+                                value={entry.text}
+                                onCommit={v => handleCellEdit(idx, "text", v)}
+                                className="p-3 text-zinc-400"
+                                multiline
+                            />
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    )
+}
+
+// ─── XLSX Table View (Editable) ──────────────────────────────────────────────
+
+interface XlsxTableViewProps {
+    data: Record<string, string | number>[]
+    headers: string[]
+    onUpdate: (data: Record<string, string | number>[]) => void
+    fileName: string
+}
+
+function XlsxTableView({ data, headers, onUpdate, fileName }: XlsxTableViewProps) {
+    const handleCellEdit = useCallback(
+        (rowIdx: number, header: string, newValue: string) => {
+            const updated = [...data]
+            updated[rowIdx] = { ...updated[rowIdx], [header]: newValue }
+            onUpdate(updated)
+        },
+        [data, onUpdate]
+    )
+
+    return (
+        <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
+            <table className="w-full text-left border-collapse text-xs" aria-label={`Editable preview of ${fileName}`}>
+                <caption className="sr-only">
+                    Converted subtitle data with {data.length} rows — click any cell to edit
+                </caption>
+                <thead>
+                    <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 z-10 backdrop-blur-md">
+                        {headers.map(h => (
+                            <th
+                                key={h}
+                                scope="col"
+                                className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 last:border-0"
+                            >
+                                {h}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {data.map((row, idx) => (
+                        <tr
+                            key={idx}
+                            className="border-b border-zinc-900/50 hover:bg-zinc-900/20 last:border-0 transition-colors"
+                        >
+                            {headers.map(h => {
+                                const isTimecodeCol = /timecode|time/i.test(h)
+                                return (
+                                    <EditableCell
+                                        key={h}
+                                        value={String(row[h] ?? "")}
+                                        onCommit={v => handleCellEdit(idx, h, v)}
+                                        className="p-3 text-zinc-400 border-r border-zinc-900/50 last:border-0 max-w-[300px]"
+                                        isTimecode={isTimecodeCol}
+                                    />
+                                )
+                            })}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    )
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function OutputPreview({
     files,
@@ -21,9 +313,12 @@ export default function OutputPreview({
     onSelectPreview,
     onDownloadAll,
     onDownloadCombined,
+    onUpdateOutput,
+    onUpdateXlsxData,
     outputFormat
 }: OutputPreviewProps) {
     const [copied, setCopied] = useState(false)
+    const [viewMode, setViewMode] = useState<"table" | "raw">("table")
 
     // Filter converted files
     const convertedFiles = useMemo(() => {
@@ -33,6 +328,26 @@ export default function OutputPreview({
     const activeFile = useMemo(() => {
         return files.find(f => f.id === activePreviewId && f.status === "converted")
     }, [files, activePreviewId])
+
+    // Parse SRT output into entries for table view
+    const srtEntries = useMemo((): SrtTableEntry[] => {
+        if (!activeFile || outputFormat === "xlsx") return []
+        const content = activeFile.outputContent || ""
+        if (!content) return []
+
+        // Parse using parseSrtCues for SRT format
+        if (outputFormat === "srt") {
+            const cues = parseSrtCues(content)
+            return cues.map(c => ({
+                index: c.index,
+                startMs: c.startMs,
+                endMs: c.endMs,
+                text: c.text
+            }))
+        }
+
+        return []
+    }, [activeFile, outputFormat])
 
     const { lineCount, sizeKb, displayContent, isTruncated } = useMemo(() => {
         if (!activeFile) return { lineCount: 0, sizeKb: "0.0", displayContent: "", isTruncated: false }
@@ -107,7 +422,35 @@ export default function OutputPreview({
         URL.revokeObjectURL(url)
     }
 
+    // Handle SRT table edits — rebuild outputContent
+    const handleSrtEntriesUpdate = useCallback(
+        (updated: SrtTableEntry[]) => {
+            if (!activeFile || !onUpdateOutput) return
+            const srtEntries: SrtEntry[] = updated.map(e => ({
+                index: e.index,
+                startMs: e.startMs,
+                endMs: e.endMs,
+                text: e.text
+            }))
+            const newContent = writeSrt(srtEntries)
+            onUpdateOutput(activeFile.id, newContent)
+        },
+        [activeFile, onUpdateOutput]
+    )
+
+    // Handle XLSX data edits
+    const handleXlsxDataUpdate = useCallback(
+        (updated: Record<string, string | number>[]) => {
+            if (!activeFile || !onUpdateXlsxData) return
+            onUpdateXlsxData(activeFile.id, updated)
+        },
+        [activeFile, onUpdateXlsxData]
+    )
+
     if (convertedFiles.length === 0 || !activeFile) return null
+
+    // Determine if table view is available
+    const hasTableView = outputFormat === "srt" || outputFormat === "xlsx"
 
     return (
         <Card
@@ -129,7 +472,9 @@ export default function OutputPreview({
                     </div>
                     <div className="hidden sm:flex items-center gap-3" aria-hidden="true">
                         <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
-                            {lineCount} {outputFormat === "xlsx" ? "rows" : "lines"}
+                            {outputFormat === "srt" && viewMode === "table"
+                                ? `${srtEntries.length} rows`
+                                : `${lineCount} ${outputFormat === "xlsx" ? "rows" : "lines"}`}
                         </span>
                         <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
                             {sizeKb} KB
@@ -137,6 +482,38 @@ export default function OutputPreview({
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                    {/* Table/Raw toggle */}
+                    {hasTableView && (
+                        <div className="flex items-center rounded-md border border-zinc-800 overflow-hidden mr-1">
+                            <button
+                                onClick={() => setViewMode("table")}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                    viewMode === "table"
+                                        ? "bg-zinc-800 text-zinc-200"
+                                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50"
+                                }`}
+                                aria-label="Table view"
+                                aria-pressed={viewMode === "table"}
+                            >
+                                <Table2 size={12} aria-hidden="true" />
+                                Table
+                            </button>
+                            <button
+                                onClick={() => setViewMode("raw")}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                    viewMode === "raw"
+                                        ? "bg-zinc-800 text-zinc-200"
+                                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50"
+                                }`}
+                                aria-label="Raw text view"
+                                aria-pressed={viewMode === "raw"}
+                            >
+                                <Code size={12} aria-hidden="true" />
+                                Raw
+                            </button>
+                        </div>
+                    )}
+
                     {convertedFiles.length > 1 && (
                         <>
                             {outputFormat === "xlsx" && onDownloadCombined && (
@@ -219,52 +596,36 @@ export default function OutputPreview({
                 </div>
             )}
 
-            {/* Preview content grid */}
+            {/* Preview content */}
             <div className="p-6 relative bg-black/40" role="tabpanel" aria-label={`Preview of ${activeFile.name}`}>
                 <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20" aria-hidden="true">
                     <span className="font-mono text-[10px] font-bold text-zinc-400">{outputFormat.toUpperCase()}</span>
                 </div>
 
+                {/* XLSX Table View */}
                 {outputFormat === "xlsx" && activeFile.xlsxData ? (
-                    <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
-                        <table
-                            className="w-full text-left border-collapse text-xs"
-                            aria-label={`Preview of ${activeFile.name}`}
+                    viewMode === "table" ? (
+                        <XlsxTableView
+                            data={activeFile.xlsxData}
+                            headers={xlsxHeaders}
+                            onUpdate={handleXlsxDataUpdate}
+                            fileName={activeFile.name}
+                        />
+                    ) : (
+                        <pre
+                            className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre"
+                            aria-label="XLSX raw data"
                         >
-                            <caption className="sr-only">Converted subtitle data with {lineCount} rows</caption>
-                            <thead>
-                                <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 backdrop-blur-md">
-                                    {xlsxHeaders.map(h => (
-                                        <th
-                                            key={h}
-                                            scope="col"
-                                            className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 last:border-0"
-                                        >
-                                            {h}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {activeFile.xlsxData.map((row, idx) => (
-                                    <tr
-                                        key={idx}
-                                        className="border-b border-zinc-900/50 hover:bg-zinc-900/10 last:border-0"
-                                    >
-                                        {xlsxHeaders.map(h => (
-                                            <td
-                                                key={h}
-                                                className="p-3 text-zinc-400 border-r border-zinc-900/50 last:border-0 truncate max-w-[250px]"
-                                            >
-                                                {row[h]}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            {activeFile.xlsxData
+                                .map(row => xlsxHeaders.map(h => String(row[h] ?? "")).join("\t"))
+                                .join("\n")}
+                        </pre>
+                    )
+                ) : outputFormat === "srt" && viewMode === "table" && srtEntries.length > 0 ? (
+                    /* SRT Editable Table View */
+                    <SrtTableView entries={srtEntries} onUpdate={handleSrtEntriesUpdate} />
                 ) : (
+                    /* Raw text fallback */
                     <pre
                         className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre"
                         aria-label={`${outputFormat.toUpperCase()} output text`}
@@ -273,7 +634,7 @@ export default function OutputPreview({
                     </pre>
                 )}
 
-                {isTruncated ? (
+                {isTruncated && viewMode === "raw" ? (
                     <div
                         role="alert"
                         className="mt-4 p-3 bg-blue-900/20 border border-blue-900/30 rounded flex items-center gap-3"

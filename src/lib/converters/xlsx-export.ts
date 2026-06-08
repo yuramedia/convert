@@ -358,3 +358,14 @@ export function createCombinedXlsxBuffer(
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
     return new Uint8Array(excelBuffer)
 }
+
+export function regenerateXlsxBuffer(xlsxData: Record<string, string | number>[], fileName?: string): Uint8Array {
+    const titleText = fileName ? fileName.replace(/\.[^/.]+$/, "") : "Subtitles"
+
+    const workbook = XLSX.utils.book_new()
+    const worksheet = buildStyledWorksheet(titleText, [{ name: titleText, data: xlsxData }])
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Subtitles")
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+    return new Uint8Array(excelBuffer)
+}
