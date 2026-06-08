@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx-js-style"
-import { type AssTrack, type AssStyle } from "../ass-parser"
-import { convertTagsToHtml, stripTags, tokenizeText, type TextSegment } from "../ass-tags"
+import { type AssTrack } from "../ass-parser"
+import { convertTagsToHtml, stripTags, tokenizeText } from "../ass-tags"
+import { isLikelySign } from "./normal-srt"
 
 export interface XlsxExportOptions {
     useHtmlTags: boolean
@@ -28,50 +29,6 @@ export const DEFAULT_XLSX_OPTIONS: Required<XlsxExportOptions> = {
     showLayer: false,
     showText: true,
     combinedMode: "sheets"
-}
-
-const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
-const ALIGN_TAGS = new Set(["an", "a"])
-const SIGN_KEYWORDS = ["sign", "ts", "typeset", "op", "ed"]
-
-function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean {
-    for (let i = 0; i < segments.length; i++) {
-        const segTags = segments[i].tags
-        if (!segTags) continue
-
-        for (let j = 0; j < segTags.length; j++) {
-            const t = segTags[j]
-            const nameLower = t.name.toLowerCase()
-
-            if (SIGN_TAGS.has(nameLower)) return true
-            if (nameLower === "p" && parseInt(t.value, 10) > 0) return true
-
-            if (ALIGN_TAGS.has(nameLower)) {
-                const align = parseInt(t.value, 10)
-                if (nameLower === "a") {
-                    if (align === 5 || align === 6 || align === 7 || align === 9 || align === 10 || align === 11)
-                        return true
-                } else {
-                    if (align >= 4 && align <= 9) return true
-                }
-            }
-        }
-    }
-
-    if (style && style.Alignment >= 4 && style.Alignment <= 9) {
-        return true
-    }
-
-    if (style) {
-        const name = style.Name.toLowerCase()
-        for (let i = 0; i < SIGN_KEYWORDS.length; i++) {
-            if (name.includes(SIGN_KEYWORDS[i])) {
-                return true
-            }
-        }
-    }
-
-    return false
 }
 
 function formatTime(ms: number): string {
