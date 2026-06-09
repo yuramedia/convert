@@ -99,7 +99,7 @@ export function convertToXlsxJson(track: AssTrack, options: XlsxExportOptions = 
 }
 
 export function buildStyledWorksheet(
-    titleText: string,
+    _titleText: string,
     filesData: { name: string; data: Record<string, string | number>[] }[]
 ): XLSX.WorkSheet {
     const aoa: unknown[][] = []
@@ -119,12 +119,7 @@ export function buildStyledWorksheet(
     }
 
     // 1. Title Row (Row 0)
-    let cleanTitle = titleText
-    cleanTitle = cleanTitle.replace(/\s*-\s*Script\s*Indonesia/gi, "")
-    cleanTitle = cleanTitle.replace(/\s*-\s*Indonesia/gi, "")
-    cleanTitle = cleanTitle.replace(/\s*-\s*Combined/gi, "")
-    cleanTitle = cleanTitle.replace(/\.xlsx$/i, "")
-    const titleLine = `${cleanTitle}\nScript Indonesia`
+    const titleLine = ""
 
     const titleStyle = {
         fill: { fgColor: { rgb: "4472C4" } },

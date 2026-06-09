@@ -43,12 +43,13 @@ function EditableCell({ value, onCommit, className = "", isTimecode = false, mul
         }
     }, [editing])
 
-    // Sync external value changes (e.g., re-conversion)
-    useEffect(() => {
+    const [prevValue, setPrevValue] = useState(value)
+    if (value !== prevValue) {
+        setPrevValue(value)
         if (!editing) {
             setEditValue(value)
         }
-    }, [value, editing])
+    }
 
     const commit = useCallback(() => {
         const trimmed = editValue.trim()
