@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import PwaRegister from "../components/pwa-register"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -13,6 +14,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+    metadataBase: new URL("https://convert.yuramedia.com"),
     title: "Yuuume ASS Converter — Subtitle Format Converter",
     description:
         "Convert ASS/SSA subtitles to SRT format with advanced options. Keep typesetting tags, resample resolution, or strip to clean SRT. Client-side, serverless, instant.",
@@ -25,7 +27,6 @@ export const metadata: Metadata = {
         "aegisub",
         "resolution resample"
     ],
-    manifest: "/manifest.json",
     openGraph: {
         title: "Yuuume ASS Converter",
         description: "Convert ASS subtitles to SRT with TS preservation, resolution resampling, or clean output.",
@@ -51,6 +52,7 @@ export default function RootLayout({
                     className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent pointer-events-none"
                     aria-hidden="true"
                 />
+                <PwaRegister />
                 {children}
             </body>
         </html>
