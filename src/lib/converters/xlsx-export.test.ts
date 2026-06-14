@@ -217,3 +217,34 @@ describe("regenerateXlsxBuffer", () => {
         expect(rows[1]["Subtitle"]).toBe("Italic line")
     })
 })
+
+describe("Excel Linebreak and \\N Handling", () => {
+    const ASS_WITH_LINEBREAKS = `[Script Info]
+ScriptType: v4.00+
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.50,Default,Actor1,0000,0000,0000,,Hello\\NWorld
+Dialogue: 1,0:00:04.00,0:00:06.00,Default,Actor2,0000,0000,0000,,Line1\\nLine2\\NLine3
+`
+
+    it("preserves literal \\N in convertToXlsxData for table preview rendering", () => {
+        const track = parseAss(ASS_WITH_LINEBREAKS)
+        const rows = convertToXlsxData(track, DEFAULT_XLSX_OPTIONS)
+
+        expect(rows).toHaveLength(2)
+        expect(rows[0]["Subtitle"]).toBe("Hello\\NWorld")
+        expect(rows[1]["Subtitle"]).toBe("Line1 Line2\\NLine3")
+    })
+
+    it("strips and replaces \\N with single spaces in the final Excel binary workbook", () => {
+        const track = parseAss(ASS_WITH_LINEBREAKS)
+        const buffer = convertToXlsxBuffer(track, DEFAULT_XLSX_OPTIONS)
+        const workbook = XLSX.read(buffer, { type: "array" })
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Subtitles"], { range: 3 })
+
+        expect(rows).toHaveLength(2)
+        expect(rows[0]["Subtitle"]).toBe("Hello World")
+        expect(rows[1]["Subtitle"]).toBe("Line1 Line2 Line3")
+    })
+})

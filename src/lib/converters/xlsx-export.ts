@@ -72,7 +72,7 @@ export function convertToXlsxData(track: AssTrack, options: XlsxExportOptions = 
             text = stripTags(segments)
         }
 
-        text = text.trim()
+        text = text.replace(/\n/g, "\\N").trim()
         if (!text) continue
 
         const row: XlsxRow = {}
@@ -211,7 +211,7 @@ export function buildStyledWorksheet(
             // Data Rows
             file.data.forEach(row => {
                 const dataCells = headers.map(key => {
-                    const val = row[key] !== undefined ? row[key] : ""
+                    let val = row[key] !== undefined ? row[key] : ""
                     const isNum = typeof val === "number"
                     // Center align Index/No. and Timecodes
                     const isCenter =
@@ -221,6 +221,11 @@ export function buildStyledWorksheet(
                         key.toLowerCase() === "end" ||
                         key.toLowerCase() === "duration"
                     const style = isCenter ? centerCellStyle : cellStyle
+
+                    if (typeof val === "string") {
+                        val = val.replace(/\\N/g, " ").replace(/\n/g, " ").trim().replace(/\s+/g, " ")
+                    }
+
                     return { v: val, t: isNum ? "n" : "s", s: style }
                 })
                 // Pad to maxCols

@@ -343,7 +343,7 @@ export default function OutputPreview({
                 index: c.index,
                 startMs: c.startMs,
                 endMs: c.endMs,
-                text: c.text
+                text: c.text.replace(/\n/g, "\\N")
             }))
         }
 
@@ -431,7 +431,7 @@ export default function OutputPreview({
                 index: e.index,
                 startMs: e.startMs,
                 endMs: e.endMs,
-                text: e.text
+                text: e.text.replace(/\\N/g, "\n")
             }))
             const newContent = writeSrt(srtEntries)
             onUpdateOutput(activeFile.id, newContent)

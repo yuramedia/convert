@@ -354,6 +354,18 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, stripSigns: c })}
                             />
                         </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Uppercase Signs</FieldLabel>
+                                <FieldDescription>
+                                    Convert detected sign/typesetting text to UPPERCASE in the output.
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={normalOptions.uppercaseSigns ?? true}
+                                onCheckedChange={c => setNormalOptions({ ...normalOptions, uppercaseSigns: c })}
+                            />
+                        </Field>
                     </FieldGroup>
 
                     <div className="pt-6 border-t">
