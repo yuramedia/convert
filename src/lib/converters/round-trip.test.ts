@@ -184,7 +184,8 @@ describe("round-trip — override tag preservation (keepTs)", () => {
         const normal = convertNormalSrt(track, {
             useHtmlTags: false,
             mergeDuplicates: false,
-            stripEmptyLines: true
+            stripEmptyLines: true,
+            uppercaseSigns: false
         })
         expect(normal).toContain("Positioned text")
         expect(normal).toContain("Scaled text")

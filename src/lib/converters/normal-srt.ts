@@ -14,13 +14,15 @@ import { convertTagsToHtml, stripTags, tokenizeText, type TextSegment } from "..
 import { type SrtEntry, writeSrt, mergeduplicates, reindex } from "../srt-writer"
 
 export interface NormalSrtOptions {
-    useHtmlTags: boolean
-    mergeDuplicates: boolean
-    stripEmptyLines: boolean
+    useHtmlTags?: boolean
+    mergeDuplicates?: boolean
+    stripEmptyLines?: boolean
     /** Strip typesetting/sign lines from output. Default true.
      *  Signs use \pos, \clip, etc. which SRT doesn't support,
      *  so they are useless in plain SRT. Use Keep-TS mode instead. */
     stripSigns?: boolean
+    /** Convert sign/typesetting text to UPPERCASE. Default true. */
+    uppercaseSigns?: boolean
     /** Snap threshold value. Default 0 (disabled). */
     snapThreshold?: number
     /** Unit for snap threshold: 'ms' or 'frames'. Default 'ms'. */
@@ -38,6 +40,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     mergeDuplicates: true,
     stripEmptyLines: true,
     stripSigns: false,
+    uppercaseSigns: true,
     snapThreshold: 0,
     snapUnit: "ms",
     minGap: 0,
@@ -148,7 +151,7 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
     let entries: SrtEntry[] = []
 
-    for (const { event, segments, style } of eventWithMetadata) {
+    for (const { event, segments, style, isSign } of eventWithMetadata) {
         let text: string
 
         if (fullOptions.useHtmlTags) {
@@ -165,6 +168,11 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         // Clean up
         text = text.trim()
         if (fullOptions.stripEmptyLines && !text) continue
+
+        // Convert sign text to UPPERCASE when enabled
+        if (isSign && fullOptions.uppercaseSigns) {
+            text = text.toUpperCase()
+        }
 
         entries.push({
             index: entries.length + 1,
