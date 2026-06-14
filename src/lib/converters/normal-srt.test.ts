@@ -41,12 +41,22 @@ describe("convertNormalSrt", () => {
     })
 
     it("converts \\b1 to <b> tags", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         expect(srt).toContain("<b>Bold</b> text")
     })
 
     it("applies initial italic from style", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         expect(srt).toContain("<i>Styled italic</i>")
     })
 
@@ -56,31 +66,56 @@ describe("convertNormalSrt", () => {
     })
 
     it("strips TS-only tags (\\pos, \\fscx)", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         expect(srt).toContain("TS only")
         expect(srt).not.toContain("\\pos")
         expect(srt).not.toContain("\\fscx")
     })
 
     it("strips drawing lines when stripEmptyLines=true", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         expect(srt).not.toContain("m 0 0")
     })
 
     it("merges duplicate lines when mergeDuplicates=true", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: true, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: true,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         const matches = srt.match(/Duplicate/g)
         expect(matches).toHaveLength(1)
     })
 
     it("keeps duplicates when mergeDuplicates=false", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         const matches = srt.match(/Duplicate/g)
         expect(matches).toHaveLength(2)
     })
 
     it("strips HTML when useHtmlTags=false", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         expect(srt).not.toContain("<b>")
         expect(srt).not.toContain("<i>")
         expect(srt).toContain("Bold text")
@@ -158,7 +193,12 @@ describe("convertNormalSrt — stripSigns", () => {
     })
 
     it("keeps sign lines by default (stripSigns=false)", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         expect(srt).toContain("Alasan Mengapa")
         expect(srt).toContain("Pengungkapan Eksklusif")
         expect(srt).toContain("Garis Depan")
@@ -166,7 +206,12 @@ describe("convertNormalSrt — stripSigns", () => {
     })
 
     it("dialogue stays at the end (higher index) when signs are kept", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, uppercaseSigns: false })
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            uppercaseSigns: false
+        })
         // At timestamp 14:14.73, signs should come before the dialogue at 14:14.96
         const signIdx = srt.indexOf("Alasan Mengapa")
         const dialogIdx = srt.indexOf("Kudengar dia sangat")
@@ -276,7 +321,13 @@ Dialogue: 0,0:00:23.00,0:00:25.00,OP Karaoke,,0,0,0,,OP Karaoke line should be s
 
 describe("convertNormalSrt — keyword false-positive regression", () => {
     const track = parseAss(KEYWORD_FALSE_POSITIVE_ASS)
-    const opts = { useHtmlTags: false, mergeDuplicates: false, stripEmptyLines: true, stripSigns: true, uppercaseSigns: false }
+    const opts = {
+        useHtmlTags: false,
+        mergeDuplicates: false,
+        stripEmptyLines: true,
+        stripSigns: true,
+        uppercaseSigns: false
+    }
 
     it("does NOT strip 'Defaults' style (contains 'ts' as substring)", () => {
         const srt = convertNormalSrt(track, opts)
@@ -366,4 +417,3 @@ Dialogue: 0,0:00:03.00,0:00:05.00,Sign,,0,0,0,,{\\pos(960,54)}This is a sign
         expect(srt).toContain("This is a sign")
     })
 })
-
