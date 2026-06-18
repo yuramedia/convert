@@ -233,7 +233,11 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                             variant="ghost"
                             size="sm"
                             className="text-[10px] h-6 px-2 text-zinc-500 hover:text-zinc-300 uppercase tracking-wider font-bold"
-                            onClick={onClear}
+                            onClick={() => {
+                                if (window.confirm("Remove all uploaded files? This cannot be undone.")) {
+                                    onClear()
+                                }
+                            }}
                             aria-label="Clear all uploaded files"
                         >
                             Clear All
