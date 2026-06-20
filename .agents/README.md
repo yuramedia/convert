@@ -1,6 +1,6 @@
-# ASS to SRT Converter Agents
+# Yuuume ASS Converter — Agent Skills
 
-This project provides an ASS to SRT subtitle converter. When working on this project, agents should consult the following skills:
+ASS/SSA subtitle conversion tool. Fully client-side, zero server. When working on this project, agents should consult:
 
-- `setup-project.md`: Project dependencies, local development, and Vercel deployment.
+- `setup-project.md`: Stack (Astro 6 + React 19 + Tailwind v4 + Bun), commands, architecture, testing.
 - `convert-ass.md`: Core ASS parsing rules, tag overrides, and the 3 conversion modes.

@@ -1,0 +1,62 @@
+---
+import "../styles/globals.css"
+import PwaRegister from "../components/pwa-register"
+
+export interface Props {
+    title?: string
+    description?: string
+    ogTitle?: string
+    ogDescription?: string
+}
+
+const {
+    title = "Yuuume ASS Converter — Subtitle Format Converter",
+    description = "Convert ASS/SSA subtitles to SRT format with advanced options. Keep typesetting tags, resample resolution, or strip to clean SRT. Client-side, serverless, instant.",
+    ogTitle = "Yuuume ASS Converter",
+    ogDescription = "Convert ASS subtitles to SRT with TS preservation, resolution resampling, or clean output."
+} = Astro.props
+
+const siteUrl = "https://convert.yuramedia.com"
+---
+
+<html lang="en" class="dark h-full antialiased">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta name="keywords" content="ASS to SRT, subtitle converter, typesetting, fansubbing, libass, aegisub, resolution resample" />
+        <meta name="generator" content={Astro.generator} />
+
+        <!-- Open Graph -->
+        <meta property="og:title" content={ogTitle} />
+        <meta property="og:description" content={ogDescription} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={siteUrl} />
+        <meta property="og:image" content={`${siteUrl}/icon-512x512.png`} />
+
+        <!-- Twitter -->
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={ogTitle} />
+        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:image" content={`${siteUrl}/icon-512x512.png`} />
+
+        <!-- PWA -->
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        <meta name="theme-color" content="#2563eb" />
+
+        <!-- Sitemap / Robots -->
+        <link rel="sitemap" href="/sitemap.xml" />
+        <meta name="robots" content="index, follow" />
+    </head>
+    <body class="min-h-full flex flex-col bg-background text-foreground">
+        <div
+            class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent pointer-events-none"
+            aria-hidden="true"
+        ></div>
+        <PwaRegister client:load />
+        <slot />
+    </body>
+</html>
