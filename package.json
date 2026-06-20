@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "astro dev",
         "build": "astro build",
-        "start": "bunx serve@latest dist",
+        "start": "astro preview",
         "lint": "oxlint",
         "lint:eslint": "eslint",
         "format": "oxfmt .",
