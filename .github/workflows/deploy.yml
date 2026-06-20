@@ -37,7 +37,7 @@ jobs:
               uses: withastro/action@v6
               with:
                   package-manager: bun
-                  build-cmd: bun run test && astro build
+                  build-cmd: bun run test && bun run build
 
     deploy:
         needs: build
