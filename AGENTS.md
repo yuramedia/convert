@@ -1,9 +1,10 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# Astro 6 + React 19 — Static Site
 
-# This is NOT the Next.js you know
+This project uses **Astro 6** with **React 19 islands** and **Tailwind CSS v4**. Fully static output (`output: "static"`), deployed to GitHub Pages.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+Read the relevant guides before writing any code:
 
-And you must follow of @.agents/
+- `node_modules/astro/dist/docs/` — Astro API reference
+- `.mcp.json` — Astro Docs MCP server for live docs
 
-<!-- END:nextjs-agent-rules -->
+Follow @.agents/ for project-specific rules.
