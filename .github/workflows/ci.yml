@@ -34,7 +34,7 @@ jobs:
               run: bunx tsc --noEmit
 
             - name: Test
-              run: bun test
+              run: bun run test
 
     build:
         runs-on: ubuntu-latest
