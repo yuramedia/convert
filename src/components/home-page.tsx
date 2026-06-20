@@ -1,7 +1,4 @@
-"use client"
-
 import { useState, useCallback } from "react"
-import Link from "next/link"
 import { Layers, Info, Cpu } from "lucide-react"
 import FileDropzone, { type QueuedFile } from "@/components/file-dropzone"
 import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
@@ -359,13 +356,13 @@ export default function Home() {
     return (
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-12 flex flex-col gap-10 relative z-10">
             <div className="flex justify-end">
-                <Link
-                    href="/about"
+                <a
+                    href="/about/"
                     className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-blue-500 transition-colors"
                 >
                     <Info size={14} />
                     About
-                </Link>
+                </a>
             </div>
 
             {/* Header */}
@@ -472,17 +469,17 @@ export default function Home() {
             {/* Footer */}
             <footer className="mt-auto pt-16 pb-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4 text-[11px] font-medium text-zinc-600 uppercase tracking-wider">
                 <div className="flex gap-6">
-                    <Link
+                    <a
                         href="https://github.com/yuramedia/convert"
                         target="_blank"
                         className="hover:text-blue-500 transition-colors"
                     >
                         GitHub
-                    </Link>
+                    </a>
                 </div>
-                <Link href="https://yuramedia.com" target="_blank" className="text-center text-[10px] text-zinc-500">
+                <a href="https://yuramedia.com" target="_blank" className="text-center text-[10px] text-zinc-500">
                     &copy; {new Date().getFullYear()} Made with ❤️ by Yuramedia Link
-                </Link>
+                </a>
                 <p>No data uploaded. Privacy guaranteed.</p>
             </footer>
         </main>

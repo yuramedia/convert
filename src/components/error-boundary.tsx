@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect } from "react"
 import { AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,7 +7,7 @@ interface ErrorProps {
     reset: () => void
 }
 
-export default function Error({ error, reset }: ErrorProps) {
+export default function ErrorBoundary({ error, reset }: ErrorProps) {
     useEffect(() => {
         console.error(error)
     }, [error])

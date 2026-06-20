@@ -1,6 +1,3 @@
-"use client"
-
-import Link from "next/link"
 import {
     ArrowLeft,
     Terminal,
@@ -26,13 +23,13 @@ export default function AboutPage() {
         <div className="min-h-screen bg-background text-zinc-400 font-sans relative z-10">
             {/* Header */}
             <header className="max-w-4xl mx-auto px-6 pt-20 pb-16 flex flex-col items-center text-center space-y-6">
-                <Link
+                <a
                     href="/"
                     className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-450 hover:text-blue-500 hover:border-blue-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
                 >
                     <ArrowLeft size={14} />
                     Back to Converter
-                </Link>
+                </a>
 
                 <div className="space-y-2">
                     <h1 className="text-4xl font-extrabold tracking-tight text-white uppercase sm:text-5xl">
@@ -54,8 +51,8 @@ export default function AboutPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <TechItem
-                            title="Next.js 16 (Turbopack)"
-                            description="Utilizing the latest Next.js features with Turbopack for lightning-fast build times and optimized static client-side routing."
+                            title="Astro"
+                            description="Static site generation with zero-JS-by-default architecture. React islands hydrate only interactive components."
                             icon={<Globe size={16} />}
                         />
                         <TechItem

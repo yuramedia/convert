@@ -1,3 +1,5 @@
+@import "@fontsource/geist-sans";
+@import "@fontsource/geist-mono";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -53,8 +55,8 @@
     --input: oklch(0.269 0 0);
     --ring: oklch(0.585 0.233 253.07);
     --radius: 0.5rem;
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+    --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, monospace;
 }
 
 @layer base {

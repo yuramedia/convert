@@ -2,8 +2,8 @@
 
 ## Stack
 
-- Next.js 16 (App Router, strict mode, static export)
-- React 19
+- Astro 6 (static output, file-based routing)
+- React 19 (as Astro islands via `@astrojs/react`)
 - TailwindCSS v4
 - Bun runtime
 
@@ -18,8 +18,9 @@
 ## Architecture
 
 - **Fully client-side**: There are no API routes or backend components. All parsing and conversion happens in the browser to reduce latency and server costs.
-- **Static export**: `next.config.ts` sets `output: "export"`. No server-side rendering or API routes.
-- **GitHub Pages deployment**: The CI/CD pipeline builds and deploys to GitHub Pages via `.github/workflows/deploy.yml`.
+- **Static output**: `astro.config.mjs` sets `output: "static"`. No server-side rendering or API routes.
+- **React islands**: Interactive components use `client:load` directive in `.astro` page wrappers. Pure TS/JS stays in `src/lib/`.
+- **GitHub Pages deployment**: The CI/CD pipeline builds and deploys to GitHub Pages via `.github/workflows/deploy.yml`. Build output goes to `dist/`.
 - **Vercel deployment**: `vercel.json` includes security headers for Vercel hosting as an alternative.
 
 ## Testing
