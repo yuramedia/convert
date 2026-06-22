@@ -23,13 +23,17 @@ export interface NormalSrtOptions {
     stripSigns?: boolean
     /** Convert sign/typesetting text to UPPERCASE. Default true. */
     uppercaseSigns?: boolean
-    /** Snap threshold value. Default 0 (disabled). */
+    /** Enable Frame Gap & De-FrameGap timing adjustments. Default false. */
+    enableFrameGap?: boolean
+    /** Adjustment mode: 'both', 'frame-gap' (Min Gap), or 'de-framegap' (Snap). Default 'both'. */
+    frameGapMode?: "both" | "frame-gap" | "de-framegap"
+    /** Snap threshold value (De-FrameGap). Default 2. */
     snapThreshold?: number
-    /** Unit for snap threshold: 'ms' or 'frames'. Default 'ms'. */
+    /** Unit for snap threshold: 'ms' or 'frames'. Default 'frames'. */
     snapUnit?: "ms" | "frames"
-    /** Minimum gap value. Default 0 (disabled). */
+    /** Minimum gap value (Frame Gap). Default 2. */
     minGap?: number
-    /** Unit for minimum gap: 'ms' or 'frames'. Default 'ms'. */
+    /** Unit for minimum gap: 'ms' or 'frames'. Default 'frames'. */
     gapUnit?: "ms" | "frames"
     /** FPS for frame calculations. Default 23.976023976 (24000/1001). */
     fps?: number
@@ -41,10 +45,12 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     stripEmptyLines: true,
     stripSigns: false,
     uppercaseSigns: true,
-    snapThreshold: 0,
-    snapUnit: "ms",
-    minGap: 0,
-    gapUnit: "ms",
+    enableFrameGap: false,
+    frameGapMode: "both",
+    snapThreshold: 2,
+    snapUnit: "frames",
+    minGap: 2,
+    gapUnit: "frames",
     fps: 23.976023976 // Accurate 24000/1001
 }
 
@@ -190,13 +196,34 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
     // Following logic from polo.FrameGap.lua
     const fps = Math.max(0.001, fullOptions.fps || DEFAULT_NORMAL_OPTIONS.fps)
     const msPerFrame = 1000 / fps
-    const snapMs =
-        fullOptions.snapUnit === "frames"
-            ? (fullOptions.snapThreshold || 0) * msPerFrame
-            : fullOptions.snapThreshold || 0
-    const minGapMs = fullOptions.gapUnit === "frames" ? (fullOptions.minGap || 0) * msPerFrame : fullOptions.minGap || 0
 
-    if (snapMs > 0 || minGapMs > 0) {
+    // Backwards compatibility guard: if options has snapThreshold/minGap but no unit, default to 'ms'
+    const snapUnit =
+        options.snapThreshold !== undefined && options.snapUnit === undefined ? "ms" : fullOptions.snapUnit || "ms"
+    const gapUnit = options.minGap !== undefined && options.gapUnit === undefined ? "ms" : fullOptions.gapUnit || "ms"
+
+    const snapMs =
+        fullOptions.frameGapMode === "frame-gap"
+            ? 0
+            : snapUnit === "frames"
+              ? (fullOptions.snapThreshold || 0) * msPerFrame
+              : fullOptions.snapThreshold || 0
+    const minGapMs =
+        fullOptions.frameGapMode === "de-framegap"
+            ? 0
+            : gapUnit === "frames"
+              ? (fullOptions.minGap || 0) * msPerFrame
+              : fullOptions.minGap || 0
+
+    const enableFrameGap =
+        options.enableFrameGap !== undefined
+            ? options.enableFrameGap
+            : (options.snapThreshold !== undefined && options.snapThreshold > 0) ||
+                (options.minGap !== undefined && options.minGap > 0)
+              ? true
+              : (fullOptions.enableFrameGap ?? false)
+
+    if (enableFrameGap && (snapMs > 0 || minGapMs > 0)) {
         // Must be sorted by start time (already sorted)
         for (let i = 0; i < entries.length - 1; i++) {
             const current = entries[i]

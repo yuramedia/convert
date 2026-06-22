@@ -366,99 +366,153 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, uppercaseSigns: c })}
                             />
                         </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Frame Gap</FieldLabel>
+                                <FieldDescription>
+                                    Enable Snap (De-FrameGap) and Min Gap (Frame Gap) timing adjustments.
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={normalOptions.enableFrameGap ?? false}
+                                onCheckedChange={c => setNormalOptions({ ...normalOptions, enableFrameGap: c })}
+                            />
+                        </Field>
+
+                        {(normalOptions.enableFrameGap ?? false) && (
+                            <Field
+                                orientation="horizontal"
+                                className="pl-6 border-l-2 border-primary/20 ml-2 animate-in slide-in-from-top-2 duration-200"
+                            >
+                                <div className="flex-1">
+                                    <FieldLabel>Adjustment Mode</FieldLabel>
+                                    <FieldDescription>
+                                        Choose whether to apply Frame Gap or De-FrameGap.
+                                    </FieldDescription>
+                                </div>
+                                <Select
+                                    value={normalOptions.frameGapMode === "de-framegap" ? "de-framegap" : "frame-gap"}
+                                    onValueChange={v => setNormalOptions({ ...normalOptions, frameGapMode: v as any })}
+                                >
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue>
+                                            {normalOptions.frameGapMode === "de-framegap"
+                                                ? "De-FrameGap Only"
+                                                : "Frame Gap Only"}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem value="de-framegap">De-FrameGap Only</SelectItem>
+                                            <SelectItem value="frame-gap">Frame Gap Only</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                        )}
                     </FieldGroup>
 
-                    <div className="pt-6 border-t">
-                        <FieldGroup className="flex-row gap-6">
-                            <Field className="flex-1">
-                                <FieldLabel>System FPS</FieldLabel>
-                                <Input
-                                    type="number"
-                                    step="any"
-                                    value={normalOptions.fps ?? ""}
-                                    onChange={e =>
-                                        setNormalOptions({
-                                            ...normalOptions,
-                                            fps: parseFloat(e.target.value) || 0
-                                        })
-                                    }
-                                    placeholder="23.976"
-                                />
-                            </Field>
-
-                            <Field className="flex-1">
-                                <FieldLabel>Snap Point</FieldLabel>
-                                <div className="flex gap-2">
+                    {(normalOptions.enableFrameGap ?? false) && (
+                        <div className="pt-6 border-t animate-in fade-in duration-300">
+                            <FieldGroup className="flex-row gap-6">
+                                <Field className="flex-1">
+                                    <FieldLabel>System FPS</FieldLabel>
                                     <Input
                                         type="number"
-                                        className="flex-1"
-                                        value={normalOptions.snapThreshold ?? ""}
+                                        step="any"
+                                        value={normalOptions.fps ?? ""}
                                         onChange={e =>
                                             setNormalOptions({
                                                 ...normalOptions,
-                                                snapThreshold: parseFloat(e.target.value) || 0
+                                                fps: parseFloat(e.target.value) || 0
                                             })
                                         }
-                                        placeholder="0"
+                                        placeholder="23.976"
                                     />
-                                    <Select
-                                        value={normalOptions.snapUnit || "ms"}
-                                        onValueChange={v =>
-                                            setNormalOptions({ ...normalOptions, snapUnit: v as "ms" | "frames" })
-                                        }
-                                    >
-                                        <SelectTrigger className="w-[80px]">
-                                            <SelectValue>
-                                                {normalOptions.snapUnit === "frames" ? "fr" : "ms"}
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectGroup>
-                                                <SelectItem value="ms">ms</SelectItem>
-                                                <SelectItem value="frames">fr</SelectItem>
-                                            </SelectGroup>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </Field>
+                                </Field>
 
-                            <Field className="flex-1">
-                                <FieldLabel>Min Gap</FieldLabel>
-                                <div className="flex gap-2">
-                                    <Input
-                                        type="number"
-                                        className="flex-1"
-                                        value={normalOptions.minGap ?? ""}
-                                        onChange={e =>
-                                            setNormalOptions({
-                                                ...normalOptions,
-                                                minGap: parseFloat(e.target.value) || 0
-                                            })
-                                        }
-                                        placeholder="0"
-                                    />
-                                    <Select
-                                        value={normalOptions.gapUnit || "ms"}
-                                        onValueChange={v =>
-                                            setNormalOptions({ ...normalOptions, gapUnit: v as "ms" | "frames" })
-                                        }
-                                    >
-                                        <SelectTrigger className="w-[80px]">
-                                            <SelectValue>
-                                                {normalOptions.gapUnit === "frames" ? "fr" : "ms"}
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectGroup>
-                                                <SelectItem value="ms">ms</SelectItem>
-                                                <SelectItem value="frames">fr</SelectItem>
-                                            </SelectGroup>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </Field>
-                        </FieldGroup>
-                    </div>
+                                {normalOptions.frameGapMode === "de-framegap" ? (
+                                    <Field className="flex-1 animate-in fade-in duration-200">
+                                        <FieldLabel>De-FrameGap (Snap)</FieldLabel>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="number"
+                                                className="flex-1"
+                                                value={normalOptions.snapThreshold ?? ""}
+                                                onChange={e =>
+                                                    setNormalOptions({
+                                                        ...normalOptions,
+                                                        snapThreshold: parseFloat(e.target.value) || 0
+                                                    })
+                                                }
+                                                placeholder="0"
+                                            />
+                                            <Select
+                                                value={normalOptions.snapUnit || "ms"}
+                                                onValueChange={v =>
+                                                    setNormalOptions({
+                                                        ...normalOptions,
+                                                        snapUnit: v as "ms" | "frames"
+                                                    })
+                                                }
+                                            >
+                                                <SelectTrigger className="w-[80px]">
+                                                    <SelectValue>
+                                                        {normalOptions.snapUnit === "frames" ? "fr" : "ms"}
+                                                    </SelectValue>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectGroup>
+                                                        <SelectItem value="ms">ms</SelectItem>
+                                                        <SelectItem value="frames">fr</SelectItem>
+                                                    </SelectGroup>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </Field>
+                                ) : (
+                                    <Field className="flex-1 animate-in fade-in duration-200">
+                                        <FieldLabel>Frame Gap (Min Gap)</FieldLabel>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="number"
+                                                className="flex-1"
+                                                value={normalOptions.minGap ?? ""}
+                                                onChange={e =>
+                                                    setNormalOptions({
+                                                        ...normalOptions,
+                                                        minGap: parseFloat(e.target.value) || 0
+                                                    })
+                                                }
+                                                placeholder="0"
+                                            />
+                                            <Select
+                                                value={normalOptions.gapUnit || "ms"}
+                                                onValueChange={v =>
+                                                    setNormalOptions({
+                                                        ...normalOptions,
+                                                        gapUnit: v as "ms" | "frames"
+                                                    })
+                                                }
+                                            >
+                                                <SelectTrigger className="w-[80px]">
+                                                    <SelectValue>
+                                                        {normalOptions.gapUnit === "frames" ? "fr" : "ms"}
+                                                    </SelectValue>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectGroup>
+                                                        <SelectItem value="ms">ms</SelectItem>
+                                                        <SelectItem value="frames">fr</SelectItem>
+                                                    </SelectGroup>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </Field>
+                                )}
+                            </FieldGroup>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         )

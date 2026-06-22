@@ -279,6 +279,20 @@ Dialogue: 0,0:00:08.00,0:00:10.00,Default,,0,0,0,,Line C after gap
         // Line B should snap to Line C's start
         expect(srt).toContain("00:00:03,000 --> 00:00:08,000")
     })
+
+    it("respects enableFrameGap=false and bypasses adjustments", () => {
+        const track = parseAss(OVERLAPPING_ASS)
+        const srt = convertNormalSrt(track, {
+            useHtmlTags: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true,
+            enableFrameGap: false,
+            snapThreshold: 1500,
+            minGap: 200
+        })
+        // Line B should NOT snap to Line C's start
+        expect(srt).toContain("00:00:03,000 --> 00:00:07,000")
+    })
 })
 
 // ─── isLikelySign keyword false-positive regression ──────────────────────────
