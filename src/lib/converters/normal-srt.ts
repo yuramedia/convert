@@ -46,7 +46,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     stripSigns: false,
     uppercaseSigns: true,
     enableFrameGap: false,
-    frameGapMode: "both",
+    frameGapMode: "frame-gap",
     snapThreshold: 2,
     snapUnit: "frames",
     minGap: 2,
@@ -202,14 +202,27 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         options.snapThreshold !== undefined && options.snapUnit === undefined ? "ms" : fullOptions.snapUnit || "ms"
     const gapUnit = options.minGap !== undefined && options.gapUnit === undefined ? "ms" : fullOptions.gapUnit || "ms"
 
+    // Resolve frameGapMode with compatibility logic:
+    // If not explicitly provided, detect based on which parameters were supplied.
+    const resolvedFrameGapMode =
+        options.frameGapMode !== undefined
+            ? options.frameGapMode
+            : options.snapThreshold !== undefined && options.minGap === undefined
+              ? "de-framegap"
+              : options.minGap !== undefined && options.snapThreshold === undefined
+                ? "frame-gap"
+                : options.snapThreshold !== undefined && options.minGap !== undefined
+                  ? "both"
+                  : fullOptions.frameGapMode || "frame-gap"
+
     const snapMs =
-        fullOptions.frameGapMode === "frame-gap"
+        resolvedFrameGapMode === "frame-gap"
             ? 0
             : snapUnit === "frames"
               ? (fullOptions.snapThreshold || 0) * msPerFrame
               : fullOptions.snapThreshold || 0
     const minGapMs =
-        fullOptions.frameGapMode === "de-framegap"
+        resolvedFrameGapMode === "de-framegap"
             ? 0
             : gapUnit === "frames"
               ? (fullOptions.minGap || 0) * msPerFrame
