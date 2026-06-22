@@ -7,7 +7,6 @@ export default defineConfig({
     output: "static",
     site: "https://convert.yuramedia.com",
     trailingSlash: "always",
-    compressHTML: true,
     fetchFile: null,
     vite: {
         plugins: [tailwindcss()],
