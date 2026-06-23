@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { type ConversionMode } from "./mode-selector"
 import { type NormalSrtOptions } from "@/lib/converters/normal-srt"
 import { type KeepTsOptions } from "@/lib/converters/keep-ts"
@@ -53,6 +54,17 @@ interface OptionsPanelProps {
     setXlsxOptions: (opts: XlsxExportOptions) => void
 }
 
+const FPS_PRESETS = [
+    { label: "23.976", value: 23.976023976 },
+    { label: "24", value: 24 },
+    { label: "25", value: 25 },
+    { label: "29.97", value: 29.97002997 },
+    { label: "30", value: 30 },
+    { label: "50", value: 50 },
+    { label: "59.94", value: 59.94005994 },
+    { label: "60", value: 60 }
+]
+
 export default function OptionsPanel({
     mode,
     normalOptions,
@@ -66,6 +78,17 @@ export default function OptionsPanel({
     xlsxOptions,
     setXlsxOptions
 }: OptionsPanelProps) {
+    const [fpsMode, setFpsMode] = useState<"preset" | "custom">(() => {
+        const isPreset = FPS_PRESETS.some(p => Math.abs(p.value - (normalOptions.fps ?? 23.976023976)) < 0.0001)
+        return isPreset ? "preset" : "custom"
+    })
+    const [prevFps, setPrevFps] = useState(normalOptions.fps)
+    if (normalOptions.fps !== prevFps) {
+        setPrevFps(normalOptions.fps)
+        const isPreset = FPS_PRESETS.some(p => Math.abs(p.value - (normalOptions.fps ?? 23.976023976)) < 0.0001)
+        setFpsMode(isPreset ? "preset" : "custom")
+    }
+
     if (mode === "csv") {
         return (
             <Card className="animate-in fade-in duration-500">
@@ -417,18 +440,72 @@ export default function OptionsPanel({
                             <FieldGroup className="flex-row gap-6">
                                 <Field className="flex-1">
                                     <FieldLabel>System FPS</FieldLabel>
-                                    <Input
-                                        type="number"
-                                        step="any"
-                                        value={normalOptions.fps ?? ""}
-                                        onChange={e =>
-                                            setNormalOptions({
-                                                ...normalOptions,
-                                                fps: parseFloat(e.target.value) || 0
-                                            })
-                                        }
-                                        placeholder="23.976"
-                                    />
+                                    <div className="flex flex-col gap-2">
+                                        <Select
+                                            value={(() => {
+                                                const currentPreset = FPS_PRESETS.find(
+                                                    p =>
+                                                        Math.abs(p.value - (normalOptions.fps ?? 23.976023976)) < 0.0001
+                                                )
+                                                return fpsMode === "preset" && currentPreset
+                                                    ? currentPreset.value.toString()
+                                                    : "custom"
+                                            })()}
+                                            onValueChange={v => {
+                                                if (v === "custom") {
+                                                    setFpsMode("custom")
+                                                } else {
+                                                    setFpsMode("preset")
+                                                    const fpsNum = parseFloat(v || "")
+                                                    setNormalOptions({
+                                                        ...normalOptions,
+                                                        fps: fpsNum
+                                                    })
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-[140px]">
+                                                <SelectValue>
+                                                    {(() => {
+                                                        const currentPreset = FPS_PRESETS.find(
+                                                            p =>
+                                                                Math.abs(
+                                                                    p.value - (normalOptions.fps ?? 23.976023976)
+                                                                ) < 0.0001
+                                                        )
+                                                        return fpsMode === "preset" && currentPreset
+                                                            ? currentPreset.label
+                                                            : "Custom"
+                                                    })()}
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectGroup>
+                                                    {FPS_PRESETS.map(p => (
+                                                        <SelectItem key={p.value} value={p.value.toString()}>
+                                                            {p.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                    <SelectItem value="custom">Custom</SelectItem>
+                                                </SelectGroup>
+                                            </SelectContent>
+                                        </Select>
+                                        {fpsMode === "custom" && (
+                                            <Input
+                                                type="number"
+                                                step="any"
+                                                value={normalOptions.fps ?? ""}
+                                                onChange={e =>
+                                                    setNormalOptions({
+                                                        ...normalOptions,
+                                                        fps: parseFloat(e.target.value) || 0
+                                                    })
+                                                }
+                                                placeholder="Enter custom FPS"
+                                                className="animate-in slide-in-from-top-1 duration-200"
+                                            />
+                                        )}
+                                    </div>
                                 </Field>
 
                                 {normalOptions.frameGapMode === "de-framegap" ? (
