@@ -12,6 +12,7 @@
         "test": "vitest run"
     },
     "dependencies": {
+        "@astrojs/markdown-satteri": "^0.3.2",
         "@astrojs/react": "6.0.0",
         "@base-ui/react": "^1.6.0",
         "@fontsource/geist-mono": "^5.2.8",
