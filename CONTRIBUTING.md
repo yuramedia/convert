@@ -11,7 +11,7 @@ bun install
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the app.
+Open [http://localhost:4321](http://localhost:4321) to see the app.
 
 ## Development workflow
 
@@ -29,7 +29,9 @@ All tests must pass and the build must succeed before a PR can be merged.
 
 ```
 src/
-├── app/               # Next.js App Router pages and layouts
+├── pages/             # Astro routing directory (pages)
+├── layouts/           # Astro layout wrappers
+├── styles/            # CSS styles (Tailwind v4)
 ├── components/        # React UI components
 │   └── ui/            # Primitive UI components (shadcn/ui based)
 └── lib/               # Pure conversion logic (no React)

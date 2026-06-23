@@ -38,7 +38,7 @@ A modern web-based tool for converting Advanced SubStation Alpha (ASS) subtitle 
 1. Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/yuramedia/convert
 cd convert
 ```
 
@@ -64,18 +64,18 @@ yarn dev
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to use the converter.
+Open [http://localhost:4321](http://localhost:4321) in your browser to use the converter.
 
 ### Build
 
-Build the project for production:
+Build the project for production (generates static files):
 
 ```bash
 bun run build
 # or: npm run build
 ```
 
-Start the production server:
+Preview the production build locally:
 
 ```bash
 bun start
@@ -107,16 +107,22 @@ Scales subtitle positioning and coordinates based on video resolution changes. U
 
 ```
 src/
-├── app/                          # Next.js app directory
-│   ├── page.tsx                  # Main converter page
-│   ├── about/page.tsx            # About page
-│   └── globals.css               # Global styles
-├── components/                   # React components
+├── pages/                        # Astro routing directory
+│   ├── index.astro               # Main converter page
+│   ├── about.astro               # About page
+│   └── 404.astro                 # 404 page
+├── layouts/                      # Astro layouts
+│   └── BaseLayout.astro          # Shared base layout
+├── styles/                       # CSS styles
+│   └── globals.css               # Global stylesheet with Tailwind v4
+├── components/                   # React components (rendered as Astro Islands)
+│   ├── home-page.tsx             # Interactive home page component
+│   ├── about-page.tsx            # Interactive about page component
 │   ├── file-dropzone.tsx         # File upload component
 │   ├── mode-selector.tsx         # Conversion mode selector
 │   ├── options-panel.tsx         # Options configuration
 │   ├── output-preview.tsx        # Output display
-│   └── ui/                       # UI component library
+│   └── ui/                       # UI component library (shadcn/ui based)
 ├── lib/                          # Core conversion logic
 │   ├── ass-parser.ts             # ASS file parser
 │   ├── ass-writer.ts             # ASS file writer
@@ -139,10 +145,10 @@ src/
 
 ## Technologies Used
 
-- **Next.js 16** - React framework with SSR and static generation
-- **React 19** - UI library
+- **Astro 7** - Modern web framework with static generation and partial hydration
+- **React 19** - UI library for interactive components (Islands)
 - **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first CSS framework
+- **Tailwind CSS v4** - Utility-first CSS framework
 - **shadcn/ui** - High-quality UI component library
 - **Vitest** - Unit testing framework
 - **Bun** - Fast JavaScript runtime and package manager
@@ -173,7 +179,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Built with [Next.js](https://nextjs.org/)
+- Built with [Astro](https://astro.build/)
 - UI components from [shadcn/ui](https://ui.shadcn.com/)
 - Icons from [Lucide React](https://lucide.dev/)
 - Follows [libass](https://github.com/libass/libass) ASS format conventions
