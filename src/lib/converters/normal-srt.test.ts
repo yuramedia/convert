@@ -430,4 +430,26 @@ Dialogue: 0,0:00:03.00,0:00:05.00,Sign,,0,0,0,,{\\pos(960,54)}This is a sign
         expect(srt).toContain("This is dialogue text")
         expect(srt).toContain("This is a sign")
     })
+
+    it("does not uppercase text with alignment tags alone (bug fix)", () => {
+        // Alignment tags (\an) alone should NOT trigger sign detection
+        const track = parseAss(`[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\an8}<i>Kita memang begini!\\NRasakan semua perihnya!</i>
+`)
+        const srt = convertNormalSrt(track, { uppercaseSigns: true })
+        // Should preserve original case (not uppercase)
+        expect(srt).toContain("Kita memang begini")
+        expect(srt).not.toContain("KITA MEMANG BEGINI")
+        // HTML tags should remain lowercase
+        expect(srt).toContain("<i>")
+        expect(srt).not.toContain("<I>")
+    })
 })

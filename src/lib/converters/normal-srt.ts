@@ -55,7 +55,6 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
 }
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
-const ALIGN_TAGS = new Set(["an", "a"])
 /**
  * Word-boundary regex patterns for style names that indicate typesetting.
  * Uses \b to avoid false positives like "Defaults" matching "ts",
@@ -82,28 +81,18 @@ export function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean
             // 2. Check for drawing mode (\p1 or higher)
             if (nameLower === "p" && parseInt(t.value, 10) > 0) return true
 
-            // 3. Check for Alignment tags (4-9 are middle/top, usually signs or top-subs)
-            if (ALIGN_TAGS.has(nameLower)) {
-                const align = parseInt(t.value, 10)
-                // \a is legacy alignment: 5,6,7 are top; 9,10,11 are middle
-                if (nameLower === "a") {
-                    if (align === 5 || align === 6 || align === 7 || align === 9 || align === 10 || align === 11)
-                        return true
-                } else {
-                    // \an values 4-9 are middle/top (valid range is 1-9)
-                    if (align >= 4 && align <= 9) return true
-                }
-            }
+            // NOTE: Alignment tags removed from sign detection.
+            // Many regular dialogues use top/middle alignment (\an8, \an5, etc.),
+            // so alignment alone is not a reliable sign indicator.
+            // Signs are better detected by positioning tags (\pos, \move, \clip)
+            // or style name keywords.
         }
     }
 
-    // 4. Check Style's default alignment if no tag override exists
-    // Guard: only valid ASS numpad alignments 1-9; treat 0/negative/huge as default (not sign)
-    if (style && style.Alignment >= 4 && style.Alignment <= 9) {
-        return true
-    }
+    // NOTE: Style default alignment also removed from sign detection
+    // for the same reason - not a reliable indicator alone.
 
-    // 5. Fallback to common style name keywords (word-boundary match)
+    // Fallback to common style name keywords (word-boundary match)
     if (style && SIGN_KEYWORD_RE.test(style.Name)) {
         return true
     }
@@ -158,27 +147,32 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
     let entries: SrtEntry[] = []
 
     for (const { event, segments, style, isSign } of eventWithMetadata) {
+        // Uppercase text content BEFORE HTML conversion if this is a sign
+        // This ensures HTML tags remain lowercase while content becomes uppercase
+        const processedSegments =
+            isSign && fullOptions.uppercaseSigns
+                ? segments.map(seg => ({
+                      ...seg,
+                      content: seg.type === "text" ? seg.content.toUpperCase() : seg.content
+                  }))
+                : segments
+
         let text: string
 
         if (fullOptions.useHtmlTags) {
-            text = convertTagsToHtml(segments, true, {
+            text = convertTagsToHtml(processedSegments, true, {
                 // b: style?.Bold, // Ignored per user request, only inline {\b1} will trigger <b>
                 i: style?.Italic,
                 u: style?.Underline,
                 s: style?.StrikeOut
             })
         } else {
-            text = stripTags(segments)
+            text = stripTags(processedSegments)
         }
 
         // Clean up
         text = text.trim()
         if (fullOptions.stripEmptyLines && !text) continue
-
-        // Convert sign text to UPPERCASE when enabled
-        if (isSign && fullOptions.uppercaseSigns) {
-            text = text.toUpperCase()
-        }
 
         entries.push({
             index: entries.length + 1,
