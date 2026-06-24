@@ -40,7 +40,7 @@ export function QCApp() {
         if (!selectedFile) return
 
         const reader = new FileReader()
-        reader.onload = (e) => {
+        reader.onload = e => {
             const content = e.target?.result as string
             if (!content) return
 
@@ -109,19 +109,10 @@ export function QCApp() {
                     <label className="block cursor-pointer">
                         <div className="border-2 border-dashed border-zinc-700 rounded-lg p-12 text-center hover:border-zinc-600 hover:bg-zinc-900/50 transition">
                             <Upload className="w-12 h-12 mx-auto mb-4 text-zinc-500" />
-                            <p className="text-zinc-400 mb-2">
-                                Drop subtitle file here or click to browse
-                            </p>
-                            <p className="text-xs text-zinc-600">
-                                Supports .ass and .srt files
-                            </p>
+                            <p className="text-zinc-400 mb-2">Drop subtitle file here or click to browse</p>
+                            <p className="text-xs text-zinc-600">Supports .ass and .srt files</p>
                         </div>
-                        <input
-                            type="file"
-                            accept=".ass,.srt"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                        />
+                        <input type="file" accept=".ass,.srt" onChange={handleFileSelect} className="hidden" />
                     </label>
                 ) : (
                     <div className="space-y-4">
@@ -167,7 +158,7 @@ export function QCApp() {
                             <input
                                 type="number"
                                 value={options.maxCPS}
-                                onChange={(e) => setOptions({ ...options, maxCPS: Number(e.target.value) })}
+                                onChange={e => setOptions({ ...options, maxCPS: Number(e.target.value) })}
                                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded"
                             />
                         </div>
@@ -176,7 +167,7 @@ export function QCApp() {
                             <input
                                 type="number"
                                 value={options.maxLineLength}
-                                onChange={(e) => setOptions({ ...options, maxLineLength: Number(e.target.value) })}
+                                onChange={e => setOptions({ ...options, maxLineLength: Number(e.target.value) })}
                                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded"
                             />
                         </div>
@@ -185,7 +176,7 @@ export function QCApp() {
                             <input
                                 type="number"
                                 value={options.minDuration}
-                                onChange={(e) => setOptions({ ...options, minDuration: Number(e.target.value) })}
+                                onChange={e => setOptions({ ...options, minDuration: Number(e.target.value) })}
                                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded"
                             />
                         </div>
@@ -194,7 +185,7 @@ export function QCApp() {
                             <input
                                 type="number"
                                 value={options.maxDuration}
-                                onChange={(e) => setOptions({ ...options, maxDuration: Number(e.target.value) })}
+                                onChange={e => setOptions({ ...options, maxDuration: Number(e.target.value) })}
                                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded"
                             />
                         </div>
@@ -203,7 +194,7 @@ export function QCApp() {
                             <input
                                 type="number"
                                 value={options.minGap}
-                                onChange={(e) => setOptions({ ...options, minGap: Number(e.target.value) })}
+                                onChange={e => setOptions({ ...options, minGap: Number(e.target.value) })}
                                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded"
                             />
                         </div>
@@ -212,7 +203,7 @@ export function QCApp() {
                                 <input
                                     type="checkbox"
                                     checked={options.strict}
-                                    onChange={(e) => setOptions({ ...options, strict: e.target.checked })}
+                                    onChange={e => setOptions({ ...options, strict: e.target.checked })}
                                     className="w-4 h-4"
                                 />
                                 <span className="text-sm font-medium">Strict Mode</span>

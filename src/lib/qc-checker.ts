@@ -36,16 +36,16 @@ export interface QCReport {
 }
 
 export interface QCOptions {
-    maxCPS?: number          // Default: 20
-    optimalCPS?: number      // Default: 17
-    maxLineLength?: number   // Default: 42
+    maxCPS?: number // Default: 20
+    optimalCPS?: number // Default: 17
+    maxLineLength?: number // Default: 42
     optimalLineLength?: number // Default: 38
-    minDuration?: number     // Default: 800ms
-    maxDuration?: number     // Default: 7000ms
-    minGap?: number          // Default: 83ms (2 frames @ 24fps)
-    snapThreshold?: number   // Default: 200ms
-    strict?: boolean         // Default: false
-    fps?: number            // Default: 23.976
+    minDuration?: number // Default: 800ms
+    maxDuration?: number // Default: 7000ms
+    minGap?: number // Default: 83ms (2 frames @ 24fps)
+    snapThreshold?: number // Default: 200ms
+    strict?: boolean // Default: false
+    fps?: number // Default: 23.976
 }
 
 const DEFAULT_OPTIONS: Required<QCOptions> = {
