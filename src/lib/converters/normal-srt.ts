@@ -56,11 +56,12 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
 /**
- * Word-boundary regex patterns for style names that indicate typesetting.
- * Uses \b to avoid false positives like "Defaults" matching "ts",
- * "Closed" matching "ed", or "Proper" matching "op".
+ * Regex patterns for style names that indicate typesetting.
+ * - "sign", "typeset" match anywhere (catches TopSign, SignTS, etc.)
+ * - "ts", "op", "ed" require word boundaries to avoid false positives
+ *   (Defaults, Closed, Proper won't match)
  */
-const SIGN_KEYWORD_RE = /\b(?:sign|signs|ts|typeset|typesetting|op|ed)\b/i
+const SIGN_KEYWORD_RE = /sign|typeset(?:ting)?|(?:\bts\b)|(?:\bop\b)|(?:\bed\b)/i
 
 /**
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
