@@ -4,11 +4,12 @@ import { AlertCircle, CheckCircle, Info, Download, Filter } from "lucide-react"
 import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { type QCReport, type QCSeverity } from "@/lib/qc-checker"
+import { type QCReport, type QCIssue, type QCSeverity } from "@/lib/qc-checker"
 import { cn } from "@/lib/utils"
 
 interface QCReportProps {
     report: QCReport | null
+    onClose?: () => void
 }
 
 const SEVERITY_CONFIG = {
@@ -35,7 +36,7 @@ const SEVERITY_CONFIG = {
     }
 } as const
 
-export function QCReport({ report }: QCReportProps) {
+export function QCReport({ report, onClose }: QCReportProps) {
     const [selectedSeverity, setSelectedSeverity] = useState<QCSeverity | "all">("all")
     const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
@@ -133,9 +134,7 @@ export function QCReport({ report }: QCReportProps) {
                             return (
                                 <button
                                     key={severity}
-                                    onClick={() =>
-                                        setSelectedSeverity(selectedSeverity === severity ? "all" : severity)
-                                    }
+                                    onClick={() => setSelectedSeverity(selectedSeverity === severity ? "all" : severity)}
                                     className={cn(
                                         "p-4 rounded-lg border-2 transition-all hover:shadow-md",
                                         config.bg,
@@ -147,7 +146,9 @@ export function QCReport({ report }: QCReportProps) {
                                         <Icon className={cn("w-5 h-5", config.color)} />
                                         <span className="text-2xl font-bold">{count}</span>
                                     </div>
-                                    <p className={cn("text-sm font-medium", config.color)}>{config.label}</p>
+                                    <p className={cn("text-sm font-medium", config.color)}>
+                                        {config.label}
+                                    </p>
                                 </button>
                             )
                         })}
@@ -171,14 +172,12 @@ export function QCReport({ report }: QCReportProps) {
                                 <span className="text-sm font-medium text-gray-700">Category:</span>
                                 <select
                                     value={selectedCategory}
-                                    onChange={e => setSelectedCategory(e.target.value)}
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
                                     className="border rounded px-3 py-1 text-sm"
                                 >
                                     <option value="all">All Categories</option>
                                     {categories.map(cat => (
-                                        <option key={cat} value={cat}>
-                                            {cat}
-                                        </option>
+                                        <option key={cat} value={cat}>{cat}</option>
                                     ))}
                                 </select>
                             </div>
@@ -207,24 +206,12 @@ export function QCReport({ report }: QCReportProps) {
                         <table className="w-full">
                             <thead className="bg-gray-50 border-b">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Severity
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Line
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Time
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Category
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Issue
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Details
-                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Line</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issue</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -244,9 +231,7 @@ export function QCReport({ report }: QCReportProps) {
                                                 <td className="px-4 py-3 whitespace-nowrap">
                                                     <div className={cn("flex items-center gap-2", config.color)}>
                                                         <Icon className="w-4 h-4" />
-                                                        <span className="text-xs font-medium uppercase">
-                                                            {issue.severity}
-                                                        </span>
+                                                        <span className="text-xs font-medium uppercase">{issue.severity}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 whitespace-nowrap text-sm font-mono">
@@ -270,9 +255,7 @@ export function QCReport({ report }: QCReportProps) {
                                                         </div>
                                                         <div>
                                                             <span className="text-gray-500">Recommended:</span>{" "}
-                                                            <span className="font-mono text-green-600">
-                                                                {issue.recommended}
-                                                            </span>
+                                                            <span className="font-mono text-green-600">{issue.recommended}</span>
                                                         </div>
                                                     </div>
                                                 </td>
