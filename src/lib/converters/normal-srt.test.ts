@@ -448,8 +448,8 @@ Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\an8}<i>Kita memang begini!\
         // Should preserve original case (not uppercase)
         expect(srt).toContain("Kita memang begini")
         expect(srt).not.toContain("KITA MEMANG BEGINI")
-        // HTML tags should remain lowercase
-        expect(srt).toContain("<i>")
-        expect(srt).not.toContain("<I>")
+        // Literal HTML-like text should be escaped, not interpreted as markup
+        expect(srt).toContain("&lt;i&gt;")
+        expect(srt).toContain("&lt;/i&gt;")
     })
 })
