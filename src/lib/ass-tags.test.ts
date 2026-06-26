@@ -280,4 +280,7 @@ describe("convertTagsToHtml", () => {
     it("handles \\N, \\n, \\h in text", () => {
         expect(convertTagsToHtml("A\\NB\\nC\\hD")).toBe("A\nB C\u00A0D")
     })
+    it("escapes literal HTML characters in text", () => {
+        expect(convertTagsToHtml("A & B < C > D")).toBe("A &amp; B &lt; C &gt; D")
+    })
 })

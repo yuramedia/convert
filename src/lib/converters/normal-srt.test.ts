@@ -419,10 +419,16 @@ Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,This is dialogue text
 Dialogue: 0,0:00:03.00,0:00:05.00,Sign,,0,0,0,,{\\pos(960,54)}This is a sign
 `)
 
-    it("converts sign lines to uppercase by default", () => {
-        const srt = convertNormalSrt(track)
+    it("converts sign lines to uppercase when HTML tags are disabled", () => {
+        const srt = convertNormalSrt(track, { useHtmlTags: false })
         expect(srt).toContain("This is dialogue text")
         expect(srt).toContain("THIS IS A SIGN")
+    })
+
+    it("keeps sign line casing when HTML tags are enabled", () => {
+        const srt = convertNormalSrt(track, { useHtmlTags: true })
+        expect(srt).toContain("This is dialogue text")
+        expect(srt).toContain("This is a sign")
     })
 
     it("does not convert sign lines to uppercase when disabled", () => {
@@ -448,8 +454,8 @@ Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\an8}<i>Kita memang begini!\
         // Should preserve original case (not uppercase)
         expect(srt).toContain("Kita memang begini")
         expect(srt).not.toContain("KITA MEMANG BEGINI")
-        // HTML tags should remain lowercase
-        expect(srt).toContain("<i>")
-        expect(srt).not.toContain("<I>")
+        // Literal HTML-like text should be escaped, not interpreted as markup
+        expect(srt).toContain("&lt;i&gt;")
+        expect(srt).toContain("&lt;/i&gt;")
     })
 })
