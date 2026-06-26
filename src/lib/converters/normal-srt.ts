@@ -149,9 +149,9 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
     for (const { event, segments, style, isSign } of eventWithMetadata) {
         // Uppercase text content BEFORE HTML conversion if this is a sign
-        // This ensures HTML tags remain lowercase while content becomes uppercase
+        // Only apply this to plain SRT output; HTML-tagged output keeps original casing.
         const processedSegments =
-            isSign && fullOptions.uppercaseSigns
+            isSign && fullOptions.uppercaseSigns && !fullOptions.useHtmlTags
                 ? segments.map(seg => ({
                       ...seg,
                       content: seg.type === "text" ? seg.content.toUpperCase() : seg.content
