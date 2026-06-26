@@ -27,6 +27,10 @@ export interface TextSegment {
     tags?: AssTag[]
 }
 
+function escapeHtml(text: string): string {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
 // ─── Tag definitions ─────────────────────────────────────────────────────────
 
 /** Tags that take parenthesized coordinate arguments */
@@ -381,7 +385,7 @@ export function convertTagsToHtml(
                 }
             }
         } else if (seg.type === "text" && !inDrawing) {
-            result += seg.content
+            result += escapeHtml(seg.content)
         }
     }
 

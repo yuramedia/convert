@@ -135,15 +135,16 @@ function processTextKeepTags(text: string, defaultAlignment: number, injectAn2: 
     let hasAlignment = false
     let inDrawing = false
 
-    // Check if alignment is already specified in the first tag block
-    if (segments.length > 0 && segments[0].type === "tags" && segments[0].tags) {
-        const firstTags = segments[0].tags
-        for (let i = 0; i < firstTags.length; i++) {
-            if (ALIGN_TAGS.has(firstTags[i].name.toLowerCase())) {
+    // Check whether alignment is already specified anywhere in the event.
+    for (const seg of segments) {
+        if (seg.type !== "tags" || !seg.tags) continue
+        for (const tag of seg.tags) {
+            if (ALIGN_TAGS.has(tag.name.toLowerCase())) {
                 hasAlignment = true
                 break
             }
         }
+        if (hasAlignment) break
     }
 
     // If no alignment tag, inject one

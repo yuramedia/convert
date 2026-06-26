@@ -40,6 +40,9 @@ function formatTime(ms: number): string {
 
 function escapeCsvField(field: string): string {
     if (!field) return ""
+    if (/^[=+\-@]/.test(field)) {
+        field = `'${field}`
+    }
     if (field.includes(",") || field.includes('"') || field.includes("\n")) {
         return `"${field.replace(/"/g, '""')}"`
     }
