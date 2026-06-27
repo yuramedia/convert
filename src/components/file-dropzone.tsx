@@ -61,7 +61,7 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                 }
 
                 try {
-                    const id = Math.random().toString(36).substring(2, 9)
+                    const id = crypto.randomUUID()
                     if (isSubtitle) {
                         const text = await file.text()
                         let track

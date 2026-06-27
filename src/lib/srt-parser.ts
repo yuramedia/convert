@@ -62,7 +62,7 @@ interface SrtCue {
 
 // ─── Parse SRT text into cues ────────────────────────────────────────────────
 
-const TIMESTAMP_RE = /^(\d+:\d{2}:\d{2}[,.]\d{1,3})\s*-->\s*(\d+:\d{2}:\d{2}[,.]\d{1,3})/
+const TIMESTAMP_RE = /^(-?\d+:\d{2}:\d{2}[,.]\d{1,3})\s*-->\s*(-?\d+:\d{2}:\d{2}[,.]\d{1,3})/
 
 /**
  * Parse raw SRT text into an array of cues.
