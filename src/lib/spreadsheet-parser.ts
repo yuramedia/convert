@@ -156,6 +156,7 @@ export function detectEpisodes(rows: unknown[][]): EpisodeSegment[] {
 }
 
 export function parseSpreadsheetTimestamp(value: unknown, fps: number = 23.976): number {
+    fps = Math.max(0.001, fps || 23.976)
     if (value === null || value === undefined) return 0
 
     // Heuristics for numbers

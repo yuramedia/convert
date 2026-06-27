@@ -224,6 +224,10 @@ export function buildStyledWorksheet(
 
                     if (typeof val === "string") {
                         val = val.replace(/\\N/g, " ").replace(/\n/g, " ").trim().replace(/\s+/g, " ")
+                        // Sanitize formula-prefix characters to prevent CSV/XLSX injection
+                        if (/^[=+\-@]/.test(val)) {
+                            val = " " + val
+                        }
                     }
 
                     return { v: val, t: isNum ? "n" : "s", s: style }
