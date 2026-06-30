@@ -868,6 +868,13 @@ describe("fix-spanish-inverted-marks", () => {
         expect(result.issues).toHaveLength(1)
         expect(result.issues[0].fixed).toBe("¿Cómo estás?")
     })
+
+    it("handles override tags correctly and prepends after tags", () => {
+        const track = makeTrack([{ Text: "{\\i1}Cómo estás?" }])
+        const result = runQualityCheck(track, onlyRule("fix-spanish-inverted-marks"))
+        expect(result.issues).toHaveLength(1)
+        expect(result.issues[0].fixed).toBe("{\\i1}¿Cómo estás?")
+    })
 })
 
 // ─── add-missing-quotes ───────────────────────────────────────────────────────
@@ -911,6 +918,19 @@ describe("fix-missing-periods-at-end", () => {
         const result = runQualityCheck(track, onlyRule("fix-missing-periods-at-end"))
         expect(result.issues).toHaveLength(1)
         expect(result.issues[0].fixed).toBe("Hello world.\\NHello")
+    })
+
+    it("handles override tags correctly and doesn't prepend period to tags", () => {
+        const track = makeTrack([{ Text: "{\\an8}PEDAGANG SENI\\NANDY THOMPSON" }])
+        const result = runQualityCheck(track, onlyRule("fix-missing-periods-at-end"))
+        expect(result.issues).toHaveLength(1)
+        expect(result.issues[0].fixed).toBe("{\\an8}PEDAGANG SENI.\\NANDY THOMPSON")
+    })
+
+    it("does not add period if line ends with ellipsis character", () => {
+        const track = makeTrack([{ Text: "{\\i1}Saya tahu…\\NSaya akan lukis apa." }])
+        const result = runQualityCheck(track, onlyRule("fix-missing-periods-at-end"))
+        expect(result.issues).toHaveLength(0)
     })
 })
 

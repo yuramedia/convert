@@ -1168,12 +1168,10 @@ function checkMissingOpenBracket(event: AssEvent, index: number): QcIssue | null
     const text = stripOverrideTags(event.Text).trim()
     const hasCloseOnly = /[)\]}]/.test(text) && !/[([{]/.test(text)
     if (hasCloseOnly) {
-        const fixed = fixOutsideTags(event.Text, t => {
-            if (t.endsWith(")")) return "(" + t
-            if (t.endsWith("]")) return "[" + t
-            if (t.endsWith("}")) return "{" + t
-            return t
-        })
+        let fixed = event.Text
+        if (text.endsWith(")")) fixed = prependToVisibleText(event.Text, "(")
+        else if (text.endsWith("]")) fixed = prependToVisibleText(event.Text, "[")
+        else if (text.endsWith("}")) fixed = prependToVisibleText(event.Text, "{")
         return {
             id: `openbr-${index}`,
             lineIndex: index,
@@ -1192,12 +1190,10 @@ function checkMissingCloseBracket(event: AssEvent, index: number): QcIssue | nul
     const text = stripOverrideTags(event.Text).trim()
     const hasOpenOnly = /[([{]/.test(text) && !/[)\]}]/.test(text)
     if (hasOpenOnly) {
-        const fixed = fixOutsideTags(event.Text, t => {
-            if (t.startsWith("(")) return t + ")"
-            if (t.startsWith("[")) return t + "]"
-            if (t.startsWith("{")) return t + "}"
-            return t
-        })
+        let fixed = event.Text
+        if (text.startsWith("(")) fixed = appendToVisibleText(event.Text, ")")
+        else if (text.startsWith("[")) fixed = appendToVisibleText(event.Text, "]")
+        else if (text.startsWith("{")) fixed = appendToVisibleText(event.Text, "}")
         return {
             id: `closebr-${index}`,
             lineIndex: index,
@@ -1362,23 +1358,11 @@ function checkSpanishInvertedMarks(event: AssEvent, index: number): QcIssue | nu
         const visible = stripOverrideTags(line).trim()
         if (visible.endsWith("?") && !visible.startsWith("¿")) {
             needsFix = true
-            return fixOutsideTags(line, t => {
-                const tagMatch = t.match(/^((?:\{[^}]*\})*)(.*)$/)
-                if (tagMatch) {
-                    return tagMatch[1] + "¿" + tagMatch[2]
-                }
-                return "¿" + t
-            })
+            return prependToVisibleText(line, "¿")
         }
         if (visible.endsWith("!") && !visible.startsWith("¡")) {
             needsFix = true
-            return fixOutsideTags(line, t => {
-                const tagMatch = t.match(/^((?:\{[^}]*\})*)(.*)$/)
-                if (tagMatch) {
-                    return tagMatch[1] + "¡" + tagMatch[2]
-                }
-                return "¡" + t
-            })
+            return prependToVisibleText(line, "¡")
         }
         return line
     })
@@ -1401,9 +1385,7 @@ function checkAddMissingQuotes(event: AssEvent, index: number): QcIssue | null {
     const text = stripOverrideTags(event.Text)
     const quoteCount = (text.match(/"/g) || []).length
     if (quoteCount === 1) {
-        const fixed = fixOutsideTags(event.Text, t => {
-            return t + '"'
-        })
+        const fixed = appendToVisibleText(event.Text, '"')
         return {
             id: `missquote-${index}`,
             lineIndex: index,
@@ -1466,13 +1448,13 @@ function checkMissingPeriodsAtEnd(event: AssEvent, index: number): QcIssue | nul
     const second = stripOverrideTags(lines[1]).trim()
     if (first.length === 0 || second.length === 0) return null
 
-    // Check if first line does NOT end with sentence-ending punctuation (.!?)
+    // Check if first line does NOT end with sentence-ending punctuation (.!?…)
     // And second line starts with an uppercase letter
-    const endsWithPunct = /[.!?"”’]/.test(first[first.length - 1])
+    const endsWithPunct = /[.!?"”’\])…]$/.test(first)
     const startsWithUpper = /^[A-ZА-Яİ]/.test(second[0])
 
     if (!endsWithPunct && startsWithUpper) {
-        const fixedLine1 = fixOutsideTags(lines[0], t => t.trim() + ".")
+        const fixedLine1 = appendToVisibleText(lines[0], ".")
         const fixed = fixedLine1 + "\\N" + lines[1]
         return {
             id: `missperiod-${index}`,
@@ -1521,6 +1503,48 @@ function fixOutsideTags(text: string, fn: (segment: string) => string): string {
             return fn(part)
         })
         .join("")
+}
+
+/**
+ * Prepend a character/string right before the first visible text character (outside tags).
+ */
+function prependToVisibleText(text: string, char: string): string {
+    let insideTag = false
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] === "{") {
+            insideTag = true
+            continue
+        }
+        if (text[i] === "}") {
+            insideTag = false
+            continue
+        }
+        if (!insideTag) {
+            return text.slice(0, i) + char + text.slice(i)
+        }
+    }
+    return char + text
+}
+
+/**
+ * Append a character/string right after the last visible text character (outside tags).
+ */
+function appendToVisibleText(text: string, char: string): string {
+    let insideTag = false
+    for (let i = text.length - 1; i >= 0; i--) {
+        if (text[i] === "}") {
+            insideTag = true
+            continue
+        }
+        if (text[i] === "{") {
+            insideTag = false
+            continue
+        }
+        if (!insideTag) {
+            return text.slice(0, i + 1) + char + text.slice(i + 1)
+        }
+    }
+    return text + char
 }
 
 /**
