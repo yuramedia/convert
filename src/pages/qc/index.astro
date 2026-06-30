@@ -1,0 +1,13 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro"
+import QcPage from "../../components/qc-page"
+---
+
+<BaseLayout
+    title="QC — Subtitle Quality Check"
+    description="Detect and auto-fix common subtitle errors. Fix double spaces, punctuation, line breaks, and more. Client-side, serverless, instant."
+    ogTitle="Subtitle Quality Check"
+    ogDescription="Detect and auto-fix common subtitle errors inspired by SubtitleEdit's Fix Common Errors."
+>
+    <QcPage client:load />
+</BaseLayout>
