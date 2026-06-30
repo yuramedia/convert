@@ -13,7 +13,8 @@ import {
     Layers,
     Brackets,
     Scaling,
-    FileOutput
+    FileOutput,
+    ShieldCheck
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -29,6 +30,13 @@ export default function AboutPage() {
                 >
                     <ArrowLeft size={14} />
                     Back to Converter
+                </a>
+                <a
+                    href="/qc/"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-450 hover:text-emerald-500 hover:border-emerald-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
+                >
+                    <ShieldCheck size={14} />
+                    Quality Check
                 </a>
 
                 <div className="space-y-2">

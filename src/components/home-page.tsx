@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react"
-import { Layers, Info, Cpu } from "lucide-react"
+import { Layers, Info, Cpu, ShieldCheck } from "lucide-react"
 import FileDropzone, { type QueuedFile } from "@/components/file-dropzone"
 import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
 import OptionsPanel from "@/components/options-panel"
@@ -355,7 +355,14 @@ export default function Home() {
 
     return (
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-12 flex flex-col gap-10 relative z-10">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-4">
+                <a
+                    href="/qc/"
+                    className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-emerald-500 transition-colors"
+                >
+                    <ShieldCheck size={14} />
+                    Quality Check
+                </a>
                 <a
                     href="/about/"
                     className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-blue-500 transition-colors"
