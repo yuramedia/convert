@@ -282,13 +282,13 @@ function parseScriptInfoLine(line: string, track: AssTrack): void {
             else if (value.toLowerCase().includes("v4.00")) track.trackType = "SSA"
             break
         case "playresx":
-            track.scriptInfo.PlayResX = parseInt(value, 10) || 0
+            track.scriptInfo.PlayResX = Math.max(0, parseInt(value, 10) || 0)
             break
         case "playresy":
-            track.scriptInfo.PlayResY = parseInt(value, 10) || 0
+            track.scriptInfo.PlayResY = Math.max(0, parseInt(value, 10) || 0)
             break
         case "wrapstyle":
-            track.scriptInfo.WrapStyle = parseInt(value, 10) || 0
+            track.scriptInfo.WrapStyle = Math.max(0, Math.min(3, parseInt(value, 10) || 0))
             break
         case "scaledborderandshadow":
             track.scriptInfo.ScaledBorderAndShadow = parseBool(value)
@@ -303,10 +303,10 @@ function parseScriptInfoLine(line: string, track: AssTrack): void {
             track.scriptInfo.Kerning = parseBool(value)
             break
         case "layoutresx":
-            track.scriptInfo.LayoutResX = parseInt(value, 10) || 0
+            track.scriptInfo.LayoutResX = Math.max(0, parseInt(value, 10) || 0)
             break
         case "layoutresy":
-            track.scriptInfo.LayoutResY = parseInt(value, 10) || 0
+            track.scriptInfo.LayoutResY = Math.max(0, parseInt(value, 10) || 0)
             break
         default:
             // Store unknown script info fields

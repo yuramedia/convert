@@ -140,8 +140,10 @@ export function detectEpisodes(rows: unknown[][]): EpisodeSegment[] {
             // Check if other columns are empty (or undefined)
             const isOtherEmpty = row.slice(1).every(cell => String(cell || "").trim() === "")
             if (isOtherEmpty) {
-                if (segments.length > 0) {
-                    segments[segments.length - 1].endIndex = i
+                // Close the previous segment if one exists
+                const lastSegment = segments[segments.length - 1]
+                if (lastSegment !== undefined) {
+                    lastSegment.endIndex = i
                 }
                 segments.push({
                     name: val0,
