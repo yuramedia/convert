@@ -43,10 +43,14 @@ export const RESOLUTION_PRESETS: { label: string; width: number; height: number 
 
 export function convertResampleTs(track: AssTrack, options: ResampleOptions): string {
     const compensate = options.compensateAspectRatio !== false
+    // Prioritize track's own PlayResX/PlayResY over global fallback to support mixed batch resampling
+    const srcW = track.scriptInfo.PlayResX || options.sourceWidth || 0
+    const srcH = track.scriptInfo.PlayResY || options.sourceHeight || 0
+
     // Guard against division by zero when source resolution is missing (PlayResX/Y = 0)
     // Fall back to ratio 1.0 (no scaling) to prevent Infinity/NaN from corrupting values
-    const rx = options.sourceWidth > 0 ? options.targetWidth / options.sourceWidth : 1
-    const ry = options.sourceHeight > 0 ? options.targetHeight / options.sourceHeight : 1
+    const rx = srcW > 0 ? options.targetWidth / srcW : 1
+    const ry = srcH > 0 ? options.targetHeight / srcH : 1
 
     // Surgical clone instead of JSON.parse(JSON.stringify(track))
     // This avoids massive intermediate string allocation and improves performance
@@ -256,10 +260,10 @@ function resampleTagBlock(block: string, rx: number, ry: number, compensate: boo
 
         switch (tagLower) {
             case "fs":
-                result += `\\fs${round(parseFloat(value) * ry)}`
+                result += `\\fs${scaleValue(value, ry)}`
                 break
             case "fsp":
-                result += `\\fsp${round(parseFloat(value) * rx)}`
+                result += `\\fsp${scaleValue(value, rx)}`
                 break
             case "fscx": {
                 const val = parseFloat(value)
@@ -279,28 +283,28 @@ function resampleTagBlock(block: string, rx: number, ry: number, compensate: boo
                 result += `\\fscy${value}`
                 break
             case "bord":
-                result += `\\bord${round(parseFloat(value) * Math.max(rx, ry))}`
+                result += `\\bord${scaleValue(value, Math.max(rx, ry))}`
                 break
             case "xbord":
-                result += `\\xbord${round(parseFloat(value) * rx)}`
+                result += `\\xbord${scaleValue(value, rx)}`
                 break
             case "ybord":
-                result += `\\ybord${round(parseFloat(value) * ry)}`
+                result += `\\ybord${scaleValue(value, ry)}`
                 break
             case "shad":
-                result += `\\shad${round(parseFloat(value) * Math.max(rx, ry))}`
+                result += `\\shad${scaleValue(value, Math.max(rx, ry))}`
                 break
             case "xshad":
-                result += `\\xshad${round(parseFloat(value) * rx)}`
+                result += `\\xshad${scaleValue(value, rx)}`
                 break
             case "yshad":
-                result += `\\yshad${round(parseFloat(value) * ry)}`
+                result += `\\yshad${scaleValue(value, ry)}`
                 break
             case "be":
-                result += `\\be${round(parseFloat(value) * Math.max(rx, ry))}`
+                result += `\\be${scaleValue(value, Math.max(rx, ry))}`
                 break
             case "blur":
-                result += `\\blur${round(parseFloat(value) * Math.max(rx, ry))}`
+                result += `\\blur${scaleValue(value, Math.max(rx, ry))}`
                 break
             case "frz": {
                 const val = parseFloat(value)
@@ -447,4 +451,10 @@ function resampleTContent(content: string, rx: number, ry: number, compensate: b
 
 function round(n: number): number {
     return Math.round(n * 100) / 100
+}
+
+function scaleValue(value: string, factor: number): string {
+    const val = parseFloat(value)
+    if (isNaN(val)) return value
+    return String(round(val * factor))
 }

@@ -327,3 +327,55 @@ describe("resample — Immutability", () => {
         expect(original.styles[0].FontSize).toBe(origFontSize)
     })
 })
+
+// ─── Bug fixes ──────────────────────────────────────────────────────────────
+
+describe("resample — Bug fixes", () => {
+    it("prioritizes track's own PlayResX/PlayResY over global fallback options", () => {
+        // Track has 640x360 PlayRes, but options specify 1920x1080 source width/height.
+        // It should use 640x360 as source and scale up to 1280x720 (2x scaling).
+        const track640 = parseAss(`[Script Info]
+PlayResX: 640
+PlayResY: 360
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:05.00,Default,,0000,0000,0000,,{\\pos(100,200)}Test`)
+
+        const res = convertResampleTs(track640, {
+            sourceWidth: 1920,
+            sourceHeight: 1080,
+            targetWidth: 1280,
+            targetHeight: 720,
+            outputFormat: "ass"
+        })
+
+        // If it used 640x360 -> 1280x720, scaling factor rx=ry=2. \pos(100,200) -> \pos(200,400)
+        // If it used 1920x1080 -> 1280x720, scaling factor rx=ry=0.667. \pos(100,200) -> \pos(66.67,133.33)
+        expect(res).toContain("\\pos(200,400)")
+    })
+
+    it("safely handles empty tag values without producing NaN", () => {
+        const trackWithEmptyTag = parseAss(`[Script Info]
+PlayResX: 640
+PlayResY: 360
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:05.00,Default,,0000,0000,0000,,{\\blur\\bord\\shad\\be\\pos(100,200)}Test`)
+
+        const res = convertResampleTs(trackWithEmptyTag, {
+            sourceWidth: 640,
+            sourceHeight: 360,
+            targetWidth: 1280,
+            targetHeight: 720,
+            outputFormat: "ass"
+        })
+
+        expect(res).not.toContain("NaN")
+        expect(res).toContain("\\blur")
+        expect(res).toContain("\\bord")
+        expect(res).toContain("\\shad")
+        expect(res).toContain("\\be")
+    })
+})
