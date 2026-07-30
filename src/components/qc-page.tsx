@@ -87,6 +87,7 @@ export default function QcPage() {
     const [options, setOptions] = useState<QcOptions>(DEFAULT_QC_OPTIONS)
     const [filterSeverity, setFilterSeverity] = useState<QcSeverity | "all">("all")
     const [filterCategory, setFilterCategory] = useState<QcCategory | "all">("all")
+    const [page, setPage] = useState(1)
     const inputRef = useRef<HTMLInputElement>(null)
 
     // ─── File Handling ───────────────────────────────────────────────────────
@@ -222,6 +223,10 @@ export default function QcPage() {
               return true
           })
         : []
+
+    const pageSize = 50
+    const totalPages = Math.ceil(filteredIssues.length / pageSize) || 1
+    const visibleIssues = filteredIssues.slice((page - 1) * pageSize, page * pageSize)
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -481,7 +486,10 @@ export default function QcPage() {
                                     <FilterPill
                                         label="All"
                                         active={filterCategory === "all"}
-                                        onClick={() => setFilterCategory("all")}
+                                        onClick={() => {
+                                            setFilterCategory("all")
+                                            setPage(1)
+                                        }}
                                     />
                                     {(["text", "punctuation", "timing", "formatting", "casing"] as QcCategory[]).map(
                                         cat => (
@@ -489,7 +497,10 @@ export default function QcPage() {
                                                 key={cat}
                                                 label={CATEGORY_LABELS[cat]}
                                                 active={filterCategory === cat}
-                                                onClick={() => setFilterCategory(filterCategory === cat ? "all" : cat)}
+                                                onClick={() => {
+                                                    setFilterCategory(filterCategory === cat ? "all" : cat)
+                                                    setPage(1)
+                                                }}
                                                 count={result.issues.filter(i => i.category === cat).length}
                                             />
                                         )
@@ -505,32 +516,66 @@ export default function QcPage() {
 
                             {/* Issues Table */}
                             {filteredIssues.length > 0 ? (
-                                <Card className="overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="border-b border-zinc-800/50 text-[10px] font-bold uppercase tracking-wider text-zinc-600">
-                                                    <th className="px-4 py-3 text-left w-10">Fix</th>
-                                                    <th className="px-4 py-3 text-left w-16">Line</th>
-                                                    <th className="px-4 py-3 text-left w-20">Severity</th>
-                                                    <th className="px-4 py-3 text-left w-28">Rule</th>
-                                                    <th className="px-4 py-3 text-left">Details</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {filteredIssues.map(issue => (
-                                                    <IssueRow
-                                                        key={issue.id}
-                                                        issue={issue}
-                                                        excluded={excludedIssues.has(issue.id)}
-                                                        showDiff={showDiff}
-                                                        onToggle={() => toggleIssueExclusion(issue.id)}
-                                                    />
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </Card>
+                                <div className="flex flex-col gap-2">
+                                    <Card className="overflow-hidden">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-zinc-800/50 text-[10px] font-bold uppercase tracking-wider text-zinc-600">
+                                                        <th className="px-4 py-3 text-left w-10">Fix</th>
+                                                        <th className="px-4 py-3 text-left w-16">Line</th>
+                                                        <th className="px-4 py-3 text-left w-20">Severity</th>
+                                                        <th className="px-4 py-3 text-left w-28">Rule</th>
+                                                        <th className="px-4 py-3 text-left">Details</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {visibleIssues.map(issue => (
+                                                        <IssueRow
+                                                            key={issue.id}
+                                                            issue={issue}
+                                                            excluded={excludedIssues.has(issue.id)}
+                                                            showDiff={showDiff}
+                                                            onToggle={() => toggleIssueExclusion(issue.id)}
+                                                        />
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </Card>
+                                    {totalPages > 1 && (
+                                        <div className="flex items-center justify-between px-3 py-2 text-xs text-zinc-400 bg-zinc-900/40 rounded border border-zinc-900">
+                                            <span>
+                                                Showing {Math.min((page - 1) * pageSize + 1, filteredIssues.length)}–
+                                                {Math.min(page * pageSize, filteredIssues.length)} of{" "}
+                                                {filteredIssues.length} issues
+                                            </span>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={page === 1}
+                                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                                    className="h-7 px-2 text-xs"
+                                                >
+                                                    Previous
+                                                </Button>
+                                                <span className="px-2 font-mono text-zinc-300">
+                                                    {page} / {totalPages}
+                                                </span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={page >= totalPages}
+                                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                                    className="h-7 px-2 text-xs"
+                                                >
+                                                    Next
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <Card className="p-8 flex flex-col items-center justify-center gap-3 text-center">
                                     <CheckCircle2 size={32} className="text-emerald-500" />

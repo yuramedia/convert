@@ -155,6 +155,15 @@ interface SrtTableViewProps {
 }
 
 function SrtTableView({ entries, onUpdate }: SrtTableViewProps) {
+    const [page, setPage] = useState(1)
+    const pageSize = 100
+    const totalPages = Math.ceil(entries.length / pageSize) || 1
+
+    const visibleEntries = useMemo(() => {
+        const start = (page - 1) * pageSize
+        return entries.slice(start, start + pageSize).map((entry, idx) => ({ entry, globalIndex: start + idx }))
+    }, [entries, page])
+
     const handleCellEdit = useCallback(
         (rowIdx: number, field: keyof SrtTableEntry, newValue: string) => {
             const updated = [...entries]
@@ -179,65 +188,98 @@ function SrtTableView({ entries, onUpdate }: SrtTableViewProps) {
     }
 
     return (
-        <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
-            <table className="w-full text-left border-collapse text-xs" aria-label="Editable subtitle preview">
-                <caption className="sr-only">Converted subtitle data — click any cell to edit</caption>
-                <thead>
-                    <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 z-10 backdrop-blur-md">
-                        <th
-                            scope="col"
-                            className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[50px] text-center"
-                        >
-                            No.
-                        </th>
-                        <th
-                            scope="col"
-                            className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[140px]"
-                        >
-                            Timecode In
-                        </th>
-                        <th
-                            scope="col"
-                            className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[140px]"
-                        >
-                            Timecode Out
-                        </th>
-                        <th scope="col" className="p-3 font-bold text-zinc-300 uppercase tracking-wider">
-                            Subtitle
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {entries.map((entry, idx) => (
-                        <tr
-                            key={`${entry.index}-${idx}`}
-                            className="border-b border-zinc-900/50 hover:bg-zinc-900/20 last:border-0 transition-colors"
-                        >
-                            <td className="p-3 text-zinc-600 text-center font-mono tabular-nums border-r border-zinc-900/50">
-                                {entry.index}
-                            </td>
-                            <EditableCell
-                                value={formatSrtTimestamp(entry.startMs)}
-                                onCommit={v => handleCellEdit(idx, "startMs", v)}
-                                className="p-3 text-zinc-400 border-r border-zinc-900/50"
-                                isTimecode
-                            />
-                            <EditableCell
-                                value={formatSrtTimestamp(entry.endMs)}
-                                onCommit={v => handleCellEdit(idx, "endMs", v)}
-                                className="p-3 text-zinc-400 border-r border-zinc-900/50"
-                                isTimecode
-                            />
-                            <EditableCell
-                                value={entry.text}
-                                onCommit={v => handleCellEdit(idx, "text", v)}
-                                className="p-3 text-zinc-400"
-                                multiline
-                            />
+        <div className="flex flex-col gap-2">
+            <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
+                <table className="w-full text-left border-collapse text-xs" aria-label="Editable subtitle preview">
+                    <caption className="sr-only">Converted subtitle data — click any cell to edit</caption>
+                    <thead>
+                        <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 z-10 backdrop-blur-md">
+                            <th
+                                scope="col"
+                                className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[50px] text-center"
+                            >
+                                No.
+                            </th>
+                            <th
+                                scope="col"
+                                className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[140px]"
+                            >
+                                Timecode In
+                            </th>
+                            <th
+                                scope="col"
+                                className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 w-[140px]"
+                            >
+                                Timecode Out
+                            </th>
+                            <th scope="col" className="p-3 font-bold text-zinc-300 uppercase tracking-wider">
+                                Subtitle
+                            </th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {visibleEntries.map(({ entry, globalIndex }) => (
+                            <tr
+                                key={`${entry.index}-${globalIndex}`}
+                                className="border-b border-zinc-900/50 hover:bg-zinc-900/20 last:border-0 transition-colors"
+                            >
+                                <td className="p-3 text-zinc-600 text-center font-mono tabular-nums border-r border-zinc-900/50">
+                                    {entry.index}
+                                </td>
+                                <EditableCell
+                                    value={formatSrtTimestamp(entry.startMs)}
+                                    onCommit={v => handleCellEdit(globalIndex, "startMs", v)}
+                                    className="p-3 text-zinc-400 border-r border-zinc-900/50"
+                                    isTimecode
+                                />
+                                <EditableCell
+                                    value={formatSrtTimestamp(entry.endMs)}
+                                    onCommit={v => handleCellEdit(globalIndex, "endMs", v)}
+                                    className="p-3 text-zinc-400 border-r border-zinc-900/50"
+                                    isTimecode
+                                />
+                                <EditableCell
+                                    value={entry.text}
+                                    onCommit={v => handleCellEdit(globalIndex, "text", v)}
+                                    className="p-3 text-zinc-400"
+                                    multiline
+                                />
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2 py-1.5 text-xs text-zinc-400 bg-zinc-900/40 rounded border border-zinc-900">
+                    <span>
+                        Showing {Math.min((page - 1) * pageSize + 1, entries.length)}–
+                        {Math.min(page * pageSize, entries.length)} of {entries.length} rows
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={page === 1}
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            className="h-7 px-2 text-xs"
+                        >
+                            Previous
+                        </Button>
+                        <span className="px-2 font-mono text-zinc-300">
+                            {page} / {totalPages}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={page >= totalPages}
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            className="h-7 px-2 text-xs"
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -252,6 +294,15 @@ interface XlsxTableViewProps {
 }
 
 function XlsxTableView({ data, headers, onUpdate, fileName }: XlsxTableViewProps) {
+    const [page, setPage] = useState(1)
+    const pageSize = 100
+    const totalPages = Math.ceil(data.length / pageSize) || 1
+
+    const visibleRows = useMemo(() => {
+        const start = (page - 1) * pageSize
+        return data.slice(start, start + pageSize).map((row, idx) => ({ row, globalIndex: start + idx }))
+    }, [data, page])
+
     const handleCellEdit = useCallback(
         (rowIdx: number, header: string, newValue: string) => {
             const updated = [...data]
@@ -262,46 +313,82 @@ function XlsxTableView({ data, headers, onUpdate, fileName }: XlsxTableViewProps
     )
 
     return (
-        <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
-            <table className="w-full text-left border-collapse text-xs" aria-label={`Editable preview of ${fileName}`}>
-                <caption className="sr-only">
-                    Converted subtitle data with {data.length} rows — click any cell to edit
-                </caption>
-                <thead>
-                    <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 z-10 backdrop-blur-md">
-                        {headers.map(h => (
-                            <th
-                                key={h}
-                                scope="col"
-                                className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 last:border-0"
-                            >
-                                {h}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.map((row, idx) => (
-                        <tr
-                            key={idx}
-                            className="border-b border-zinc-900/50 hover:bg-zinc-900/20 last:border-0 transition-colors"
-                        >
-                            {headers.map(h => {
-                                const isTimecodeCol = /timecode|time/i.test(h)
-                                return (
-                                    <EditableCell
-                                        key={h}
-                                        value={String(row[h] ?? "")}
-                                        onCommit={v => handleCellEdit(idx, h, v)}
-                                        className="p-3 text-zinc-400 border-r border-zinc-900/50 last:border-0 max-w-[300px]"
-                                        isTimecode={isTimecodeCol}
-                                    />
-                                )
-                            })}
+        <div className="flex flex-col gap-2">
+            <div className="overflow-x-auto rounded-lg border border-zinc-900 bg-zinc-950 max-h-[450px]">
+                <table
+                    className="w-full text-left border-collapse text-xs"
+                    aria-label={`Editable preview of ${fileName}`}
+                >
+                    <caption className="sr-only">
+                        Converted subtitle data with {data.length} rows — click any cell to edit
+                    </caption>
+                    <thead>
+                        <tr className="bg-zinc-900/50 border-b border-zinc-900 sticky top-0 z-10 backdrop-blur-md">
+                            {headers.map(h => (
+                                <th
+                                    key={h}
+                                    scope="col"
+                                    className="p-3 font-bold text-zinc-300 uppercase tracking-wider border-r border-zinc-900 last:border-0"
+                                >
+                                    {h}
+                                </th>
+                            ))}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {visibleRows.map(({ row, globalIndex }) => (
+                            <tr
+                                key={globalIndex}
+                                className="border-b border-zinc-900/50 hover:bg-zinc-900/20 last:border-0 transition-colors"
+                            >
+                                {headers.map(h => {
+                                    const isTimecodeCol = /timecode|time/i.test(h)
+                                    return (
+                                        <EditableCell
+                                            key={h}
+                                            value={String(row[h] ?? "")}
+                                            onCommit={v => handleCellEdit(globalIndex, h, v)}
+                                            className="p-3 text-zinc-400 border-r border-zinc-900/50 last:border-0 max-w-[300px]"
+                                            isTimecode={isTimecodeCol}
+                                        />
+                                    )
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2 py-1.5 text-xs text-zinc-400 bg-zinc-900/40 rounded border border-zinc-900">
+                    <span>
+                        Showing {Math.min((page - 1) * pageSize + 1, data.length)}–
+                        {Math.min(page * pageSize, data.length)} of {data.length} rows
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={page === 1}
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            className="h-7 px-2 text-xs"
+                        >
+                            Previous
+                        </Button>
+                        <span className="px-2 font-mono text-zinc-300">
+                            {page} / {totalPages}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={page >= totalPages}
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            className="h-7 px-2 text-xs"
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

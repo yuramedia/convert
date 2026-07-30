@@ -40,7 +40,11 @@ function formatTime(ms: number): string {
 
 function escapeCsvField(field: string): string {
     if (!field) return ""
-    if (/^[=+\-@]/.test(field)) {
+    // Normalize line endings to \n to prevent \r carriage return injection
+    field = field.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+    // Detect formula injection vulnerability even with leading spaces or tabs
+    const trimmedLead = field.trimStart()
+    if (/^[=+\-@\t]/.test(trimmedLead)) {
         field = `'${field}`
     }
     if (field.includes(",") || field.includes('"') || field.includes("\n")) {

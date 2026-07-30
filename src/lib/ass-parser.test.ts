@@ -274,6 +274,17 @@ describe("parseAss — Raw sections", () => {
 
 // ─── Default fallbacks ─────────────────────────────────────────────────────
 
+describe("parseAss — Security", () => {
+    it("prevents prototype pollution from malicious Script Info keys", () => {
+        const maliciousAss = `[Script Info]\n__proto__: polluted\nconstructor: polluted\nprototype: polluted\nTitle: Safe Title\n`
+        const track = parseAss(maliciousAss)
+        expect(track.scriptInfo.Title).toBe("Safe Title")
+        expect(({} as any).polluted).toBeUndefined()
+        expect(Object.hasOwn(track.scriptInfo, "__proto__")).toBe(false)
+        expect(Object.hasOwn(track.scriptInfo, "constructor")).toBe(false)
+    })
+})
+
 describe("parseAss — Defaults", () => {
     it("applies defaults when format line is missing", () => {
         const minimal = `[Script Info]\nTitle: Minimal\n\n[V4+ Styles]\nStyle: Default,Arial,18,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,10,10,10,1\n\n[Events]\nDialogue: 0,0:00:00.00,0:00:01.00,Default,,0000,0000,0000,,Test\n`

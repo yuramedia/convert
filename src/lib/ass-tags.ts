@@ -50,6 +50,10 @@ export const POSITION_TAGS = new Set(["pos", "move", "org", "clip", "iclip"])
 /** Tags that involve size values (for resampling) */
 export const SIZE_TAGS = new Set(["fs", "fsp", "bord", "xbord", "ybord", "shad", "xshad", "yshad", "be", "blur"])
 
+const AEGISUB_EXTRADATA_REGEX = /^=[^\\{}]*$/
+const DRAWING_CLIP_START_REGEX = /^\s*m\s/i
+const EMPTY_HTML_TAGS_REGEX = /<(b|i|u|s)><\/\1>/g
+
 // ─── Tokenizer ───────────────────────────────────────────────────────────────
 
 /**
@@ -73,7 +77,7 @@ export function tokenizeText(text: string): TextSegment[] {
 
             // Skip Aegisub extradata blocks {=N} — internal metadata, not renderable
             // Pattern: block content starts with '=' followed by digits/identifier
-            if (/^=[^\\{}]*$/.test(blockContent)) {
+            if (AEGISUB_EXTRADATA_REGEX.test(blockContent)) {
                 i = closeIdx + 1
                 continue
             }
@@ -264,7 +268,7 @@ export function parseClip(
 
     // Drawing clip without scale: \clip(m x y l ...) — implicit scale 1
     // Drawing commands always start with 'm' (moveto)
-    if (/^\s*m\s/i.test(inner)) {
+    if (DRAWING_CLIP_START_REGEX.test(inner)) {
         return { type: "drawing", scale: 1, commands: inner }
     }
 
@@ -400,10 +404,14 @@ export function convertTagsToHtml(
     result = result.replace(/\\n/g, " ")
     result = result.replace(/\\h/g, "\u00A0")
 
-    // Clean up empty HTML tags (only if they were generated, e.g. in convertTagsToHtml)
+    // Clean up empty HTML tags (max 5 passes for nested empty tags like <b><i></i></b>)
     let finalResult = result
-    while (/<(b|i|u|s)><\/\1>/.test(finalResult)) {
-        finalResult = finalResult.replace(/<(b|i|u|s)><\/\1>/g, "")
+    let prevResult = ""
+    let passes = 0
+    while (finalResult !== prevResult && passes < 5) {
+        prevResult = finalResult
+        finalResult = finalResult.replace(EMPTY_HTML_TAGS_REGEX, "")
+        passes++
     }
 
     return finalResult

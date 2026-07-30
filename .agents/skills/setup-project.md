@@ -2,7 +2,7 @@
 
 ## Stack
 
-- Astro 6 (static output, file-based routing)
+- Astro 7 (static output, file-based routing)
 - React 19 (as Astro islands via `@astrojs/react`)
 - TailwindCSS v4
 - Bun runtime

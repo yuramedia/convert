@@ -309,8 +309,10 @@ function parseScriptInfoLine(line: string, track: AssTrack): void {
             track.scriptInfo.LayoutResY = Math.max(0, parseInt(value, 10) || 0)
             break
         default:
-            // Store unknown script info fields
-            track.scriptInfo[key] = value
+            // Store unknown script info fields safely (prototype pollution guard)
+            if (key !== "__proto__" && key !== "constructor" && key !== "prototype") {
+                track.scriptInfo[key] = value
+            }
             break
     }
 }

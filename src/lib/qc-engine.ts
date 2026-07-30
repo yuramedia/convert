@@ -448,6 +448,8 @@ export const DEFAULT_QC_OPTIONS: QcOptions = {
     enabledRules: new Set(QC_RULES.filter(r => r.enabled).map(r => r.id))
 }
 
+const OVERRIDE_TAGS_REGEX = /\{[^}]*\}/g
+
 // ─── Utility: strip ASS override tags for text analysis ──────────────────────
 
 /**
@@ -455,7 +457,7 @@ export const DEFAULT_QC_OPTIONS: QcOptions = {
  * Preserves `\N` line breaks.
  */
 export function stripOverrideTags(text: string): string {
-    return text.replace(/\{[^}]*\}/g, "")
+    return text.replace(OVERRIDE_TAGS_REGEX, "")
 }
 
 /**

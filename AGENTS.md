@@ -1,6 +1,6 @@
-# Astro 6 + React 19 — Static Site
+# Astro 7 + React 19 — Static Site
 
-This project uses **Astro 6** with **React 19 islands** and **Tailwind CSS v4**. Fully static output (`output: "static"`), deployed to GitHub Pages.
+This project uses **Astro 7** with **React 19 islands** and **Tailwind CSS v4**. Fully static output (`output: "static"`), deployed to GitHub Pages.
 
 Read the relevant guides before writing any code:
 
