@@ -203,6 +203,11 @@ export function parseTagBlock(content: string): AssTag[] {
             value = content.substring(valueStart, i)
         }
 
+        if (tagName.toLowerCase().startsWith("fn") && tagName.length > 2) {
+            value = tagName.substring(2) + value
+            tagName = "fn"
+        }
+
         rawTags.push({
             name: tagName,
             value: value.trim(),

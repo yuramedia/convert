@@ -7,6 +7,7 @@ import { type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { type ResampleOptions, RESOLUTION_PRESETS } from "@/lib/converters/resample-ts"
 import { type CsvExportOptions } from "@/lib/converters/csv-export"
 import { type XlsxExportOptions } from "@/lib/converters/xlsx-export"
+import { type YttExportOptions } from "@/lib/converters/ytt-export"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -52,6 +53,8 @@ interface OptionsPanelProps {
     setCsvOptions: (opts: CsvExportOptions) => void
     xlsxOptions: XlsxExportOptions
     setXlsxOptions: (opts: XlsxExportOptions) => void
+    yttOptions: YttExportOptions
+    setYttOptions: (opts: YttExportOptions) => void
 }
 
 const FPS_PRESETS = [
@@ -76,7 +79,9 @@ export default function OptionsPanel({
     csvOptions,
     setCsvOptions,
     xlsxOptions,
-    setXlsxOptions
+    setXlsxOptions,
+    yttOptions,
+    setYttOptions
 }: OptionsPanelProps) {
     const [fpsMode, setFpsMode] = useState<"preset" | "custom">(() => {
         const isPreset = FPS_PRESETS.some(p => Math.abs(p.value - (normalOptions.fps ?? 23.976023976)) < 0.0001)
@@ -87,6 +92,92 @@ export default function OptionsPanel({
         setPrevFps(normalOptions.fps)
         const isPreset = FPS_PRESETS.some(p => Math.abs(p.value - (normalOptions.fps ?? 23.976023976)) < 0.0001)
         setFpsMode(isPreset ? "preset" : "custom")
+    }
+
+    if (mode === "ytt") {
+        return (
+            <Card className="animate-in fade-in duration-500">
+                <CardHeader>
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                        YouTube Subtitle XML (.ytt) Settings
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Field orientation="horizontal" className="col-span-1 md:col-span-2">
+                                <div className="flex-1">
+                                    <FieldLabel>Off-White Color Fix (#FEFEFE)</FieldLabel>
+                                    <FieldDescription>
+                                        Converts pure white (#FFFFFF) text to #FEFEFE for better shadow rendering on the
+                                        YouTube Android app.
+                                    </FieldDescription>
+                                </div>
+                                <Switch
+                                    checked={yttOptions.useOffWhite}
+                                    onCheckedChange={c => setYttOptions({ ...yttOptions, useOffWhite: c })}
+                                />
+                            </Field>
+
+                            <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-4 border-t">
+                                <div className="flex-1">
+                                    <FieldLabel>Window Background Box Opacity</FieldLabel>
+                                    <FieldDescription>
+                                        Controls whether subtitle text appears with a background box (0 = transparent
+                                        box, 255 = full box).
+                                    </FieldDescription>
+                                </div>
+                                <Select
+                                    value={String(yttOptions.wfo)}
+                                    onValueChange={v =>
+                                        setYttOptions({ ...yttOptions, wfo: parseInt(v ?? "0", 10) || 0 })
+                                    }
+                                >
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue>
+                                            {yttOptions.wfo === 0 ? "Transparent (0)" : `Opaque (${yttOptions.wfo})`}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem value="0">Transparent (0)</SelectItem>
+                                            <SelectItem value="255">Opaque Box (255)</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+
+                            <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-4 border-t">
+                                <div className="flex-1">
+                                    <FieldLabel>Convert Karaoke Timing (\k)</FieldLabel>
+                                    <FieldDescription>
+                                        Converts ASS karaoke tags into timed inline spans for YouTube karaoke captions.
+                                    </FieldDescription>
+                                </div>
+                                <Switch
+                                    checked={yttOptions.convertKaraoke}
+                                    onCheckedChange={c => setYttOptions({ ...yttOptions, convertKaraoke: c })}
+                                />
+                            </Field>
+
+                            <Field orientation="horizontal" className="col-span-1 md:col-span-2 pt-4 border-t">
+                                <div className="flex-1">
+                                    <FieldLabel>Convert Position &amp; Alignment (\an, \pos)</FieldLabel>
+                                    <FieldDescription>
+                                        Maps ASS screen alignment and \pos(x,y) coordinates to YouTube window position
+                                        tags.
+                                    </FieldDescription>
+                                </div>
+                                <Switch
+                                    checked={yttOptions.convertPositioning}
+                                    onCheckedChange={c => setYttOptions({ ...yttOptions, convertPositioning: c })}
+                                />
+                            </Field>
+                        </div>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+        )
     }
 
     if (mode === "csv") {

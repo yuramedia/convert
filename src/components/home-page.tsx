@@ -9,6 +9,7 @@ import { convertNormalSrt, DEFAULT_NORMAL_OPTIONS, type NormalSrtOptions } from 
 import { convertKeepTs, DEFAULT_KEEPTS_OPTIONS, type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { convertResampleTs, type ResampleOptions } from "@/lib/converters/resample-ts"
 import { convertToCsv, DEFAULT_CSV_OPTIONS, type CsvExportOptions } from "@/lib/converters/csv-export"
+import { convertToYtt, DEFAULT_YTT_OPTIONS, type YttExportOptions } from "@/lib/converters/ytt-export"
 import {
     convertToXlsxData,
     convertToXlsxBuffer,
@@ -48,6 +49,7 @@ export default function Home() {
     })
     const [csvOptions, setCsvOptions] = useState<CsvExportOptions>(DEFAULT_CSV_OPTIONS)
     const [xlsxOptions, setXlsxOptions] = useState<XlsxExportOptions>(DEFAULT_XLSX_OPTIONS)
+    const [yttOptions, setYttOptions] = useState<YttExportOptions>(DEFAULT_YTT_OPTIONS)
 
     const handleFilesAdded = (newFiles: QueuedFile[]) => {
         setFiles(prev => {
@@ -209,6 +211,8 @@ export default function Home() {
                             outputContent = convertResampleTs(file.track, resampleOptions)
                         } else if (mode === "csv") {
                             outputContent = convertToCsv(file.track, csvOptions)
+                        } else if (mode === "ytt") {
+                            outputContent = convertToYtt(file.track, yttOptions)
                         } else if (mode === "xlsx") {
                             xlsxData = convertToXlsxData(file.track, xlsxOptions)
                             xlsxBuffer = convertToXlsxBuffer(file.track, xlsxOptions, file.name)
@@ -327,6 +331,7 @@ export default function Home() {
         if (mode === "resample") return resampleOptions.outputFormat
         if (mode === "csv") return "csv"
         if (mode === "xlsx") return "xlsx"
+        if (mode === "ytt") return "ytt"
         return "srt"
     }
 
@@ -435,6 +440,8 @@ export default function Home() {
                             setCsvOptions={setCsvOptions}
                             xlsxOptions={xlsxOptions}
                             setXlsxOptions={setXlsxOptions}
+                            yttOptions={yttOptions}
+                            setYttOptions={setYttOptions}
                         />
 
                         {files.some(f => f.status === "ready" || f.status === "converted") && (

@@ -17,7 +17,7 @@ interface OutputPreviewProps {
     onDownloadCombined?: () => void
     onUpdateOutput?: (fileId: string, newContent: string) => void
     onUpdateXlsxData?: (fileId: string, newData: Record<string, string | number>[]) => void
-    outputFormat: "srt" | "ass" | "csv" | "xlsx"
+    outputFormat: "srt" | "ass" | "csv" | "xlsx" | "ytt"
 }
 
 // ─── Editable Cell Component ─────────────────────────────────────────────────
