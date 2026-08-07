@@ -103,7 +103,40 @@ export default function OptionsPanel({
                         YouTube Subtitle XML (.ytt) Settings
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
+                    <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-red-500/10 text-red-400">
+                                <Video size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                                    YouTube YTT Specification Active
+                                </h4>
+                                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                    Auto-enforces YouTube XML upload rules: Opacity 254 capping, #FEFEFE off-white fix,
+                                    space hardening (\u00A0), &amp; iOS/Android dummy ID 0 headers.
+                                </p>
+                            </div>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="shrink-0 text-xs border-red-500/30 hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
+                            onClick={() =>
+                                setYttOptions({
+                                    wfo: 0,
+                                    useOffWhite: true,
+                                    convertKaraoke: true,
+                                    convertPositioning: true
+                                })
+                            }
+                        >
+                            Reset YouTube Defaults
+                        </Button>
+                    </div>
+
                     <FieldGroup>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Field orientation="horizontal" className="col-span-1 md:col-span-2">
@@ -450,6 +483,7 @@ export default function OptionsPanel({
                                     stripSigns: true,
                                     mergeDuplicates: true,
                                     stripEmptyLines: true,
+                                    youtubeCompatibility: true,
                                     uppercaseSigns: false
                                 })
                             }
@@ -489,6 +523,19 @@ export default function OptionsPanel({
                             <Switch
                                 checked={normalOptions.stripEmptyLines}
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, stripEmptyLines: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>YouTube SRT Sanitization (Purge &#123;\an8&#125;)</FieldLabel>
+                                <FieldDescription>
+                                    Strips unparseable ASS override tags like &#123;\an8&#125; so they don't leak as
+                                    plain text on YouTube.
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={normalOptions.youtubeCompatibility ?? true}
+                                onCheckedChange={c => setNormalOptions({ ...normalOptions, youtubeCompatibility: c })}
                             />
                         </Field>
                         <Field orientation="horizontal">
