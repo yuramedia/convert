@@ -148,4 +148,76 @@ Dialogue: 0,0:00:03.00,0:00:04.00,Default,,0000,0000,0000,,{\\fnMyCustomUnsuppor
         expect(xml).toContain('fs="3"') // Monospaced for Courier
         expect(xml).toContain('fs="2"') // Serif for Times New Roman
     })
+
+    describe("\\move animation", () => {
+        const ASS_WITH_MOVE = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0000,0000,0000,,{\\move(0,0,1920,1080)}Moving Text
+Dialogue: 0,0:00:03.00,0:00:04.00,Default,,0000,0000,0000,,{\\move(0,0,1920,1080,0,500)}Partial Window Move
+Dialogue: 0,0:00:05.00,0:00:06.00,Default,,0000,0000,0000,,{\\move(960,540,960,540,500,100)}Invalid Move
+`
+        const moveTrack = parseAss(ASS_WITH_MOVE)
+
+        it("splits a 4-arg \\move into multiple time-stepped <p> snapshots covering the full line duration", () => {
+            const xml = convertToYtt(moveTrack, { moveStepMs: 250 })
+
+            // Line spans 1000ms with a 250ms step -> 4 stepped snapshots, no separate
+            // pre/post-move static snapshot since t1=0 and t2 defaults to the full duration
+            const paragraphs = [...xml.matchAll(/<p t="(\d+)" d="(\d+)"[^>]*>Moving Text<\/p>/g)]
+            expect(paragraphs.length).toBe(4)
+
+            // First snapshot starts at the line's start time and covers the first step
+            expect(paragraphs[0][1]).toBe("1000")
+            expect(paragraphs[0][2]).toBe("250")
+
+            // Snapshots are contiguous and together cover the whole 1000ms line
+            const totalCovered = paragraphs.reduce((sum, p) => sum + Number(p[2]), 0)
+            expect(totalCovered).toBe(1000)
+        })
+
+        it("interpolates <wp> ah/av from the start to the end coordinate across the move", () => {
+            const xml = convertToYtt(moveTrack, { moveStepMs: 250 })
+
+            // Start of the move is (0,0) -> ah=0 av=0; end is (1920,1080) -> ah=100 av=100
+            expect(xml).toContain('ah="0"')
+            expect(xml).toContain('av="0"')
+            expect(xml).toContain('ah="100"')
+            expect(xml).toContain('av="100"')
+        })
+
+        it("emits a leading static snapshot before the move window and a trailing one after it", () => {
+            const xml = convertToYtt(moveTrack, { moveStepMs: 250 })
+
+            // "Partial Window Move" line runs 3000-4000ms with move active only 0-500ms into it,
+            // so there should be a static snapshot for the remaining 500-1000ms after the move ends
+            const paragraphs = [...xml.matchAll(/<p t="(\d+)" d="(\d+)"[^>]*>Partial Window Move<\/p>/g)]
+            const trailing = paragraphs.find(p => p[1] === "3500" && p[2] === "500")
+            expect(trailing).toBeTruthy()
+        })
+
+        it("falls back to the line's default static position when t2 <= t1", () => {
+            const xml = convertToYtt(moveTrack)
+
+            // "Invalid Move" has t1=500, t2=100 (t2 <= t1), so it must render as a single,
+            // unsplit paragraph at the default alignment position rather than any \move coordinate
+            expect(xml).toContain('<p t="5000" d="1000" wp="')
+            const paragraphs = [...xml.matchAll(/<p [^>]*>Invalid Move<\/p>/g)]
+            expect(paragraphs.length).toBe(1)
+        })
+
+        it("does not split the line when convertPositioning is false", () => {
+            const xml = convertToYtt(moveTrack, { convertPositioning: false })
+            const paragraphs = [...xml.matchAll(/<p [^>]*>Moving Text<\/p>/g)]
+            expect(paragraphs.length).toBe(1)
+        })
+    })
 })

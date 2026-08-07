@@ -1,10 +1,9 @@
 import { type AssTrack, type AssStyle } from "../ass-parser"
-import { tokenizeText } from "../ass-tags"
+import { tokenizeText, parseCoords } from "../ass-tags"
 import {
     writeYtt,
     type YttEntry,
     type YttPen,
-    type YttPosition,
     type YttWindowStyle,
     type YttSpan
 } from "../ytt-writer"
@@ -18,13 +17,21 @@ export interface YttExportOptions {
     convertKaraoke: boolean
     /** Convert ASS alignment (\an) and position (\pos) tags to window positions <wp> (default: true) */
     convertPositioning: boolean
+    /**
+     * Step size in ms used to simulate \move animation, since YTT has no native tweened
+     * position — a \move is instead split into a burst of static <p> snapshots at this
+     * interval, each with its own interpolated <wp>, mirroring YTSubConverter's approach
+     * of stepping the animation forward a couple of video frames at a time (default: 100)
+     */
+    moveStepMs: number
 }
 
 export const DEFAULT_YTT_OPTIONS: YttExportOptions = {
     wfo: 0,
     useOffWhite: true,
     convertKaraoke: true,
-    convertPositioning: true
+    convertPositioning: true,
+    moveStepMs: 100
 }
 
 interface ParsedColor {
@@ -126,11 +133,23 @@ function getYouTubeFontStyleId(fontName: string): number {
     return 0
 }
 
+interface MoveAnim {
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+    /** ms offset from line start; defaults to 0 when \move only has 4 args */
+    t1: number
+    /** ms offset from line start; defaults to the full line duration when \move only has 4 args */
+    t2?: number
+}
+
 interface EventChunk {
     spans: { text: string; penStyle: YttPen; timeOffsetMs?: number }[]
     alignment: number
     posX?: number
     posY?: number
+    move?: MoveAnim
 }
 
 function parseEventContent(text: string, baseStyle: AssStyle, options: YttExportOptions): EventChunk {
@@ -146,6 +165,7 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
     let currentAlignment = baseStyle.Alignment
     let posX: number | undefined = undefined
     let posY: number | undefined = undefined
+    let move: MoveAnim | undefined = undefined
     let activeOffsetMs = 0
     let pendingDurationMs = 0
     let hasSeenKaraoke = false
@@ -182,6 +202,20 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                     if (match) {
                         posX = parseFloat(match[1])
                         posY = parseFloat(match[2])
+                    }
+                } else if (name === "move" && options.convertPositioning) {
+                    // \move(x1,y1,x2,y2[,t1,t2]) — AffectsWholeLine per YTSubConverter, so it's
+                    // fine to pick this up wherever it appears in the line.
+                    const coords = parseCoords(val)
+                    if (coords.length >= 4) {
+                        move = {
+                            x1: coords[0],
+                            y1: coords[1],
+                            x2: coords[2],
+                            y2: coords[3],
+                            t1: coords.length >= 6 ? coords[4] : 0,
+                            t2: coords.length >= 6 ? coords[5] : undefined
+                        }
                     }
                 } else if ((name === "k" || name === "kf" || name === "ko" || name === "k") && options.convertKaraoke) {
                     hasSeenKaraoke = true
@@ -241,7 +275,8 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
         spans,
         alignment: currentAlignment,
         posX,
-        posY
+        posY,
+        move
     }
 }
 
@@ -311,7 +346,6 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
         }
 
         const wfoVal = opts.wfo === 255 ? 254 : opts.wfo
-        const position: YttPosition = { ap, ah, av }
         const windowStyle: YttWindowStyle = { ju: alignInfo.ju, wfo: wfoVal }
 
         const entrySpans: YttSpan[] = parsed.spans.map(s => ({
@@ -320,13 +354,67 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
             timeOffsetMs: s.timeOffsetMs
         }))
 
-        entries.push({
-            startMs: event.Start,
-            durationMs: event.End - event.Start,
-            position,
-            windowStyle,
-            spans: entrySpans
-        })
+        const lineDurationMs = event.End - event.Start
+
+        if (parsed.move) {
+            // YTT has no native tweened position, so \move is simulated by splitting the
+            // line into a burst of static <p> snapshots, each pinned to a different <wp>
+            // interpolated along the move's path — same high-level approach YTSubConverter
+            // uses (there, stepping 2 video frames at a time instead of a fixed ms interval).
+            const toAh = (x: number) => Math.max(0, Math.min(100, Math.round((x / playResX) * 100)))
+            const toAv = (y: number) => Math.max(0, Math.min(100, Math.round((y / playResY) * 100)))
+
+            const { x1, y1, x2, y2 } = parsed.move
+            const t1 = Math.max(0, Math.min(lineDurationMs, parsed.move.t1))
+            const t2 = Math.max(0, Math.min(lineDurationMs, parsed.move.t2 ?? lineDurationMs))
+
+            if (t2 <= t1) {
+                // Degenerate/invalid \move (e.g. t2 <= t1): per YTSubConverter, an invalid
+                // move animation is simply dropped, falling back to the line's normal
+                // alignment/pos-derived static position instead of x1/y1 or x2/y2.
+                entries.push({
+                    startMs: event.Start,
+                    durationMs: lineDurationMs,
+                    position: { ap, ah, av },
+                    windowStyle,
+                    spans: entrySpans
+                })
+            } else {
+                const pushSnapshot = (fromMs: number, toMs: number, x: number, y: number) => {
+                    if (toMs <= fromMs) return
+                    entries.push({
+                        startMs: event.Start + fromMs,
+                        durationMs: toMs - fromMs,
+                        position: { ap, ah: toAh(x), av: toAv(y) },
+                        windowStyle,
+                        spans: entrySpans
+                    })
+                }
+
+                // Static at the start position before the move begins
+                pushSnapshot(0, t1, x1, y1)
+
+                // Stepped interpolation across the move's active window
+                const stepMs = Math.max(1, opts.moveStepMs)
+                for (let t = t1; t < t2; t += stepMs) {
+                    const segEnd = Math.min(t + stepMs, t2)
+                    const midT = (t + segEnd) / 2
+                    const frac = (midT - t1) / (t2 - t1)
+                    pushSnapshot(t, segEnd, x1 + (x2 - x1) * frac, y1 + (y2 - y1) * frac)
+                }
+
+                // Static at the end position after the move finishes
+                pushSnapshot(t2, lineDurationMs, x2, y2)
+            }
+        } else {
+            entries.push({
+                startMs: event.Start,
+                durationMs: lineDurationMs,
+                position: { ap, ah, av },
+                windowStyle,
+                spans: entrySpans
+            })
+        }
     }
 
     return writeYtt(entries)
