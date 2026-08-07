@@ -47,6 +47,13 @@ describe("tokenizeText", () => {
         expect(segs[0].type).toBe("tags")
     })
 
+    it("handles unclosed braces safely without swallowing dialogue text", () => {
+        const segs = tokenizeText("Hello {\\an8 world {\\b1}bold text")
+        const text = stripTags(segs)
+        expect(text).toContain("world")
+        expect(text).toContain("bold text")
+    })
+
     it("handles nested parens in \\t()", () => {
         const segs = tokenizeText("{\\t(0,500,\\fs48)}")
         expect(segs).toHaveLength(1)

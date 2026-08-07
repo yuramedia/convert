@@ -466,8 +466,8 @@ export default function OptionsPanel({
                                     YouTube SRT Preset
                                 </h4>
                                 <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                                    Applies optimal settings for YouTube SRT uploads (strips unparseable
-                                    &#123;\an8&#125; / position tags, enables HTML formatting, purges signs).
+                                    Applies optimal settings for YouTube SRT uploads (enables HTML formatting, converts
+                                    signs to clean plain text, merges duplicates).
                                 </p>
                             </div>
                         </div>
@@ -480,11 +480,10 @@ export default function OptionsPanel({
                                 setNormalOptions({
                                     ...normalOptions,
                                     useHtmlTags: true,
-                                    stripSigns: true,
+                                    stripSigns: false,
                                     mergeDuplicates: true,
                                     stripEmptyLines: true,
-                                    youtubeCompatibility: true,
-                                    uppercaseSigns: false
+                                    uppercaseSigns: true
                                 })
                             }
                         >
@@ -523,19 +522,6 @@ export default function OptionsPanel({
                             <Switch
                                 checked={normalOptions.stripEmptyLines}
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, stripEmptyLines: c })}
-                            />
-                        </Field>
-                        <Field orientation="horizontal">
-                            <div className="flex-1">
-                                <FieldLabel>YouTube SRT Sanitization (Purge &#123;\an8&#125;)</FieldLabel>
-                                <FieldDescription>
-                                    Strips unparseable ASS override tags like &#123;\an8&#125; so they don't leak as
-                                    plain text on YouTube.
-                                </FieldDescription>
-                            </div>
-                            <Switch
-                                checked={normalOptions.youtubeCompatibility ?? true}
-                                onCheckedChange={c => setNormalOptions({ ...normalOptions, youtubeCompatibility: c })}
                             />
                         </Field>
                         <Field orientation="horizontal">

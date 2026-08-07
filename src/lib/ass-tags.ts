@@ -61,7 +61,7 @@ const EMPTY_HTML_TAGS_REGEX = /<(b|i|u|s)><\/\1>/g
  * Handles nested braces in \t(...) and \clip(scale, drawing) correctly.
  */
 export function tokenizeText(text: string): TextSegment[] {
-    const segments: TextSegment[] = []
+    const rawSegments: TextSegment[] = []
     let i = 0
 
     while (i < text.length) {
@@ -69,21 +69,21 @@ export function tokenizeText(text: string): TextSegment[] {
             // Find matching closing brace
             const closeIdx = findClosingBrace(text, i)
             if (closeIdx < 0) {
-                // Unmatched brace — treat rest as text
-                segments.push({ type: "text", content: text.substring(i) })
-                break
+                // Unmatched brace — treat '{' as literal text and continue scanning
+                rawSegments.push({ type: "text", content: "{" })
+                i++
+                continue
             }
             const blockContent = text.substring(i + 1, closeIdx)
 
             // Skip Aegisub extradata blocks {=N} — internal metadata, not renderable
-            // Pattern: block content starts with '=' followed by digits/identifier
             if (AEGISUB_EXTRADATA_REGEX.test(blockContent)) {
                 i = closeIdx + 1
                 continue
             }
 
             const tags = parseTagBlock(blockContent)
-            segments.push({
+            rawSegments.push({
                 type: "tags",
                 content: text.substring(i, closeIdx + 1),
                 tags
@@ -95,9 +95,20 @@ export function tokenizeText(text: string): TextSegment[] {
             if (end < 0) end = text.length
             const content = text.substring(i, end)
             if (content) {
-                segments.push({ type: "text", content })
+                rawSegments.push({ type: "text", content })
             }
             i = end
+        }
+    }
+
+    // Merge consecutive text segments
+    const segments: TextSegment[] = []
+    for (const seg of rawSegments) {
+        const last = segments[segments.length - 1]
+        if (last && last.type === "text" && seg.type === "text") {
+            last.content += seg.content
+        } else {
+            segments.push({ ...seg })
         }
     }
 

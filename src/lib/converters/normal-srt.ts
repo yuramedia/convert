@@ -17,8 +17,6 @@ export interface NormalSrtOptions {
     useHtmlTags?: boolean
     mergeDuplicates?: boolean
     stripEmptyLines?: boolean
-    /** Strip unparseable ASS override tags (like {\an8}) for YouTube SRT importer compatibility. Default true. */
-    youtubeCompatibility?: boolean
     /** Strip typesetting/sign lines from output. Default true.
      *  Signs use \pos, \clip, etc. which SRT doesn't support,
      *  so they are useless in plain SRT. Use Keep-TS mode instead. */
@@ -45,7 +43,6 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     useHtmlTags: true,
     mergeDuplicates: true,
     stripEmptyLines: true,
-    youtubeCompatibility: true,
     stripSigns: false,
     uppercaseSigns: true,
     enableFrameGap: false,
@@ -174,12 +171,7 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
             text = stripTags(processedSegments)
         }
 
-        // Clean up & sanitize unparsed ASS tags (e.g. {\an8}) if YouTube compatibility mode is active
-        if (fullOptions.youtubeCompatibility) {
-            text = text.replace(/\{[^}]*\}/g, "").trim()
-        } else {
-            text = text.trim()
-        }
+        text = text.trim()
         if (fullOptions.stripEmptyLines && !text) continue
 
         entries.push({
