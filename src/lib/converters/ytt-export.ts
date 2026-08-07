@@ -1,5 +1,13 @@
 import { type AssTrack, type AssStyle } from "../ass-parser"
 import { tokenizeText } from "../ass-tags"
+import {
+    writeYtt,
+    type YttEntry,
+    type YttPen,
+    type YttPosition,
+    type YttWindowStyle,
+    type YttSpan
+} from "../ytt-writer"
 
 export interface YttExportOptions {
     /** Window Foreground Opacity: 0 for transparent background box, 255 for opaque box (default: 0) */
@@ -25,12 +33,11 @@ interface ParsedColor {
 }
 
 function parseAssColor(colorStr: string, useOffWhite: boolean = true): ParsedColor {
-    if (!colorStr) return { hex: useOffWhite ? "#FEFEFE" : "#FFFFFF", opacity: 255 }
+    if (!colorStr) return { hex: useOffWhite ? "#FEFEFE" : "#FFFFFF", opacity: 254 }
 
     let clean = colorStr.replace(/^&H/i, "").replace(/&$/i, "").trim()
-    if (clean.length === 0) return { hex: useOffWhite ? "#FEFEFE" : "#FFFFFF", opacity: 255 }
+    if (clean.length === 0) return { hex: useOffWhite ? "#FEFEFE" : "#FFFFFF", opacity: 254 }
 
-    // Pad if necessary
     while (clean.length < 6) clean = "0" + clean
 
     let alphaHex = "00"
@@ -55,7 +62,7 @@ function parseAssColor(colorStr: string, useOffWhite: boolean = true): ParsedCol
     const alpha = parseInt(alphaHex, 16) || 0
 
     let opacity = Math.max(0, Math.min(255, 255 - alpha))
-    if (opacity === 255) opacity = 254 // Capped at 254 per YTSubConverter to prevent YouTube server stripping attribute
+    if (opacity === 255) opacity = 254
 
     let hex = `#${r.toString(16).padStart(2, "0").toUpperCase()}${g.toString(16).padStart(2, "0").toUpperCase()}${b.toString(16).padStart(2, "0").toUpperCase()}`
 
@@ -64,15 +71,6 @@ function parseAssColor(colorStr: string, useOffWhite: boolean = true): ParsedCol
     }
 
     return { hex, opacity }
-}
-
-function xmlEscape(str: string): string {
-    return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&apos;")
 }
 
 interface AlignmentInfo {
@@ -111,52 +109,30 @@ function getYouTubeFontStyleId(fontName: string): number {
     if (!fontName) return 0
     const lower = fontName.toLowerCase()
     if (lower.includes("courier") || lower.includes("consolas") || lower.includes("monaco") || lower.includes("mono")) {
-        return 3 // Monospaced Sans-Serif
+        return 3
     }
     if (lower.includes("times") || lower.includes("georgia") || lower.includes("garamond") || lower.includes("serif")) {
-        return 2 // Proportional Serif
+        return 2
     }
     if (lower.includes("comic") || lower.includes("casual") || lower.includes("chalkboard")) {
-        return 4 // Casual
+        return 4
     }
     if (lower.includes("script") || lower.includes("corsiva") || lower.includes("brush") || lower.includes("cursive")) {
-        return 5 // Cursive
+        return 5
     }
     if (lower.includes("caps") || lower.includes("small")) {
-        return 6 // Small Caps
+        return 6
     }
-    return 0 // Default Proportional Sans-Serif (Roboto/Arial)
-}
-
-interface PenStyle {
-    b?: boolean
-    i?: boolean
-    u?: boolean
-    fs?: number
-    fc?: string
-    fo?: number
-    bc?: string
-    bo?: number
-    ec?: string
-    et?: number
-}
-
-interface InlineSpan {
-    text: string
-    penStyle: PenStyle
-    timeOffsetMs?: number
+    return 0
 }
 
 interface EventChunk {
-    spans: InlineSpan[]
+    spans: { text: string; penStyle: YttPen; timeOffsetMs?: number }[]
     alignment: number
     posX?: number
     posY?: number
 }
 
-/**
- * Convert ASS dialogue text into styled spans and position overrides.
- */
 function parseEventContent(text: string, baseStyle: AssStyle, options: YttExportOptions): EventChunk {
     const segments = tokenizeText(text)
 
@@ -174,7 +150,7 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
     let pendingDurationMs = 0
     let hasSeenKaraoke = false
 
-    const spans: InlineSpan[] = []
+    const spans: { text: string; penStyle: YttPen; timeOffsetMs?: number }[] = []
 
     for (const seg of segments) {
         if (seg.type === "tags" && seg.tags) {
@@ -214,11 +190,11 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                 }
             }
         } else if (seg.type === "text" && seg.content) {
-            // Replace ASS line breaks \N or \n with newlines and harden multiple spaces to non-breaking spaces per YTSubConverter spec
             const cleanText = seg.content
                 .replace(/\\N/g, "\n")
                 .replace(/\\n/g, "\n")
                 .replace(/  +/g, m => "\u00A0".repeat(m.length))
+
             if (cleanText.length > 0) {
                 const fc = parseAssColor(currentColor, options.useOffWhite)
                 const ec = parseAssColor(currentOutlineColor, options.useOffWhite)
@@ -232,10 +208,10 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                     bo = bc.opacity === 255 ? 254 : bc.opacity
                 }
 
-                const penStyle: PenStyle = {
-                    b: currentBold,
-                    i: currentItalic,
-                    u: currentUnderline,
+                const penStyle: YttPen = {
+                    bold: currentBold,
+                    italic: currentItalic,
+                    underline: currentUnderline,
                     fs: fsId > 0 ? fsId : undefined,
                     fc: fc.hex,
                     fo: fc.opacity,
@@ -270,7 +246,7 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
 }
 
 /**
- * Main function: Convert AssTrack to YTT XML format string
+ * Convert AssTrack to YTT XML format string
  */
 export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions> = {}): string {
     const opts: YttExportOptions = { ...DEFAULT_YTT_OPTIONS, ...options }
@@ -278,13 +254,11 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
     const playResX = track.scriptInfo.PlayResX || 1920
     const playResY = track.scriptInfo.PlayResY || 1080
 
-    // Style map for default style lookup
     const styleMap = new Map<string, AssStyle>()
     for (const style of track.styles) {
         styleMap.set(style.Name, style)
     }
 
-    // Default style fallback
     const defaultStyle: AssStyle = track.styles[0] || {
         Name: "Default",
         FontName: "Arial",
@@ -314,75 +288,8 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
         _raw: {}
     }
 
-    // Registries for Pens, Window Styles, and Window Positions
-    const penList: { key: string; style: PenStyle }[] = []
-    const penKeyToId = new Map<string, number>()
-
-    function getOrCreatePen(style: PenStyle): number {
-        const key = JSON.stringify({
-            b: !!style.b,
-            i: !!style.i,
-            u: !!style.u,
-            fs: style.fs ?? 0,
-            fc: style.fc || "",
-            fo: style.fo ?? 254,
-            ec: style.ec || "",
-            et: style.et ?? 0,
-            bc: style.bc || "#000000",
-            bo: style.bo ?? 0
-        })
-
-        if (penKeyToId.has(key)) {
-            return penKeyToId.get(key)!
-        }
-
-        const id = penList.length + 1
-        penList.push({ key, style })
-        penKeyToId.set(key, id)
-        return id
-    }
-
-    const wsList: { key: string; wfo: number; ju: number }[] = []
-    const wsKeyToId = new Map<string, number>()
-
-    function getOrCreateWs(wfo: number, ju: number): number {
-        const key = `${wfo}_${ju}`
-        if (wsKeyToId.has(key)) {
-            return wsKeyToId.get(key)!
-        }
-        const id = wsList.length + 1
-        wsList.push({ key, wfo, ju })
-        wsKeyToId.set(key, id)
-        return id
-    }
-
-    const wpList: { key: string; ap: number; ah: number; av: number }[] = []
-    const wpKeyToId = new Map<string, number>()
-
-    function getOrCreateWp(ap: number, ah: number, av: number): number {
-        const key = `${ap}_${ah}_${av}`
-        if (wpKeyToId.has(key)) {
-            return wpKeyToId.get(key)!
-        }
-        const id = wpList.length + 1
-        wpList.push({ key, ap, ah, av })
-        wpKeyToId.set(key, id)
-        return id
-    }
-
-    // Process dialogue events
     const dialogues = track.events.filter(e => e.type === "Dialogue")
-
-    interface GeneratedParagraph {
-        startMs: number
-        durationMs: number
-        penId: number
-        wsId: number
-        wpId: number
-        spans: { text: string; penId?: number; timeOffsetMs?: number }[]
-    }
-
-    const paragraphs: GeneratedParagraph[] = []
+    const entries: YttEntry[] = []
 
     for (const event of dialogues) {
         if (event.End <= event.Start) continue
@@ -404,111 +311,23 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
         }
 
         const wfoVal = opts.wfo === 255 ? 254 : opts.wfo
-        const wsId = getOrCreateWs(wfoVal, alignInfo.ju)
-        const wpId = getOrCreateWp(ap, ah, av)
+        const position: YttPosition = { ap, ah, av }
+        const windowStyle: YttWindowStyle = { ju: alignInfo.ju, wfo: wfoVal }
 
-        // First span pen style forms paragraph default pen
-        const basePenId = getOrCreatePen(parsed.spans[0].penStyle)
+        const entrySpans: YttSpan[] = parsed.spans.map(s => ({
+            text: s.text,
+            pen: s.penStyle,
+            timeOffsetMs: s.timeOffsetMs
+        }))
 
-        const paragraphSpans: { text: string; penId?: number; timeOffsetMs?: number }[] = []
-
-        for (let i = 0; i < parsed.spans.length; i++) {
-            const span = parsed.spans[i]
-            const spanPenId = getOrCreatePen(span.penStyle)
-
-            paragraphSpans.push({
-                text: span.text,
-                penId: spanPenId !== basePenId ? spanPenId : undefined,
-                timeOffsetMs: span.timeOffsetMs
-            })
-        }
-
-        paragraphs.push({
+        entries.push({
             startMs: event.Start,
             durationMs: event.End - event.Start,
-            penId: basePenId,
-            wsId,
-            wpId,
-            spans: paragraphSpans
+            position,
+            windowStyle,
+            spans: entrySpans
         })
     }
 
-    // Build XML output
-    const xmlLines: string[] = []
-    xmlLines.push('<?xml version="1.0" encoding="utf-8"?>')
-    xmlLines.push('<timedtext format="3">')
-    xmlLines.push("  <head>")
-
-    // Dummy elements (id 0) per YTSubConverter iOS/Android player bug workaround
-    xmlLines.push('    <wp id="0" ap="7" ah="0" av="0"/>')
-    xmlLines.push('    <ws id="0" wfo="0" ju="2"/>')
-    xmlLines.push('    <pen id="0" fc="#000000" fo="0" bo="0"/>')
-
-    // Render pens in order of increasing ID
-    for (let i = 0; i < penList.length; i++) {
-        const id = i + 1
-        const p = penList[i].style
-        let attrStr = `id="${id}"`
-
-        if (p.b) attrStr += ' b="1"'
-        if (p.i) attrStr += ' i="1"'
-        if (p.u) attrStr += ' u="1"'
-        if (p.fs) attrStr += ` fs="${p.fs}"`
-        if (p.fc) attrStr += ` fc="${p.fc}"`
-        if (p.fo !== undefined) attrStr += ` fo="${p.fo}"`
-        if (p.ec) attrStr += ` ec="${p.ec}"`
-        if (p.et) attrStr += ` et="${p.et}"`
-        if (p.bc) attrStr += ` bc="${p.bc}"`
-        if (p.bo !== undefined) attrStr += ` bo="${p.bo}"`
-
-        xmlLines.push(`    <pen ${attrStr}/>`)
-    }
-
-    // Render window styles
-    for (let i = 0; i < wsList.length; i++) {
-        const id = i + 1
-        const ws = wsList[i]
-        xmlLines.push(`    <ws id="${id}" wfo="${ws.wfo}" ju="${ws.ju}"/>`)
-    }
-
-    // Render window positions
-    for (let i = 0; i < wpList.length; i++) {
-        const id = i + 1
-        const wp = wpList[i]
-        xmlLines.push(`    <wp id="${id}" ap="${wp.ap}" ah="${wp.ah}" av="${wp.av}"/>`)
-    }
-
-    xmlLines.push("  </head>")
-    xmlLines.push("  <body>")
-
-    // Render paragraphs
-    for (const p of paragraphs) {
-        let pTag = `    <p t="${p.startMs}" d="${p.durationMs}" wp="${p.wpId}" ws="${p.wsId}" p="${p.penId}">`
-
-        // Check if paragraph has multiple spans or inline timing
-        const hasSpans = p.spans.some(s => s.penId !== undefined || s.timeOffsetMs !== undefined)
-
-        if (!hasSpans && p.spans.length === 1) {
-            xmlLines.push(`${pTag}${xmlEscape(p.spans[0].text)}</p>`)
-        } else {
-            let innerText = ""
-            for (const s of p.spans) {
-                let sAttr = ""
-                if (s.penId !== undefined) sAttr += ` p="${s.penId}"`
-                if (s.timeOffsetMs !== undefined) sAttr += ` t="${s.timeOffsetMs}"`
-
-                if (sAttr.length > 0) {
-                    innerText += `<s${sAttr}>${xmlEscape(s.text)}</s>`
-                } else {
-                    innerText += xmlEscape(s.text)
-                }
-            }
-            xmlLines.push(`${pTag}${innerText}</p>`)
-        }
-    }
-
-    xmlLines.push("  </body>")
-    xmlLines.push("</timedtext>")
-
-    return xmlLines.join("\n")
+    return writeYtt(entries)
 }
