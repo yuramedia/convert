@@ -9,7 +9,7 @@ import {
 } from "../ytt-writer"
 
 export interface YttExportOptions {
-    /** Window Foreground Opacity: 0 for transparent background box, 255 for opaque box (default: 0) */
+    /** Background box opacity override: 0 = use style-derived value, >0 = force this opacity on all pens (default: 0) */
     wfo: number
     /** Convert pure white (#FFFFFF) to off-white (#FEFEFE) for YouTube Android compatibility (default: true) */
     useOffWhite: boolean
@@ -33,6 +33,15 @@ export const DEFAULT_YTT_OPTIONS: YttExportOptions = {
     convertPositioning: true,
     moveStepMs: 100
 }
+
+// ─── Reference Resolution ────────────────────────────────────────────────────
+// YTSubConverter uses a fixed 1280×720 reference resolution for all coordinate
+// calculations. ASS pixel positions are first scaled from PlayRes to this
+// reference, then converted to YouTube percentage coordinates.
+const YTT_REF_WIDTH = 1280
+const YTT_REF_HEIGHT = 720
+
+// ─── Color Parsing ───────────────────────────────────────────────────────────
 
 interface ParsedColor {
     hex: string
@@ -80,58 +89,136 @@ function parseAssColor(colorStr: string, useOffWhite: boolean = true): ParsedCol
     return { hex, opacity }
 }
 
+/**
+ * Parse a standalone ASS alpha tag value (e.g. from \1a, \3a, \4a).
+ * Format: &HXX& where XX is the alpha byte. Returns opacity 0-254.
+ */
+function parseAssAlpha(alphaStr: string): number {
+    if (!alphaStr) return 254
+    const clean = alphaStr.replace(/^&H/i, "").replace(/&$/i, "").trim()
+    const alpha = parseInt(clean, 16) || 0
+    let opacity = Math.max(0, Math.min(255, 255 - alpha))
+    if (opacity === 255) opacity = 254
+    return opacity
+}
+
+// ─── Position Coordinate Conversion ──────────────────────────────────────────
+// YTSubConverter counteracts YouTube's built-in position shifting.
+// YouTube moves subtitles towards the center: realPos = 2 + youtubePos * 0.96
+// To get our desired position, we must reverse: youtubePos = (percentage - 2) / 0.96
+
+/**
+ * Convert a pixel coordinate (in the 1280×720 reference space) to a YouTube
+ * position attribute (0-100), applying the anti-adjustment formula from
+ * YTSubConverter's GetYouTubeCoord.
+ */
+function getYouTubeCoord(pixelCoord: number, maxValue: number): number {
+    let percentage = (pixelCoord / maxValue) * 100
+    percentage = (percentage - 2) / 0.96
+    percentage = Math.max(percentage, 0)
+    percentage = Math.min(percentage, 100)
+    return Math.round(percentage)
+}
+
+// ─── Alignment → Anchor/Position Mapping ─────────────────────────────────────
+// ASS \an alignment (numpad) maps to YTT anchor point (ap) and justification (ju).
+// Default pixel positions are at 2%/50%/98% of the reference resolution (1280×720).
+// These pixel positions then go through the GetYouTubeCoord anti-adjustment.
+
 interface AlignmentInfo {
+    /** YTT anchor point (0-8) */
     ap: number
+    /** YouTube ah coordinate (after anti-adjustment) */
     ah: number
+    /** YouTube av coordinate (after anti-adjustment) */
     av: number
+    /** Justification: 0=left, 1=right, 2=center */
     ju: number
 }
 
+/**
+ * Map ASS \an numpad alignment to YTT anchor point, default position, and justification.
+ *
+ * Follows YTSubConverter's mapping:
+ * - GetAnchorPoint: alignment 1→BottomLeft(6), 2→BottomCenter(7), ..., 9→TopRight(2)
+ * - GetJustificationId: Left columns→0, Center→2, Right→1
+ * - GetDefaultPosition: uses 2%/50%/98% of reference video dimensions
+ * - GetYouTubeCoord: applies (percentage - 2) / 0.96 anti-adjustment
+ */
 function getAlignmentInfo(an: number): AlignmentInfo {
+    // Default pixel positions in the 1280×720 reference space
+    const left = YTT_REF_WIDTH * 0.02   // 25.6px
+    const centerH = YTT_REF_WIDTH / 2   // 640px
+    const right = YTT_REF_WIDTH * 0.98  // 1254.4px
+    const top = YTT_REF_HEIGHT * 0.02   // 14.4px
+    const centerV = YTT_REF_HEIGHT / 2  // 360px
+    const bottom = YTT_REF_HEIGHT * 0.98 // 705.6px
+
+    // Map ASS alignment to anchor point ID, default pixel position, and justification
+    // Anchor points: 0=TopLeft, 1=TopCenter, 2=TopRight, 3=MiddleLeft, 4=Center,
+    //                5=MiddleRight, 6=BottomLeft, 7=BottomCenter, 8=BottomRight
     switch (an) {
-        case 1:
-            return { ap: 6, ah: 0, av: 100, ju: 0 }
-        case 2:
-            return { ap: 7, ah: 50, av: 100, ju: 2 }
-        case 3:
-            return { ap: 8, ah: 100, av: 100, ju: 1 }
-        case 4:
-            return { ap: 3, ah: 0, av: 50, ju: 0 }
-        case 5:
-            return { ap: 4, ah: 50, av: 50, ju: 2 }
-        case 6:
-            return { ap: 5, ah: 100, av: 50, ju: 1 }
-        case 7:
-            return { ap: 0, ah: 0, av: 0, ju: 0 }
-        case 8:
-            return { ap: 1, ah: 50, av: 0, ju: 2 }
-        case 9:
-            return { ap: 2, ah: 100, av: 0, ju: 1 }
-        default:
-            return { ap: 7, ah: 50, av: 100, ju: 2 }
+        case 1: return { ap: 6, ah: getYouTubeCoord(left, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 0 }
+        case 2: return { ap: 7, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 2 }
+        case 3: return { ap: 8, ah: getYouTubeCoord(right, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 1 }
+        case 4: return { ap: 3, ah: getYouTubeCoord(left, YTT_REF_WIDTH), av: getYouTubeCoord(centerV, YTT_REF_HEIGHT), ju: 0 }
+        case 5: return { ap: 4, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(centerV, YTT_REF_HEIGHT), ju: 2 }
+        case 6: return { ap: 5, ah: getYouTubeCoord(right, YTT_REF_WIDTH), av: getYouTubeCoord(centerV, YTT_REF_HEIGHT), ju: 1 }
+        case 7: return { ap: 0, ah: getYouTubeCoord(left, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 0 }
+        case 8: return { ap: 1, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 2 }
+        case 9: return { ap: 2, ah: getYouTubeCoord(right, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 1 }
+        default: return { ap: 7, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 2 }
     }
 }
 
+// ─── Font Style ID ───────────────────────────────────────────────────────────
+// Maps font family names to YouTube's fs attribute ID.
+// Uses exact lowercase matching per YTSubConverter's GetFontStyleId.
+
 function getYouTubeFontStyleId(fontName: string): number {
     if (!fontName) return 0
-    const lower = fontName.toLowerCase()
-    if (lower.includes("courier") || lower.includes("consolas") || lower.includes("monaco") || lower.includes("mono")) {
-        return 3
+    switch (fontName.toLowerCase()) {
+        case "courier new":
+        case "courier":
+        case "nimbus mono l":
+        case "cutive mono":
+            return 1 // Monospaced serif
+
+        case "times new roman":
+        case "times":
+        case "georgia":
+        case "cambria":
+        case "pt serif caption":
+            return 2 // Proportional serif
+
+        case "deja vu sans mono":
+        case "dejavu sans mono":
+        case "lucida console":
+        case "monaco":
+        case "consolas":
+        case "pt mono":
+            return 3 // Monospaced sans-serif
+
+        case "comic sans ms":
+        case "impact":
+        case "handlee":
+            return 5 // Casual
+
+        case "monotype corsiva":
+        case "urw chancery l":
+        case "apple chancery":
+        case "dancing script":
+            return 6 // Cursive
+
+        case "carrois gothic sc":
+            return 7 // Small capitals
+
+        default:
+            return 0 // Default (Roboto)
     }
-    if (lower.includes("times") || lower.includes("georgia") || lower.includes("garamond") || lower.includes("serif")) {
-        return 2
-    }
-    if (lower.includes("comic") || lower.includes("casual") || lower.includes("chalkboard")) {
-        return 4
-    }
-    if (lower.includes("script") || lower.includes("corsiva") || lower.includes("brush") || lower.includes("cursive")) {
-        return 5
-    }
-    if (lower.includes("caps") || lower.includes("small")) {
-        return 6
-    }
-    return 0
 }
+
+// ─── Move Animation Helper ───────────────────────────────────────────────────
 
 interface MoveAnim {
     x1: number
@@ -143,6 +230,8 @@ interface MoveAnim {
     /** ms offset from line start; defaults to the full line duration when \move only has 4 args */
     t2?: number
 }
+
+// ─── Event Content Parsing ───────────────────────────────────────────────────
 
 interface EventChunk {
     spans: { text: string; penStyle: YttPen; timeOffsetMs?: number }[]
@@ -160,8 +249,11 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
     let currentItalic = baseStyle.Italic
     let currentUnderline = baseStyle.Underline
     let currentColor = baseStyle.PrimaryColour
+    let currentForeAlpha: number | undefined = undefined
     let currentOutlineColor = baseStyle.OutlineColour
+    let currentOutlineAlpha: number | undefined = undefined
     let currentBackColor = baseStyle.BackColour
+    let currentBackAlpha: number | undefined = undefined
     let currentAlignment = baseStyle.Alignment
     let posX: number | undefined = undefined
     let posY: number | undefined = undefined
@@ -181,17 +273,35 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                 if (name === "fn") {
                     currentFontName = val.length > 0 ? val : baseStyle.FontName
                 } else if (name === "b") {
-                    currentBold = val === "1" || val === "true" || (val === "" && tag.raw === "\\b")
+                    if (val === "0") currentBold = false
+                    else if (val === "1" || (val === "" && tag.raw === "\\b")) currentBold = true
+                    else {
+                        const w = parseInt(val, 10)
+                        currentBold = !isNaN(w) && w > 0
+                    }
                 } else if (name === "i") {
-                    currentItalic = val === "1" || val === "true" || (val === "" && tag.raw === "\\i")
+                    if (val === "0") currentItalic = false
+                    else if (val === "1" || (val === "" && tag.raw === "\\i")) currentItalic = true
+                    else currentItalic = val !== "0" && val !== ""
                 } else if (name === "u") {
-                    currentUnderline = val === "1" || val === "true" || (val === "" && tag.raw === "\\u")
+                    if (val === "0") currentUnderline = false
+                    else if (val === "1" || (val === "" && tag.raw === "\\u")) currentUnderline = true
+                    else currentUnderline = val !== "0" && val !== ""
                 } else if (name === "c" || name === "1c") {
                     currentColor = val.length > 0 ? val : baseStyle.PrimaryColour
+                    currentForeAlpha = undefined // Reset alpha when color changes
                 } else if (name === "3c") {
                     currentOutlineColor = val.length > 0 ? val : baseStyle.OutlineColour
+                    currentOutlineAlpha = undefined
                 } else if (name === "4c") {
                     currentBackColor = val.length > 0 ? val : baseStyle.BackColour
+                    currentBackAlpha = undefined
+                } else if (name === "1a") {
+                    currentForeAlpha = val.length > 0 ? parseAssAlpha(val) : undefined
+                } else if (name === "3a") {
+                    currentOutlineAlpha = val.length > 0 ? parseAssAlpha(val) : undefined
+                } else if (name === "4a") {
+                    currentBackAlpha = val.length > 0 ? parseAssAlpha(val) : undefined
                 } else if (name === "an") {
                     const parsedAn = parseInt(val, 10)
                     if (parsedAn >= 1 && parsedAn <= 9) {
@@ -217,7 +327,7 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                             t2: coords.length >= 6 ? coords[5] : undefined
                         }
                     }
-                } else if ((name === "k" || name === "kf" || name === "ko" || name === "k") && options.convertKaraoke) {
+                } else if ((name === "k" || name === "kf" || name === "ko") && options.convertKaraoke) {
                     hasSeenKaraoke = true
                     const durationCs = parseInt(val, 10) || 0
                     pendingDurationMs += durationCs * 10
@@ -231,15 +341,50 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
 
             if (cleanText.length > 0) {
                 const fc = parseAssColor(currentColor, options.useOffWhite)
-                const ec = parseAssColor(currentOutlineColor, options.useOffWhite)
-                const bc = parseAssColor(currentBackColor, options.useOffWhite)
+                const outlineC = parseAssColor(currentOutlineColor, options.useOffWhite)
+                const backC = parseAssColor(currentBackColor, options.useOffWhite)
                 const fsId = getYouTubeFontStyleId(currentFontName)
 
+                // Apply alpha overrides if present
+                const foreOpacity = currentForeAlpha ?? fc.opacity
+                const outlineOpacity = currentOutlineAlpha ?? outlineC.opacity
+                const backOpacity = currentBackAlpha ?? backC.opacity
+
+                // Determine edge type and edge color based on ASS style
+                // YTSubConverter logic:
+                // - BorderStyle == 3 (box): outline → background color (bc/bo)
+                // - BorderStyle != 3: outline → glow shadow (et=3, ec)
+                // - Shadow > 0: shadow → soft shadow (et=4)
+                let et: number | undefined = undefined
+                let ec: string | undefined = undefined
+                let bc: string | undefined = undefined
                 let bo = 0
+
+                // User-controlled background box opacity override
                 if (options.wfo > 0) {
                     bo = options.wfo === 255 ? 254 : options.wfo
-                } else if (currentBackColor !== baseStyle.BackColour && currentBackColor !== "") {
-                    bo = bc.opacity === 255 ? 254 : bc.opacity
+                    bc = bc || "#080808"
+                } else if (baseStyle.BorderStyle === 3) {
+                    // Box mode: outline becomes background
+                    if (baseStyle.Outline > 0) {
+                        bc = outlineC.hex
+                        bo = outlineOpacity === 255 ? 254 : outlineOpacity
+                    }
+                    // Shadow becomes edge
+                    if (baseStyle.Shadow > 0 && backOpacity > 0) {
+                        et = 4 // SoftShadow
+                        ec = backC.hex
+                    }
+                } else {
+                    // Normal mode: outline becomes glow edge
+                    if (baseStyle.Outline > 0 && outlineOpacity > 0) {
+                        et = 3 // Glow
+                        ec = outlineC.hex
+                    } else if (baseStyle.Shadow > 0 && backOpacity > 0) {
+                        // Shadow becomes soft shadow edge
+                        et = 4 // SoftShadow
+                        ec = backC.hex
+                    }
                 }
 
                 const penStyle: YttPen = {
@@ -248,10 +393,10 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                     underline: currentUnderline,
                     fs: fsId > 0 ? fsId : undefined,
                     fc: fc.hex,
-                    fo: fc.opacity,
-                    ec: ec.hex,
-                    et: baseStyle.Outline > 0 ? 4 : undefined,
-                    bc: bc.hex || "#000000",
+                    fo: foreOpacity,
+                    ec,
+                    et,
+                    bc: bc || undefined,
                     bo
                 }
 
@@ -281,13 +426,18 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
 }
 
 /**
- * Convert AssTrack to YTT XML format string
+ * Convert AssTrack to YTT XML format string.
+ *
+ * Follows YTSubConverter's coordinate system:
+ * - Uses a fixed 1280×720 reference resolution for position calculations
+ * - Applies YouTube's position anti-adjustment: (percentage - 2) / 0.96
+ * - Default positions at 2%/50%/98% of reference dimensions
  */
 export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions> = {}): string {
     const opts: YttExportOptions = { ...DEFAULT_YTT_OPTIONS, ...options }
 
-    const playResX = track.scriptInfo.PlayResX || 1920
-    const playResY = track.scriptInfo.PlayResY || 1080
+    const playResX = track.scriptInfo.PlayResX || 384
+    const playResY = track.scriptInfo.PlayResY || 288
 
     const styleMap = new Map<string, AssStyle>()
     for (const style of track.styles) {
@@ -341,12 +491,17 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
         let av = alignInfo.av
 
         if (parsed.posX !== undefined && parsed.posY !== undefined) {
-            ah = Math.max(0, Math.min(100, Math.round((parsed.posX / playResX) * 100)))
-            av = Math.max(0, Math.min(100, Math.round((parsed.posY / playResY) * 100)))
+            // Convert ASS pixel position from PlayRes space to 1280×720 reference space,
+            // then apply YouTube's anti-adjustment formula
+            const refX = (parsed.posX / playResX) * YTT_REF_WIDTH
+            const refY = (parsed.posY / playResY) * YTT_REF_HEIGHT
+            ah = getYouTubeCoord(refX, YTT_REF_WIDTH)
+            av = getYouTubeCoord(refY, YTT_REF_HEIGHT)
         }
 
-        const wfoVal = opts.wfo === 255 ? 254 : opts.wfo
-        const windowStyle: YttWindowStyle = { ju: alignInfo.ju, wfo: wfoVal }
+        const position: YttPosition = { ap, ah, av }
+        // YTSubConverter always writes wfo="0" and adds pd/sd for text direction
+        const windowStyle: YttWindowStyle = { ju: alignInfo.ju, pd: 0, sd: 0, wfo: 0 }
 
         const entrySpans: YttSpan[] = parsed.spans.map(s => ({
             text: s.text,
@@ -361,8 +516,8 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
             // line into a burst of static <p> snapshots, each pinned to a different <wp>
             // interpolated along the move's path — same high-level approach YTSubConverter
             // uses (there, stepping 2 video frames at a time instead of a fixed ms interval).
-            const toAh = (x: number) => Math.max(0, Math.min(100, Math.round((x / playResX) * 100)))
-            const toAv = (y: number) => Math.max(0, Math.min(100, Math.round((y / playResY) * 100)))
+            const toAh = (x: number) => getYouTubeCoord((x / playResX) * YTT_REF_WIDTH, YTT_REF_WIDTH)
+            const toAv = (y: number) => getYouTubeCoord((y / playResY) * YTT_REF_HEIGHT, YTT_REF_HEIGHT)
 
             const { x1, y1, x2, y2 } = parsed.move
             const t1 = Math.max(0, Math.min(lineDurationMs, parsed.move.t1))
@@ -375,7 +530,7 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
                 entries.push({
                     startMs: event.Start,
                     durationMs: lineDurationMs,
-                    position: { ap, ah, av },
+                    position,
                     windowStyle,
                     spans: entrySpans
                 })
@@ -410,7 +565,7 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
             entries.push({
                 startMs: event.Start,
                 durationMs: lineDurationMs,
-                position: { ap, ah, av },
+                position,
                 windowStyle,
                 spans: entrySpans
             })

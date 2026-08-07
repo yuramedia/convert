@@ -6,23 +6,28 @@
  * the reference implementation used by most third-party YouTube caption tools.
  */
 
+/** Zero-width space used as workaround for YouTube multi-section pen bug */
+const ZERO_WIDTH_SPACE = "\u200B"
+
 export interface YttPen {
     bold?: boolean
     italic?: boolean
     underline?: boolean
-    /** Font style ID (0=default sans, 1=mono serif, 2=serif, 3=mono sans, 4=casual, 5=cursive, 6=small caps) */
+    /** Font style ID (0=default/Roboto, 1=Courier New, 2=Times New Roman, 3=Lucida Console, 5=Comic Sans, 6=Monotype Corsiva, 7=Carrois Gothic SC) */
     fs?: number
+    /** Font size scale (YouTube's sz attribute). Default 100. */
+    sz?: number
     /** Text color, "#RRGGBB" */
     fc: string
     /** Text opacity, 0-255 (capped at 254 per YTSubConverter) */
     fo: number
-    /** Background box color, "#RRGGBB". Ignored when bo is 0. */
+    /** Background box color, "#RRGGBB". Only written when bo > 0. */
     bc?: string
     /** Background box opacity, 0-255 (0 = no box) */
     bo: number
     /** Edge color, "#RRGGBB" */
     ec?: string
-    /** Edge type (4 = outline) */
+    /** Edge type: 1=hard shadow, 2=bevel, 3=glow (outline), 4=soft shadow */
     et?: number
 }
 
@@ -38,7 +43,11 @@ export interface YttPosition {
 export interface YttWindowStyle {
     /** Justification: 0 = left, 1 = right, 2 = center */
     ju: number
-    /** Window foreground opacity, 0-255 */
+    /** Print direction: 0=LTR horizontal, 1=RTL horizontal, 2=vertical positioned, 3=vertical rotated */
+    pd?: number
+    /** Scroll direction */
+    sd?: number
+    /** Window foreground opacity — always 0 per YTSubConverter */
     wfo?: number
 }
 
@@ -56,14 +65,7 @@ export interface YttEntry {
     spans: YttSpan[]
 }
 
-/**
- * Zero-width space inserted as loose text (outside any <s>) after the first span of a
- * multi-span paragraph. YouTube's upload server strips the "p" (pen id) attribute from the
- * first <s> unless the paragraph has some text that isn't part of any section — without this,
- * the first span silently falls back to pen id 0 (the invisible dummy pen) after upload.
- * Mirrors YTSubConverter's ZeroWidthSpace workaround.
- */
-const ZERO_WIDTH_SPACE = "\u200B"
+
 
 /** Escape text for placement inside XML element content (attribute values aren't used for text). */
 export function escapeYttText(text: string): string {
@@ -78,7 +80,7 @@ export function escapeYttText(text: string): string {
 function penKey(p: YttPen): string {
     const fo = p.fo === 255 ? 254 : p.fo
     const bo = p.bo === 255 ? 254 : p.bo
-    return `${p.bold ? 1 : 0}|${p.italic ? 1 : 0}|${p.underline ? 1 : 0}|${p.fs || 0}|${p.fc}|${fo}|${bo > 0 ? p.bc || "#000000" : ""}|${bo}|${p.ec || ""}|${p.et || 0}`
+    return `${p.bold ? 1 : 0}|${p.italic ? 1 : 0}|${p.underline ? 1 : 0}|${p.fs || 0}|${p.sz ?? 100}|${p.fc}|${fo}|${bo > 0 ? p.bc || "#000000" : ""}|${bo}|${p.ec || ""}|${p.et || 0}`
 }
 
 function positionKey(p: YttPosition): string {
@@ -86,8 +88,7 @@ function positionKey(p: YttPosition): string {
 }
 
 function styleKey(s: YttWindowStyle): string {
-    const wfo = s.wfo === 255 ? 254 : (s.wfo ?? 0)
-    return `${s.ju}|${wfo}`
+    return `${s.ju}|${s.pd ?? 0}|${s.sd ?? 0}`
 }
 
 /** Assigns stable incremental ids (starting at 1) to unique items, in first-seen order. Id 0 is reserved for a dummy entry. */
@@ -113,23 +114,46 @@ class IdTable<T> {
     }
 }
 
+/**
+ * Write pen attributes in the order matching YTSubConverter's WritePen:
+ * fs, sz, b, i, u, fc, fo, bc, bo, et, ec
+ */
 function writePenAttrs(pen: YttPen): string {
     let attrs = ""
+
+    // Font style ID — only written if non-zero (YTSubConverter: "if (fontStyleId != 0)")
+    if (pen.fs && pen.fs > 0) attrs += ` fs="${pen.fs}"`
+
+    // Font size scale — YTSubConverter always writes this ("sz" attribute)
+    const sz = pen.sz ?? 100
+    attrs += ` sz="${sz}"`
+
+    // Bold/Italic/Underline — only written when true
     if (pen.bold) attrs += ' b="1"'
     if (pen.italic) attrs += ' i="1"'
     if (pen.underline) attrs += ' u="1"'
-    if (pen.fs && pen.fs > 0) attrs += ` fs="${pen.fs}"`
+
+    // Foreground color — always written
     attrs += ` fc="${pen.fc}"`
 
+    // Foreground opacity — capped at 254, always written
     const fo = pen.fo === 255 ? 254 : pen.fo
     attrs += ` fo="${fo}"`
 
-    if (pen.ec) attrs += ` ec="${pen.ec}"`
-    if (pen.et) attrs += ` et="${pen.et}"`
-    if (pen.bc) attrs += ` bc="${pen.bc}"`
-
+    // Background color — only written when bo > 0 (YTSubConverter: "if (format.BackColor.A > 0)")
     const bo = pen.bo === 255 ? 254 : pen.bo
+    if (bo > 0 && pen.bc) attrs += ` bc="${pen.bc}"`
+
+    // Background opacity — always written
     attrs += ` bo="${bo}"`
+
+    // Edge type and color — shadow/outline
+    if (pen.et && pen.et > 0) {
+        attrs += ` et="${pen.et}"`
+        // ec is only written when explicitly set (see YTSubConverter's WritePen comment
+        // about YouTube's inconsistent handling of shadow transparency)
+        if (pen.ec) attrs += ` ec="${pen.ec}"`
+    }
 
     return attrs
 }
@@ -140,6 +164,10 @@ function writePenAttrs(pen: YttPen): string {
  * Always emits a dummy, invisible wp/ws/pen at id 0 before the real ones:
  * the YouTube iOS app ignores the background color of whichever pen has id 0,
  * so real content is never assigned that id (this mirrors YTSubConverter's workaround).
+ *
+ * Multi-section lines use per-section `<s>` elements with individual pen IDs,
+ * plus a zero-width space workaround after the first section to prevent YouTube's
+ * server from stripping the first section's pen ID attribute.
  */
 export function writeYtt(entries: YttEntry[]): string {
     const positions = new IdTable<YttPosition>(positionKey)
@@ -163,10 +191,12 @@ export function writeYtt(entries: YttEntry[]): string {
         xmlLines.push(`    <wp id="${id}" ap="${item.ap}" ah="${item.ah}" av="${item.av}"/>`)
     }
 
-    xmlLines.push('    <ws id="0" wfo="0" ju="2"/>')
+    // Window style — YTSubConverter writes: id, ju, pd, sd, wfo
+    xmlLines.push('    <ws id="0" ju="2" pd="0" sd="0" wfo="0"/>')
     for (const { id, item } of styles.entries()) {
-        const wfo = item.wfo === 255 ? 254 : (item.wfo ?? 0)
-        xmlLines.push(`    <ws id="${id}" wfo="${wfo}" ju="${item.ju}"/>`)
+        const pd = item.pd ?? 0
+        const sd = item.sd ?? 0
+        xmlLines.push(`    <ws id="${id}" ju="${item.ju}" pd="${pd}" sd="${sd}" wfo="0"/>`)
     }
 
     xmlLines.push('    <pen id="0" fc="#000000" fo="0" bo="0"/>')
@@ -180,6 +210,9 @@ export function writeYtt(entries: YttEntry[]): string {
     for (const entry of entries) {
         if (entry.spans.length === 0) continue
 
+        // If we start in negative time, set starting time to 1ms and reduce duration to compensate.
+        // (The Android app does not respect positioning of, and sometimes does not display,
+        // subtitles that start at 0ms — per YTSubConverter)
         let t = Math.round(entry.startMs)
         let d = Math.round(entry.durationMs)
         if (t <= 0) {
@@ -190,28 +223,30 @@ export function writeYtt(entries: YttEntry[]): string {
 
         const wp = positions.idFor(entry.position)
         const ws = styles.idFor(entry.windowStyle)
-        const basePenId = pens.idFor(entry.spans[0].pen)
 
-        const hasSpansOrTiming = entry.spans.some(s => pens.idFor(s.pen) !== basePenId || s.timeOffsetMs !== undefined)
-
-        if (!hasSpansOrTiming && entry.spans.length === 1) {
-            // Single, untimed span: pen id can live on <p> directly, no <s> wrapper needed.
+        if (entry.spans.length === 1) {
+            // Single section: put pen ID on <p> element, plain text content
+            const penId = pens.idFor(entry.spans[0].pen)
             xmlLines.push(
-                `    <p t="${t}" d="${d}" wp="${wp}" ws="${ws}" p="${basePenId}">${escapeYttText(entry.spans[0].text)}</p>`
+                `    <p t="${t}" d="${d}" p="${penId}" wp="${wp}" ws="${ws}">${escapeYttText(entry.spans[0].text)}</p>`
             )
         } else {
-            // Multi-span paragraph: don't put "p" on <p> itself — always declare each <s>'s
-            // pen explicitly instead, and insert a zero-width space after the first <s> so the
-            // upload server has loose text to key off of and won't strip that <s>'s pen id.
+            // Multi-section: every <s> gets its own p= attribute.
+            // Per YTSubConverter: "The server will remove the 'p' (pen ID) attribute of the
+            // first section unless the line has text that's not part of any section.
+            // We use a zero-width space after the first section to avoid visual impact."
             let inner = ""
             for (let i = 0; i < entry.spans.length; i++) {
                 const span = entry.spans[i]
                 const spanPenId = pens.idFor(span.pen)
                 let sAttr = ` p="${spanPenId}"`
-                if (span.timeOffsetMs !== undefined) sAttr += ` t="${span.timeOffsetMs}"`
-
+                if (span.timeOffsetMs !== undefined && span.timeOffsetMs > 0) {
+                    sAttr += ` t="${span.timeOffsetMs}"`
+                }
                 inner += `<s${sAttr}>${escapeYttText(span.text)}</s>`
-                if (i === 0) inner += ZERO_WIDTH_SPACE
+                if (i === 0) {
+                    inner += ZERO_WIDTH_SPACE
+                }
             }
             xmlLines.push(`    <p t="${t}" d="${d}" wp="${wp}" ws="${ws}">${inner}</p>`)
         }
