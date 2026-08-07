@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
-import { Check } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Check, Video } from "lucide-react"
 
 interface CustomCheckboxProps {
     label: string
@@ -422,6 +423,41 @@ export default function OptionsPanel({
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-8">
+                    <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-red-500/10 text-red-400">
+                                <Video size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                                    YouTube SRT Preset
+                                </h4>
+                                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                    Applies optimal settings for YouTube SRT uploads (strips unparseable
+                                    &#123;\an8&#125; / position tags, enables HTML formatting, purges signs).
+                                </p>
+                            </div>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="shrink-0 text-xs border-red-500/30 hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
+                            onClick={() =>
+                                setNormalOptions({
+                                    ...normalOptions,
+                                    useHtmlTags: true,
+                                    stripSigns: true,
+                                    mergeDuplicates: true,
+                                    stripEmptyLines: true,
+                                    uppercaseSigns: false
+                                })
+                            }
+                        >
+                            Apply YouTube Preset
+                        </Button>
+                    </div>
+
                     <FieldGroup>
                         <Field orientation="horizontal">
                             <div className="flex-1">
