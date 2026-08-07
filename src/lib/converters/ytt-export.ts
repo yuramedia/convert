@@ -4,6 +4,7 @@ import {
     writeYtt,
     type YttEntry,
     type YttPen,
+    type YttPosition,
     type YttWindowStyle,
     type YttSpan
 } from "../ytt-writer"
@@ -147,27 +148,77 @@ interface AlignmentInfo {
  */
 function getAlignmentInfo(an: number): AlignmentInfo {
     // Default pixel positions in the 1280×720 reference space
-    const left = YTT_REF_WIDTH * 0.02   // 25.6px
-    const centerH = YTT_REF_WIDTH / 2   // 640px
-    const right = YTT_REF_WIDTH * 0.98  // 1254.4px
-    const top = YTT_REF_HEIGHT * 0.02   // 14.4px
-    const centerV = YTT_REF_HEIGHT / 2  // 360px
+    const left = YTT_REF_WIDTH * 0.02 // 25.6px
+    const centerH = YTT_REF_WIDTH / 2 // 640px
+    const right = YTT_REF_WIDTH * 0.98 // 1254.4px
+    const top = YTT_REF_HEIGHT * 0.02 // 14.4px
+    const centerV = YTT_REF_HEIGHT / 2 // 360px
     const bottom = YTT_REF_HEIGHT * 0.98 // 705.6px
 
     // Map ASS alignment to anchor point ID, default pixel position, and justification
     // Anchor points: 0=TopLeft, 1=TopCenter, 2=TopRight, 3=MiddleLeft, 4=Center,
     //                5=MiddleRight, 6=BottomLeft, 7=BottomCenter, 8=BottomRight
     switch (an) {
-        case 1: return { ap: 6, ah: getYouTubeCoord(left, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 0 }
-        case 2: return { ap: 7, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 2 }
-        case 3: return { ap: 8, ah: getYouTubeCoord(right, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 1 }
-        case 4: return { ap: 3, ah: getYouTubeCoord(left, YTT_REF_WIDTH), av: getYouTubeCoord(centerV, YTT_REF_HEIGHT), ju: 0 }
-        case 5: return { ap: 4, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(centerV, YTT_REF_HEIGHT), ju: 2 }
-        case 6: return { ap: 5, ah: getYouTubeCoord(right, YTT_REF_WIDTH), av: getYouTubeCoord(centerV, YTT_REF_HEIGHT), ju: 1 }
-        case 7: return { ap: 0, ah: getYouTubeCoord(left, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 0 }
-        case 8: return { ap: 1, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 2 }
-        case 9: return { ap: 2, ah: getYouTubeCoord(right, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 1 }
-        default: return { ap: 7, ah: getYouTubeCoord(centerH, YTT_REF_WIDTH), av: getYouTubeCoord(bottom, YTT_REF_HEIGHT), ju: 2 }
+        case 1:
+            return {
+                ap: 6,
+                ah: getYouTubeCoord(left, YTT_REF_WIDTH),
+                av: getYouTubeCoord(bottom, YTT_REF_HEIGHT),
+                ju: 0
+            }
+        case 2:
+            return {
+                ap: 7,
+                ah: getYouTubeCoord(centerH, YTT_REF_WIDTH),
+                av: getYouTubeCoord(bottom, YTT_REF_HEIGHT),
+                ju: 2
+            }
+        case 3:
+            return {
+                ap: 8,
+                ah: getYouTubeCoord(right, YTT_REF_WIDTH),
+                av: getYouTubeCoord(bottom, YTT_REF_HEIGHT),
+                ju: 1
+            }
+        case 4:
+            return {
+                ap: 3,
+                ah: getYouTubeCoord(left, YTT_REF_WIDTH),
+                av: getYouTubeCoord(centerV, YTT_REF_HEIGHT),
+                ju: 0
+            }
+        case 5:
+            return {
+                ap: 4,
+                ah: getYouTubeCoord(centerH, YTT_REF_WIDTH),
+                av: getYouTubeCoord(centerV, YTT_REF_HEIGHT),
+                ju: 2
+            }
+        case 6:
+            return {
+                ap: 5,
+                ah: getYouTubeCoord(right, YTT_REF_WIDTH),
+                av: getYouTubeCoord(centerV, YTT_REF_HEIGHT),
+                ju: 1
+            }
+        case 7:
+            return { ap: 0, ah: getYouTubeCoord(left, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 0 }
+        case 8:
+            return {
+                ap: 1,
+                ah: getYouTubeCoord(centerH, YTT_REF_WIDTH),
+                av: getYouTubeCoord(top, YTT_REF_HEIGHT),
+                ju: 2
+            }
+        case 9:
+            return { ap: 2, ah: getYouTubeCoord(right, YTT_REF_WIDTH), av: getYouTubeCoord(top, YTT_REF_HEIGHT), ju: 1 }
+        default:
+            return {
+                ap: 7,
+                ah: getYouTubeCoord(centerH, YTT_REF_WIDTH),
+                av: getYouTubeCoord(bottom, YTT_REF_HEIGHT),
+                ju: 2
+            }
     }
 }
 

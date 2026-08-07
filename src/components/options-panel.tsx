@@ -7,7 +7,7 @@ import { type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { type ResampleOptions, RESOLUTION_PRESETS } from "@/lib/converters/resample-ts"
 import { type CsvExportOptions } from "@/lib/converters/csv-export"
 import { type XlsxExportOptions } from "@/lib/converters/xlsx-export"
-import { type YttExportOptions } from "@/lib/converters/ytt-export"
+import { DEFAULT_YTT_OPTIONS, type YttExportOptions } from "@/lib/converters/ytt-export"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -124,14 +124,7 @@ export default function OptionsPanel({
                             size="sm"
                             variant="outline"
                             className="shrink-0 text-xs border-red-500/30 hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
-                            onClick={() =>
-                                setYttOptions({
-                                    wfo: 0,
-                                    useOffWhite: true,
-                                    convertKaraoke: true,
-                                    convertPositioning: true
-                                })
-                            }
+                            onClick={() => setYttOptions(DEFAULT_YTT_OPTIONS)}
                         >
                             Reset YouTube Defaults
                         </Button>
