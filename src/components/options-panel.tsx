@@ -542,12 +542,12 @@ export default function OptionsPanel({
                             <div className="flex-1">
                                 <FieldLabel>Strip Typesetting / Signs</FieldLabel>
                                 <FieldDescription>
-                                    Remove positioned signs and typesetting. Recommended for clean SRT — use Keep TS
-                                    mode to preserve them.
+                                    Completely delete signs and typesetting lines. Keep unchecked to convert signs into
+                                    clean plain text.
                                 </FieldDescription>
                             </div>
                             <Switch
-                                checked={normalOptions.stripSigns ?? true}
+                                checked={normalOptions.stripSigns ?? false}
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, stripSigns: c })}
                             />
                         </Field>
