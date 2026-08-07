@@ -223,50 +223,121 @@ function getAlignmentInfo(an: number): AlignmentInfo {
 }
 
 // ─── Font Style ID ───────────────────────────────────────────────────────────
-// Maps font family names to YouTube's fs attribute ID.
-// Uses exact lowercase matching per YTSubConverter's GetFontStyleId.
+// Maps font family names (including Microsoft Windows included typefaces)
+// to YouTube's fs attribute ID (0-7).
+// Reference: https://en.wikipedia.org/wiki/List_of_typefaces_included_with_Microsoft_Windows
 
 function getYouTubeFontStyleId(fontName: string): number {
     if (!fontName) return 0
-    switch (fontName.toLowerCase()) {
+    const lower = fontName.toLowerCase().trim()
+
+    // 1. Exact match for known typefaces (Windows & standard subtitle fonts)
+    switch (lower) {
+        // Monospaced Serif (fs=1)
         case "courier new":
         case "courier":
+        case "fixedsys":
         case "nimbus mono l":
         case "cutive mono":
-            return 1 // Monospaced serif
+            return 1
 
+        // Proportional Serif (fs=2)
         case "times new roman":
         case "times":
         case "georgia":
         case "cambria":
+        case "palatino linotype":
+        case "garamond":
+        case "book antiqua":
+        case "century schoolbook":
+        case "bookman old style":
+        case "constantia":
+        case "sylfaen":
+        case "ms serif":
         case "pt serif caption":
-            return 2 // Proportional serif
+        case "batang":
+        case "mingliu":
+        case "simsun":
+        case "nsimsun":
+            return 2
 
+        // Monospaced Sans-Serif (fs=3)
+        case "lucida console":
+        case "consolas":
         case "deja vu sans mono":
         case "dejavu sans mono":
-        case "lucida console":
         case "monaco":
-        case "consolas":
         case "pt mono":
-            return 3 // Monospaced sans-serif
+        case "terminal":
+        case "cascadia code":
+        case "cascadia mono":
+        case "ms gothic":
+        case "lucida sans typewriter":
+            return 3
 
+        // Casual / Informal (fs=5)
         case "comic sans ms":
         case "impact":
         case "handlee":
-            return 5 // Casual
+        case "ink free":
+        case "papyrus":
+            return 5
 
+        // Cursive / Script (fs=6)
         case "monotype corsiva":
+        case "segoe script":
+        case "segoe print":
+        case "gabriola":
+        case "pristina":
         case "urw chancery l":
         case "apple chancery":
         case "dancing script":
-            return 6 // Cursive
+        case "mistral":
+        case "viner hand itc":
+        case "freestyle script":
+        case "edwardian script itc":
+        case "kristen itc":
+        case "french script mt":
+        case "chiller":
+        case "curlz mt":
+            return 6
 
+        // Small Caps / Display (fs=7)
         case "carrois gothic sc":
-            return 7 // Small capitals
-
-        default:
-            return 0 // Default (Roboto)
+        case "copperplate gothic bold":
+        case "copperplate gothic light":
+        case "copperplate":
+        case "castellar":
+        case "engravers mt":
+        case "felix titling":
+            return 7
     }
+
+    // 2. Keyword fallback matching for Windows font variants & sub-families
+    if (
+        lower.includes("script") ||
+        lower.includes("corsiva") ||
+        lower.includes("handwriting") ||
+        lower.includes("calligraphy")
+    ) {
+        return 6 // Cursive
+    }
+    if (
+        lower.includes("copperplate") ||
+        lower.includes("small caps") ||
+        lower.includes("smallcaps") ||
+        lower.includes("titling")
+    ) {
+        return 7 // Small Caps
+    }
+    if (lower.includes("comic") || lower.includes("casual")) {
+        return 5 // Casual
+    }
+    if (lower.includes("console") || lower.includes("terminal") || lower.includes("typewriter")) {
+        return 3 // Monospaced Sans-Serif
+    }
+
+    return 0 // Default (Roboto / Proportional Sans-Serif: Arial, Segoe UI, Tahoma, Verdana, Calibri, Trebuchet MS, etc.)
 }
 
 // ─── Move Animation Helper ───────────────────────────────────────────────────
