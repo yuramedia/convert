@@ -56,6 +56,15 @@ export interface YttEntry {
     spans: YttSpan[]
 }
 
+/**
+ * Zero-width space inserted as loose text (outside any <s>) after the first span of a
+ * multi-span paragraph. YouTube's upload server strips the "p" (pen id) attribute from the
+ * first <s> unless the paragraph has some text that isn't part of any section — without this,
+ * the first span silently falls back to pen id 0 (the invisible dummy pen) after upload.
+ * Mirrors YTSubConverter's ZeroWidthSpace workaround.
+ */
+const ZERO_WIDTH_SPACE = "\u200B"
+
 /** Escape text for placement inside XML element content (attribute values aren't used for text). */
 export function escapeYttText(text: string): string {
     return text
@@ -186,24 +195,25 @@ export function writeYtt(entries: YttEntry[]): string {
         const hasSpansOrTiming = entry.spans.some(s => pens.idFor(s.pen) !== basePenId || s.timeOffsetMs !== undefined)
 
         if (!hasSpansOrTiming && entry.spans.length === 1) {
+            // Single, untimed span: pen id can live on <p> directly, no <s> wrapper needed.
             xmlLines.push(
                 `    <p t="${t}" d="${d}" wp="${wp}" ws="${ws}" p="${basePenId}">${escapeYttText(entry.spans[0].text)}</p>`
             )
         } else {
+            // Multi-span paragraph: don't put "p" on <p> itself — always declare each <s>'s
+            // pen explicitly instead, and insert a zero-width space after the first <s> so the
+            // upload server has loose text to key off of and won't strip that <s>'s pen id.
             let inner = ""
-            for (const span of entry.spans) {
+            for (let i = 0; i < entry.spans.length; i++) {
+                const span = entry.spans[i]
                 const spanPenId = pens.idFor(span.pen)
-                let sAttr = ""
-                if (spanPenId !== basePenId) sAttr += ` p="${spanPenId}"`
+                let sAttr = ` p="${spanPenId}"`
                 if (span.timeOffsetMs !== undefined) sAttr += ` t="${span.timeOffsetMs}"`
 
-                if (sAttr.length > 0) {
-                    inner += `<s${sAttr}>${escapeYttText(span.text)}</s>`
-                } else {
-                    inner += escapeYttText(span.text)
-                }
+                inner += `<s${sAttr}>${escapeYttText(span.text)}</s>`
+                if (i === 0) inner += ZERO_WIDTH_SPACE
             }
-            xmlLines.push(`    <p t="${t}" d="${d}" wp="${wp}" ws="${ws}" p="${basePenId}">${inner}</p>`)
+            xmlLines.push(`    <p t="${t}" d="${d}" wp="${wp}" ws="${ws}">${inner}</p>`)
         }
     }
 
