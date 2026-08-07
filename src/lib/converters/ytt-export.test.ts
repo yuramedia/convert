@@ -148,12 +148,12 @@ Dialogue: 0,0:00:07.00,0:00:08.00,Default,,0000,0000,0000,,{\\fnMyCustomFont}Fal
 `
         const t = parseAss(assWithFonts)
         const xml = convertToYtt(t)
-        expect(xml).toContain('fs="1"')  // Courier New → mono serif
-        expect(xml).toContain('fs="2"')  // Times New Roman → proportional serif
-        expect(xml).toContain('fs="3"')  // Lucida Console → mono sans
-        expect(xml).toContain('fs="5"')  // Comic Sans MS → casual
-        expect(xml).toContain('fs="6"')  // Monotype Corsiva → cursive
-        expect(xml).toContain('fs="7"')  // Carrois Gothic SC → small caps
+        expect(xml).toContain('fs="1"') // Courier New → mono serif
+        expect(xml).toContain('fs="2"') // Times New Roman → proportional serif
+        expect(xml).toContain('fs="3"') // Lucida Console → mono sans
+        expect(xml).toContain('fs="5"') // Comic Sans MS → casual
+        expect(xml).toContain('fs="6"') // Monotype Corsiva → cursive
+        expect(xml).toContain('fs="7"') // Carrois Gothic SC → small caps
     })
 
     it("uses et=3 (glow) for outline when BorderStyle != 3", () => {
@@ -170,7 +170,7 @@ Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0000,0000,0000,,Outlined Text
 `
         const t = parseAss(assOutline)
         const xml = convertToYtt(t)
-        expect(xml).toContain('et="3"')  // Glow edge type for non-box outline
+        expect(xml).toContain('et="3"') // Glow edge type for non-box outline
     })
 
     it("uses bc/bo for outline when BorderStyle == 3 (box mode)", () => {

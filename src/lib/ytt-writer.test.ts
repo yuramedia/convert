@@ -76,9 +76,9 @@ describe("ytt-writer", () => {
         // Multi-section: no p= on <p>, each <s> gets p=, zero-width space after first <s>
         expect(xml).toContain('<p t="1000" d="2000" wp="1" ws="1">')
         expect(xml).toContain('<s p="1">Normal </s>')
-        expect(xml).toContain('\u200B') // zero-width space workaround
+        expect(xml).toContain("\u200B") // zero-width space workaround
         expect(xml).toContain('<s p="2">Bold</s>')
-        expect(xml).not.toMatch(/<p t="1000"[^>]*\sp="/)  // no p= on <p> for multi-section
+        expect(xml).not.toMatch(/<p t="1000"[^>]*\sp="/) // no p= on <p> for multi-section
     })
 
     it("writes pd and sd attributes on <ws> elements", () => {

@@ -65,8 +65,6 @@ export interface YttEntry {
     spans: YttSpan[]
 }
 
-
-
 /** Escape text for placement inside XML element content (attribute values aren't used for text). */
 export function escapeYttText(text: string): string {
     return text
