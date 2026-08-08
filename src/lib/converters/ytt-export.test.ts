@@ -303,41 +303,57 @@ Dialogue: 0,0:00:05.00,0:00:06.00,Default,,0000,0000,0000,,{\\move(960,540,960,5
 `
         const moveTrack = parseAss(ASS_WITH_MOVE)
 
-        it("splits a 4-arg \\move into multiple time-stepped <p> snapshots covering the full line duration", () => {
-            const xml = convertToYtt(moveTrack, { moveStepMs: 250 })
+        it("splits a 4-arg \\move into frame-stepped <p> snapshots that are contiguous end-to-end", () => {
+            const xml = convertToYtt(moveTrack)
 
-            // Line spans 1000ms with a 250ms step -> 4 stepped snapshots, no separate
-            // pre/post-move static snapshot since t1=0 and t2 defaults to the full duration
-            const paragraphs = [...xml.matchAll(/<p t="(\d+)" d="(\d+)"[^>]*>Moving Text<\/p>/g)]
-            expect(paragraphs.length).toBe(4)
+            const paragraphs = [...xml.matchAll(/<p t="(\d+)" d="(\d+)"[^>]*>Moving Text<\/p>/g)].map(p => ({
+                t: Number(p[1]),
+                d: Number(p[2])
+            }))
 
-            // First snapshot starts at the line's start time and covers the first step
-            expect(paragraphs[0][1]).toBe("1000")
-            expect(paragraphs[0][2]).toBe("250")
+            // A 1000ms move at ~29.97fps, stepped 2 frames (~66.7ms) at a time, produces
+            // more than a couple of snapshots
+            expect(paragraphs.length).toBeGreaterThan(5)
 
-            // Snapshots are contiguous and together cover the whole 1000ms line
-            const totalCovered = paragraphs.reduce((sum, p) => sum + Number(p[2]), 0)
-            expect(totalCovered).toBe(1000)
+            // Contiguous: each snapshot picks up exactly where the previous one left off
+            for (let i = 1; i < paragraphs.length; i++) {
+                expect(paragraphs[i].t).toBe(paragraphs[i - 1].t + paragraphs[i - 1].d)
+            }
+
+            // The line's start gets snapped to the nearest video frame boundary (matching
+            // YTSubConverter's RoundTimeToFrameCenter), so it can land a few ms to either
+            // side of the literal ASS start time (1000ms) rather than exactly on it
+            expect(Math.abs(paragraphs[0].t - 1000)).toBeLessThan(34)
+
+            // ...and the very last snapshot always ends exactly on the line's original end
+            const last = paragraphs[paragraphs.length - 1]
+            expect(last.t + last.d).toBe(2000)
         })
 
         it("interpolates <wp> ah/av from the start to the end coordinate across the move", () => {
-            const xml = convertToYtt(moveTrack, { moveStepMs: 250 })
+            const xml = convertToYtt(moveTrack)
 
-            // Start of the move is (0,0) -> ah=0 av=0; end is (1920,1080) -> ah=100 av=100
-            expect(xml).toContain('ah="0"')
-            expect(xml).toContain('av="0"')
+            const paragraphs = [...xml.matchAll(/<p t="\d+" d="\d+"[^>]*wp="(\d+)"[^>]*>Moving Text<\/p>/g)]
+            expect(paragraphs.length).toBeGreaterThan(0)
+
+            // Move goes from (0,0) to (1920,1080) on a 1920x1080 canvas -> ah/av from ~0 to 100.
+            // The very last snapshot lands exactly at the end coordinate.
             expect(xml).toContain('ah="100"')
             expect(xml).toContain('av="100"')
         })
 
         it("emits a leading static snapshot before the move window and a trailing one after it", () => {
-            const xml = convertToYtt(moveTrack, { moveStepMs: 250 })
+            const xml = convertToYtt(moveTrack)
 
-            // "Partial Window Move" line runs 3000-4000ms with move active only 0-500ms into it,
-            // so there should be a static snapshot for the remaining 500-1000ms after the move ends
+            // "Partial Window Move" line runs 3000-4000ms with the move active only in the
+            // first ~500ms of it, so the tail end (from wherever the move's cluster ends
+            // through to the line's original end at 4000ms) must be a single static snapshot
+            // pinned at the end coordinate (1920,1080 -> ah=100 av=100).
             const paragraphs = [...xml.matchAll(/<p t="(\d+)" d="(\d+)"[^>]*>Partial Window Move<\/p>/g)]
-            const trailing = paragraphs.find(p => p[1] === "3500" && p[2] === "500")
-            expect(trailing).toBeTruthy()
+            expect(paragraphs.length).toBeGreaterThan(1)
+
+            const last = paragraphs[paragraphs.length - 1]
+            expect(Number(last[1]) + Number(last[2])).toBe(4000)
         })
 
         it("falls back to the line's default static position when t2 <= t1", () => {

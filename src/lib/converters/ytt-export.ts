@@ -1,5 +1,6 @@
 import { type AssTrack, type AssStyle } from "../ass-parser"
 import { tokenizeText, parseCoords } from "../ass-tags"
+import { expandMoveSnapshots } from "../move-animation"
 import {
     writeYtt,
     type YttEntry,
@@ -18,13 +19,6 @@ export interface YttExportOptions {
     convertKaraoke: boolean
     /** Convert ASS alignment (\an) and position (\pos) tags to window positions <wp> (default: true) */
     convertPositioning: boolean
-    /**
-     * Step size in ms used to simulate \move animation, since YTT has no native tweened
-     * position — a \move is instead split into a burst of static <p> snapshots at this
-     * interval, each with its own interpolated <wp>, mirroring YTSubConverter's approach
-     * of stepping the animation forward a couple of video frames at a time (default: 100)
-     */
-    moveStepMs: number
     /** Apply YouTube player enhancement workarounds (italic prefetch, dark text hack, etc.) per YTSubConverter (default: true) */
     applyEnhancements: boolean
 }
@@ -34,7 +28,6 @@ export const DEFAULT_YTT_OPTIONS: YttExportOptions = {
     useOffWhite: true,
     convertKaraoke: true,
     convertPositioning: true,
-    moveStepMs: 100,
     applyEnhancements: true
 }
 
@@ -788,9 +781,8 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
 
         if (parsed.move) {
             // YTT has no native tweened position, so \move is simulated by splitting the
-            // line into a burst of static <p> snapshots, each pinned to a different <wp>
-            // interpolated along the move's path — same high-level approach YTSubConverter
-            // uses (there, stepping 2 video frames at a time instead of a fixed ms interval).
+            // line into a burst of static <p> snapshots, frame-stepped exactly the way
+            // YTSubConverter's Animator does it (see move-animation.ts).
             const toAh = (x: number) => getYouTubeCoord((x / playResX) * YTT_REF_WIDTH, YTT_REF_WIDTH)
             const toAv = (y: number) => getYouTubeCoord((y / playResY) * YTT_REF_HEIGHT, YTT_REF_HEIGHT)
 
@@ -810,31 +802,26 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
                     spans: entrySpans
                 })
             } else {
-                const pushSnapshot = (fromMs: number, toMs: number, x: number, y: number) => {
-                    if (toMs <= fromMs) return
+                const snapshots = expandMoveSnapshots(
+                    event.Start,
+                    event.End,
+                    event.Start + t1,
+                    event.Start + t2,
+                    x1,
+                    y1,
+                    x2,
+                    y2
+                )
+                for (const snap of snapshots) {
+                    if (snap.endMs <= snap.startMs) continue
                     entries.push({
-                        startMs: event.Start + fromMs,
-                        durationMs: toMs - fromMs,
-                        position: { ap, ah: toAh(x), av: toAv(y) },
+                        startMs: snap.startMs,
+                        durationMs: snap.endMs - snap.startMs,
+                        position: { ap, ah: toAh(snap.x), av: toAv(snap.y) },
                         windowStyle,
                         spans: entrySpans
                     })
                 }
-
-                // Static at the start position before the move begins
-                pushSnapshot(0, t1, x1, y1)
-
-                // Stepped interpolation across the move's active window
-                const stepMs = Math.max(1, opts.moveStepMs)
-                for (let t = t1; t < t2; t += stepMs) {
-                    const segEnd = Math.min(t + stepMs, t2)
-                    const midT = (t + segEnd) / 2
-                    const frac = (midT - t1) / (t2 - t1)
-                    pushSnapshot(t, segEnd, x1 + (x2 - x1) * frac, y1 + (y2 - y1) * frac)
-                }
-
-                // Static at the end position after the move finishes
-                pushSnapshot(t2, lineDurationMs, x2, y2)
             }
         } else {
             entries.push({
