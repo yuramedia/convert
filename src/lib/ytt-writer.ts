@@ -17,6 +17,8 @@ export interface YttPen {
     fs?: number
     /** Font size scale (YouTube's sz attribute). Default 100. */
     sz?: number
+    /** Offset type: 0=subscript, 1=regular (default), 2=superscript */
+    of?: number
     /** Text color, "#RRGGBB" */
     fc: string
     /** Text opacity, 0-255 (capped at 254 per YTSubConverter) */
@@ -78,7 +80,7 @@ export function escapeYttText(text: string): string {
 function penKey(p: YttPen): string {
     const fo = p.fo === 255 ? 254 : p.fo
     const bo = p.bo === 255 ? 254 : p.bo
-    return `${p.bold ? 1 : 0}|${p.italic ? 1 : 0}|${p.underline ? 1 : 0}|${p.fs || 0}|${p.sz ?? 100}|${p.fc}|${fo}|${bo > 0 ? p.bc || "#000000" : ""}|${bo}|${p.ec || ""}|${p.et || 0}`
+    return `${p.bold ? 1 : 0}|${p.italic ? 1 : 0}|${p.underline ? 1 : 0}|${p.fs || 0}|${p.sz ?? 100}|${p.of ?? 1}|${p.fc}|${fo}|${bo > 0 ? p.bc || "#000000" : ""}|${bo}|${p.ec || ""}|${p.et || 0}`
 }
 
 function positionKey(p: YttPosition): string {
@@ -114,7 +116,7 @@ class IdTable<T> {
 
 /**
  * Write pen attributes in the order matching YTSubConverter's WritePen:
- * fs, sz, b, i, u, fc, fo, bc, bo, et, ec
+ * fs, sz, of, b, i, u, fc, fo, bc, bo, et, ec
  */
 function writePenAttrs(pen: YttPen): string {
     let attrs = ""
@@ -125,6 +127,9 @@ function writePenAttrs(pen: YttPen): string {
     // Font size scale — YTSubConverter always writes this ("sz" attribute)
     const sz = pen.sz ?? 100
     attrs += ` sz="${sz}"`
+
+    // Offset type — subscript (0), regular (1), superscript (2)
+    if (pen.of !== undefined && pen.of !== 1) attrs += ` of="${pen.of}"`
 
     // Bold/Italic/Underline — only written when true
     if (pen.bold) attrs += ' b="1"'
@@ -148,9 +153,12 @@ function writePenAttrs(pen: YttPen): string {
     // Edge type and color — shadow/outline
     if (pen.et && pen.et > 0) {
         attrs += ` et="${pen.et}"`
-        // ec is only written when explicitly set (see YTSubConverter's WritePen comment
-        // about YouTube's inconsistent handling of shadow transparency)
-        if (pen.ec) attrs += ` ec="${pen.ec}"`
+        // YouTube's handling of shadow transparency is inconsistent: if you specify an "ec" attribute,
+        // the shadow is fully opaque, but if you don't (resulting in default #222222), it follows foreground transparency.
+        // We only write ec if it's set and not equivalent to default #222222.
+        if (pen.ec && pen.ec.toUpperCase() !== "#222222") {
+            attrs += ` ec="${pen.ec}"`
+        }
     }
 
     return attrs

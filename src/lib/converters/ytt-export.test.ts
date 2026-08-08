@@ -356,4 +356,67 @@ Dialogue: 0,0:00:05.00,0:00:06.00,Default,,0000,0000,0000,,{\\move(960,540,960,5
             expect(paragraphs.length).toBe(1)
         })
     })
+
+    describe("YTSubConverter Enhancement Workarounds", () => {
+        it("maps \\fs font size tags to YouTube sz attribute", () => {
+            const assFs = `[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0000,0000,0000,,{\\fs96}Double Size Text
+`
+            const t = parseAss(assFs)
+            const xml = convertToYtt(t)
+            // realScale = 96/48 = 2.0 -> yttScale = 1 + (2.0 - 1) * 4 = 5.0 -> sz="500"
+            expect(xml).toContain('sz="500"')
+        })
+
+        it("maps \\sub and \\super tags to of attribute", () => {
+            const assSub = `[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0000,0000,0000,,H{\\sub}2{\\ytsur}O and X{\\super}2
+`
+            const t = parseAss(assSub)
+            const xml = convertToYtt(t)
+            expect(xml).toContain('of="0"') // Subscript
+            expect(xml).toContain('of="2"') // Superscript
+        })
+
+        it("applies Android dark text hack for dark foreground colors", () => {
+            const assDark = `[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: DarkStyle,Arial,48,&H00101010,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:02.00,DarkStyle,,0000,0000,0000,,Dark Text
+`
+            const t = parseAss(assDark)
+            const xml = convertToYtt(t)
+            // Should emit 2 <p> tags for the same line: one dark, one brightened invisible overlay
+            const paragraphs = [...xml.matchAll(/<p [^>]*>Dark Text<\/p>/g)]
+            expect(paragraphs.length).toBe(2)
+        })
+
+        it("inserts italic prefetch dummy line when italic text is present", () => {
+            const xml = convertToYtt(track)
+            expect(xml).toContain('t="5000" d="100"')
+            expect(xml).toContain('i="1"')
+        })
+    })
 })

@@ -25,6 +25,8 @@ export interface YttExportOptions {
      * of stepping the animation forward a couple of video frames at a time (default: 100)
      */
     moveStepMs: number
+    /** Apply YouTube player enhancement workarounds (italic prefetch, dark text hack, etc.) per YTSubConverter (default: true) */
+    applyEnhancements: boolean
 }
 
 export const DEFAULT_YTT_OPTIONS: YttExportOptions = {
@@ -32,7 +34,8 @@ export const DEFAULT_YTT_OPTIONS: YttExportOptions = {
     useOffWhite: true,
     convertKaraoke: true,
     convertPositioning: true,
-    moveStepMs: 100
+    moveStepMs: 100,
+    applyEnhancements: true
 }
 
 // ─── Reference Resolution ────────────────────────────────────────────────────
@@ -340,6 +343,137 @@ function getYouTubeFontStyleId(fontName: string): number {
     return 0 // Default (Roboto / Proportional Sans-Serif: Arial, Segoe UI, Tahoma, Verdana, Calibri, Trebuchet MS, etc.)
 }
 
+// ─── Font Scale & Color Helpers ──────────────────────────────────────────────
+
+/**
+ * Maps ASS font size to YouTube font scale (sz), matching YTSubConverter:
+ * realScale = fontSize / defaultFontSize
+ * yttScale = Math.max(1 + (realScale - 1) * 4, 0)
+ * returns yttScale * 100 rounded
+ */
+function getYouTubeFontScale(fontSize: number, defaultFontSize: number = 48): number {
+    const base = defaultFontSize > 0 ? defaultFontSize : 48
+    const realScale = fontSize / base
+    const yttScale = Math.max(1 + (realScale - 1) * 4, 0)
+    return Math.round(yttScale * 100)
+}
+
+function isDarkHex(hex: string): boolean {
+    if (!hex || !hex.startsWith("#") || hex.length < 7) return false
+    const r = parseInt(hex.substring(1, 3), 16) || 0
+    const g = parseInt(hex.substring(3, 5), 16) || 0
+    const b = parseInt(hex.substring(5, 7), 16) || 0
+    return Math.max(r, g, b) < 128
+}
+
+function brightenHex(hex: string): string {
+    if (!hex || !hex.startsWith("#") || hex.length < 7) return "#FFFFFF"
+    const r = Math.max(parseInt(hex.substring(1, 3), 16) || 0, 1)
+    const g = Math.max(parseInt(hex.substring(3, 5), 16) || 0, 1)
+    const b = Math.max(parseInt(hex.substring(5, 7), 16) || 0, 1)
+    const max = Math.max(r, g, b)
+    const factor = 255 / max
+    const br = Math.min(255, Math.round(r * factor))
+    const bg = Math.min(255, Math.round(g * factor))
+    const bb = Math.min(255, Math.round(b * factor))
+    return `#${br.toString(16).padStart(2, "0").toUpperCase()}${bg.toString(16).padStart(2, "0").toUpperCase()}${bb.toString(16).padStart(2, "0").toUpperCase()}`
+}
+
+/**
+ * Applies YouTube player workarounds & enhancements per YTSubConverter (ApplyEnhancements):
+ * 1. AddItalicPrefetch: preloads italic font rendering if any entry contains italic text
+ * 2. MakeInvisibleTextBlack: sets color to black for transparent text (Android fallback)
+ * 3. ExpandLineForDarkText: Android dark text hack (adds brightened invisible overlay entry)
+ * 4. PreventShadowClipping: prevents shadow truncation across section boundaries
+ */
+function applyEnhancements(entries: YttEntry[], options: YttExportOptions): YttEntry[] {
+    if (!options.applyEnhancements) return entries
+
+    const result: YttEntry[] = []
+
+    // 1. Check if any span is italic for Italic Prefetch
+    let hasItalic = false
+    for (const entry of entries) {
+        for (const span of entry.spans) {
+            if (span.pen.italic) {
+                hasItalic = true
+                break
+            }
+        }
+        if (hasItalic) break
+    }
+
+    // 2. Process entries
+    for (const entry of entries) {
+        // Make invisible text black
+        for (const span of entry.spans) {
+            if (span.pen.fo === 0) {
+                span.pen.fc = "#000000"
+            }
+        }
+
+        // Prevent shadow clipping between spans
+        for (let i = 0; i < entry.spans.length - 1; i++) {
+            const curr = entry.spans[i]
+            const next = entry.spans[i + 1]
+            if (curr.pen.et && curr.pen.et > 0 && !curr.pen.underline) {
+                if (!curr.text.endsWith(" ") && next.text.startsWith(" ")) {
+                    curr.text += " "
+                    next.text = next.text.substring(1)
+                }
+            }
+        }
+
+        result.push(entry)
+
+        // Expand Line for Dark Text (Android Dark Text Hack)
+        const hasDarkText = entry.spans.some(s => s.pen.fo > 0 && isDarkHex(s.pen.fc))
+        if (hasDarkText) {
+            const brightEntry: YttEntry = {
+                startMs: entry.startMs,
+                durationMs: entry.durationMs,
+                position: { ...entry.position },
+                windowStyle: { ...entry.windowStyle },
+                spans: entry.spans.map(s => {
+                    const pen: YttPen = { ...s.pen }
+                    if (s.pen.fo > 0 && isDarkHex(s.pen.fc)) {
+                        pen.fc = brightenHex(s.pen.fc)
+                    }
+                    pen.fo = 0
+                    pen.bo = 0
+                    pen.et = undefined
+                    pen.ec = undefined
+                    return { ...s, pen }
+                })
+            }
+            result.push(brightEntry)
+        }
+    }
+
+    // Add Italic Prefetch dummy line if italic text exists
+    if (hasItalic) {
+        result.push({
+            startMs: 5000,
+            durationMs: 100,
+            position: { ap: 8, ah: 100, av: 100 },
+            windowStyle: { ju: 1, pd: 0, sd: 0, wfo: 0 },
+            spans: [
+                {
+                    text: "\u200B",
+                    pen: {
+                        fc: options.useOffWhite ? "#FEFEFE" : "#FFFFFF",
+                        fo: 1,
+                        bo: 0,
+                        italic: true
+                    }
+                }
+            ]
+        })
+    }
+
+    return result
+}
+
 // ─── Move Animation Helper ───────────────────────────────────────────────────
 
 interface MoveAnim {
@@ -367,6 +501,8 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
     const segments = tokenizeText(text)
 
     let currentFontName = baseStyle.FontName
+    let currentFontSize = baseStyle.FontSize || 48
+    let currentOffset = 1 // 0=subscript, 1=regular, 2=superscript
     let currentBold = baseStyle.Bold
     let currentItalic = baseStyle.Italic
     let currentUnderline = baseStyle.Underline
@@ -394,6 +530,19 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
 
                 if (name === "fn") {
                     currentFontName = val.length > 0 ? val : baseStyle.FontName
+                } else if (name === "fs") {
+                    const fsVal = parseFloat(val)
+                    if (!isNaN(fsVal) && fsVal > 0) {
+                        currentFontSize = fsVal
+                    } else {
+                        currentFontSize = baseStyle.FontSize || 48
+                    }
+                } else if (name === "sub" || name === "ytsub") {
+                    currentOffset = 0
+                } else if (name === "super" || name === "ytsup") {
+                    currentOffset = 2
+                } else if (name === "ytsur") {
+                    currentOffset = 1
                 } else if (name === "b") {
                     if (val === "0") currentBold = false
                     else if (val === "1" || (val === "" && tag.raw === "\\b")) currentBold = true
@@ -466,6 +615,7 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                 const outlineC = parseAssColor(currentOutlineColor, options.useOffWhite)
                 const backC = parseAssColor(currentBackColor, options.useOffWhite)
                 const fsId = getYouTubeFontStyleId(currentFontName)
+                const sz = getYouTubeFontScale(currentFontSize, baseStyle.FontSize || 48)
 
                 // Apply alpha overrides if present
                 const foreOpacity = currentForeAlpha ?? fc.opacity
@@ -514,6 +664,8 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
                     italic: currentItalic,
                     underline: currentUnderline,
                     fs: fsId > 0 ? fsId : undefined,
+                    sz: sz !== 100 ? sz : undefined,
+                    of: currentOffset !== 1 ? currentOffset : undefined,
                     fc: fc.hex,
                     fo: foreOpacity,
                     ec,
@@ -694,5 +846,6 @@ export function convertToYtt(track: AssTrack, options: Partial<YttExportOptions>
         }
     }
 
-    return writeYtt(entries)
+    const finalEntries = applyEnhancements(entries, opts)
+    return writeYtt(finalEntries)
 }
