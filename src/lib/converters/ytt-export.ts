@@ -608,6 +608,7 @@ function parseEventContent(text: string, baseStyle: AssStyle, options: YttExport
             const cleanText = seg.content
                 .replace(/\\N/g, "\n")
                 .replace(/\\n/g, "\n")
+                .replace(/\\h/g, "\u00A0")
                 .replace(/  +/g, m => "\u00A0".repeat(m.length))
 
             if (cleanText.length > 0) {

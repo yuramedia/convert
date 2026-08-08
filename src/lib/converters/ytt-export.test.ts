@@ -418,5 +418,23 @@ Dialogue: 0,0:00:01.00,0:00:02.00,DarkStyle,,0000,0000,0000,,Dark Text
             expect(xml).toContain('t="5000" d="100"')
             expect(xml).toContain('i="1"')
         })
+
+        it("converts ASS \\h hard space escape sequence to non-breaking space \\u00A0", () => {
+            const assH = `[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0000,0000,0000,,Word1\\hWord2
+`
+            const t = parseAss(assH)
+            const xml = convertToYtt(t)
+            expect(xml).not.toContain("\\h")
+            expect(xml).toContain("Word1\u00A0Word2")
+        })
     })
 })
