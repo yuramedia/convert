@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx-js-style"
 import { type AssTrack, type AssEvent, type AssStyle } from "./ass-parser"
+import { getColumnLetter } from "./utils"
 
 export interface ColumnMapping {
     start: number // -1 if none
@@ -112,7 +113,14 @@ export function autoDetectColumns(headers: string[]): ColumnMapping {
         mapping.text = headers.length > 2 ? 2 : headers.length - 1
     }
     if (mapping.start === -1) {
-        mapping.start = mapping.text === 0 && headers.length > 1 ? 1 : 0
+        if (headers.length === 1) {
+            // Single-column sheet: text owns the only column, there is no timing data
+            mapping.start = -1
+        } else if (mapping.text === 0) {
+            mapping.start = 1
+        } else {
+            mapping.start = 0
+        }
     }
     if (mapping.end === -1 && mapping.duration === -1) {
         for (let idx = 0; idx < headers.length; idx++) {
@@ -167,11 +175,15 @@ export function parseSpreadsheetTimestamp(value: unknown, fps: number = 23.976):
             // Excel fractional day (e.g. 0.0001157 is 10s)
             return Math.round(value * 86400000)
         }
+        if (Number.isInteger(value) && value > 100000) {
+            // Raw milliseconds (usually >= 100000 for non-zero timestamps)
+            return value
+        }
+        if (!Number.isInteger(value) && value > 32000) {
+            // Excel full date-time serial (dates from ~1988 on). Extract time-of-day only.
+            return Math.round((value % 1) * 86400000)
+        }
         if (value >= 1.0) {
-            // Check if milliseconds (usually >= 100000 for non-zero timestamps)
-            if (Number.isInteger(value) && value > 100000) {
-                return value
-            }
             // Otherwise treat as seconds
             return Math.round(value * 1000)
         }
@@ -199,8 +211,8 @@ export function parseSpreadsheetTimestamp(value: unknown, fps: number = 23.976):
         return sign * ((h * 3600 + m * 60 + s) * 1000 + ms)
     }
 
-    // MM:SS.mmm or MM:SS,mmm
-    const msMilliMatch = str.match(/^(-?)(\d{2}):(\d{2})[.,](\d{2,3})$/)
+    // MM:SS.mmm or MM:SS,mmm (also accepts single-digit minutes: M:SS.mmm)
+    const msMilliMatch = str.match(/^(-?)(\d{1,2}):(\d{2})[.,](\d{2,3})$/)
     if (msMilliMatch) {
         const sign = msMilliMatch[1] === "-" ? -1 : 1
         const m = parseInt(msMilliMatch[2], 10)
@@ -278,7 +290,7 @@ export function getSpreadsheetPreview(arrayBuffer: ArrayBuffer): SpreadsheetPrev
     // Extract headers
     const headers = headersRow.map((cell, idx) => {
         const label = String(cell).trim()
-        return label || `Column ${String.fromCharCode(65 + idx)}` // fallback to Column A, B, C...
+        return label || `Column ${getColumnLetter(idx)}` // fallback to Column A, B, C...
     })
 
     // Get up to 10 rows for preview (excluding headers)

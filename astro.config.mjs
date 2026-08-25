@@ -8,7 +8,13 @@ export default defineConfig({
     output: "static",
     site: "https://convert.yuramedia.com",
     trailingSlash: "always",
-    fetchFile: null,
+    // Inline small stylesheets, prefetch same-origin pages for instant navigation
+    build: {
+        inlineStylesheets: "always"
+    },
+    prefetch: {
+        prefetchAll: true
+    },
     markdown: {
         shikiConfig: {
             theme: "aurora-x",
@@ -22,6 +28,10 @@ export default defineConfig({
         plugins: [tailwindcss()],
         resolve: {
             alias: { "@": "/src" }
+        },
+        define: {
+            // Injected into the service worker for cache-busting per deploy
+            "self.__BUILD_ID__": JSON.stringify(process.env.GITHUB_SHA ?? Date.now().toString(36))
         }
     }
 })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Upload, FileText, X, AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react"
 import { type AssTrack } from "@/lib/ass-parser"
 import { type SpreadsheetPreview } from "@/lib/spreadsheet-parser"
@@ -43,6 +43,14 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
     const [isDragOver, setIsDragOver] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    // Counter ref prevents drag highlight flicker when crossing child boundaries
+    const dragDepthRef = useRef(0)
+
+    useEffect(() => {
+        return () => {
+            dragDepthRef.current = 0
+        }
+    }, [])
 
     const handleFiles = useCallback(
         async (fileList: File[]) => {
@@ -114,6 +122,7 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
     const handleDrop = useCallback(
         (e: React.DragEvent) => {
             e.preventDefault()
+            dragDepthRef.current = 0
             setIsDragOver(false)
             const droppedFiles = Array.from(e.dataTransfer.files)
             if (droppedFiles.length > 0) handleFiles(droppedFiles)
@@ -126,8 +135,17 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
         setIsDragOver(true)
     }, [])
 
+    const handleDragEnter = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        dragDepthRef.current++
+        setIsDragOver(true)
+    }, [])
+
     const handleDragLeave = useCallback(() => {
-        setIsDragOver(false)
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+        if (dragDepthRef.current === 0) {
+            setIsDragOver(false)
+        }
     }, [])
 
     const handleClick = useCallback(() => {
@@ -174,6 +192,7 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                 }`}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
                 onClick={handleClick}
                 onKeyDown={handleKeyDown}
@@ -246,11 +265,7 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
                     <ul className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1" aria-label="File list">
                         {files.map(file => (
                             <li key={file.id}>
-                                <FileRow
-                                    file={file}
-                                    onRemove={() => onRemoveFile(file.id)}
-                                    onMap={() => onMapFile(file.id)}
-                                />
+                                <FileRow file={file} onRemove={onRemoveFile} onMap={onMapFile} />
                             </li>
                         ))}
                     </ul>
@@ -260,8 +275,23 @@ export default function FileDropzone({ files, onFilesAdded, onRemoveFile, onMapF
     )
 }
 
-function FileRow({ file, onRemove, onMap }: { file: QueuedFile; onRemove: () => void; onMap: () => void }) {
+/**
+ * Memoized row: stable callbacks (id-taking) + primitive-derived rendering let
+ * rows skip re-renders during drag-hover/loading state changes on the parent.
+ */
+const FileRow = memo(function FileRow({
+    file,
+    onRemove,
+    onMap
+}: {
+    file: QueuedFile
+    onRemove: (id: string) => void
+    onMap: (id: string) => void
+}) {
     const ext = file.name.split(".").pop()?.toUpperCase() || "FILE"
+
+    // O(n) filter runs once per track reference, not per render
+    const dialogueCount = useMemo(() => file.track?.events.filter(e => e.type === "Dialogue").length ?? 0, [file.track])
 
     const statusConfig = {
         pending_mapping: {
@@ -295,7 +325,7 @@ function FileRow({ file, onRemove, onMap }: { file: QueuedFile; onRemove: () => 
 
     return (
         <div
-            className="flex items-center justify-between p-3 rounded-lg border border-zinc-900 bg-black/20 hover:bg-black/40 transition-colors"
+            className="flex items-center justify-between gap-2 flex-wrap p-3 rounded-lg border border-zinc-900 bg-black/20 hover:bg-black/40 transition-colors"
             aria-label={`${file.name} — ${currentStatus.text}`}
         >
             <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
@@ -312,10 +342,10 @@ function FileRow({ file, onRemove, onMap }: { file: QueuedFile; onRemove: () => 
                     <p className="text-xs font-bold text-zinc-200 truncate">{file.name}</p>
                     <p className="text-[10px] text-zinc-500 font-medium">
                         {formatBytes(file.size)}
-                        {file.track && (
-                            <span className="text-zinc-650">
+                        {dialogueCount > 0 && (
+                            <span className="text-zinc-600">
                                 {" · "}
-                                {file.track.events.filter(e => e.type === "Dialogue").length} dialogues
+                                {dialogueCount} dialogues
                             </span>
                         )}
                     </p>
@@ -336,7 +366,7 @@ function FileRow({ file, onRemove, onMap }: { file: QueuedFile; onRemove: () => 
                     <Button
                         size="xs"
                         variant="secondary"
-                        onClick={onMap}
+                        onClick={() => onMap(file.id)}
                         aria-label={`Map columns for ${file.name}`}
                         className="h-7 px-2.5 text-[10px] font-bold text-amber-500 bg-amber-500/5 border border-amber-500/20 hover:bg-amber-500/10"
                     >
@@ -348,13 +378,13 @@ function FileRow({ file, onRemove, onMap }: { file: QueuedFile; onRemove: () => 
                 <Button
                     variant="ghost"
                     size="icon"
-                    onClick={onRemove}
+                    onClick={() => onRemove(file.id)}
                     aria-label={`Remove ${file.name}`}
-                    className="h-7 w-7 rounded-full hover:bg-zinc-900"
+                    className="h-7 w-7 rounded-full hover:bg-zinc-900 after:absolute after:-inset-x-2 after:-inset-y-2 relative"
                 >
                     <X size={14} className="text-zinc-500 hover:text-zinc-300" aria-hidden="true" />
                 </Button>
             </div>
         </div>
     )
-}
+})

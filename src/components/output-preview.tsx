@@ -5,7 +5,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { type QueuedFile } from "./file-dropzone"
-import { parseSrtCues, parseSrtTimestamp } from "@/lib/srt-parser"
+import { parseSrtCues, parseSrtTimestamp, tryParseSrtTimestamp } from "@/lib/srt-parser"
 import { formatSrtTimestamp, writeSrt, type SrtEntry } from "@/lib/srt-writer"
 import { cn } from "@/lib/utils"
 
@@ -28,9 +28,20 @@ interface EditableCellProps {
     className?: string
     isTimecode?: boolean
     multiline?: boolean
+    /** When false, committing an empty value reverts the edit instead of saving it */
+    required?: boolean
+    ariaLabel?: string
 }
 
-function EditableCell({ value, onCommit, className = "", isTimecode = false, multiline = false }: EditableCellProps) {
+function EditableCell({
+    value,
+    onCommit,
+    className = "",
+    isTimecode = false,
+    multiline = false,
+    required = false,
+    ariaLabel
+}: EditableCellProps) {
     const [editing, setEditing] = useState(false)
     const [editValue, setEditValue] = useState(value)
     const [modified, setModified] = useState(false)
@@ -48,27 +59,45 @@ function EditableCell({ value, onCommit, className = "", isTimecode = false, mul
         setPrevValue(value)
         if (!editing) {
             setEditValue(value)
+            setModified(false)
         }
     }
+
+    const startEditing = useCallback(() => setEditing(true), [])
+
+    const handleCellKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                startEditing()
+            }
+        },
+        [startEditing]
+    )
 
     const commit = useCallback(() => {
         const trimmed = editValue.trim()
         if (trimmed !== value) {
-            // Validate timecode format if this is a timecode cell
-            if (isTimecode) {
-                const ms = parseSrtTimestamp(trimmed)
-                if (ms === 0 && trimmed !== "00:00:00,000") {
-                    // Invalid format — revert
-                    setEditValue(value)
-                    setEditing(false)
-                    return
-                }
+            // Validate timecode format if this is a timecode cell.
+            // tryParse distinguishes invalid input from a genuine 00:00:00,000.
+            if (isTimecode && tryParseSrtTimestamp(trimmed) === null) {
+                // Invalid format — revert
+                setEditValue(value)
+                setEditing(false)
+                return
+            }
+            // Required cells (e.g. subtitle text) cannot be emptied — an empty
+            // text would make writeSrt silently drop the whole cue.
+            if (required && trimmed === "") {
+                setEditValue(value)
+                setEditing(false)
+                return
             }
             onCommit(trimmed)
             setModified(true)
         }
         setEditing(false)
-    }, [editValue, value, onCommit, isTimecode])
+    }, [editValue, value, onCommit, isTimecode, required])
 
     const cancel = useCallback(() => {
         setEditValue(value)
@@ -123,17 +152,22 @@ function EditableCell({ value, onCommit, className = "", isTimecode = false, mul
     }
 
     return (
-        <td
-            className={cn(className, "cursor-pointer group/cell relative", modified && "bg-blue-500/5")}
-            onClick={() => setEditing(true)}
-            title="Click to edit"
-        >
-            <span className={isTimecode ? "font-mono tabular-nums" : ""}>
-                {value || <span className="text-zinc-700 italic">empty</span>}
-            </span>
+        <td className={cn("group/cell relative p-0", className, modified && "bg-blue-500/5")}>
+            <button
+                type="button"
+                onClick={startEditing}
+                onKeyDown={handleCellKeyDown}
+                aria-label={ariaLabel ?? "Edit cell"}
+                title="Click to edit"
+                className="block w-full cursor-pointer px-3 py-3 text-left"
+            >
+                <span className={isTimecode ? "font-mono tabular-nums" : ""}>
+                    {value || <span className="text-zinc-700 italic">empty</span>}
+                </span>
+            </button>
             <Pencil
                 size={10}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-700 opacity-0 group-hover/cell:opacity-100 transition-opacity"
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-700 opacity-0 group-hover/cell:opacity-100 transition-opacity"
                 aria-hidden="true"
             />
         </td>
@@ -158,6 +192,13 @@ function SrtTableView({ entries, onUpdate }: SrtTableViewProps) {
     const [page, setPage] = useState(1)
     const pageSize = 100
     const totalPages = Math.ceil(entries.length / pageSize) || 1
+
+    // Safety clamp: if the entry count shrinks below the current page, snap back
+    const [lastTotalPages, setLastTotalPages] = useState(totalPages)
+    if (totalPages !== lastTotalPages) {
+        setLastTotalPages(totalPages)
+        if (page > totalPages) setPage(totalPages)
+    }
 
     const visibleEntries = useMemo(() => {
         const start = (page - 1) * pageSize
@@ -231,18 +272,22 @@ function SrtTableView({ entries, onUpdate }: SrtTableViewProps) {
                                     onCommit={v => handleCellEdit(globalIndex, "startMs", v)}
                                     className="p-3 text-zinc-400 border-r border-zinc-900/50"
                                     isTimecode
+                                    ariaLabel={`Edit start timecode of row ${entry.index}`}
                                 />
                                 <EditableCell
                                     value={formatSrtTimestamp(entry.endMs)}
                                     onCommit={v => handleCellEdit(globalIndex, "endMs", v)}
                                     className="p-3 text-zinc-400 border-r border-zinc-900/50"
                                     isTimecode
+                                    ariaLabel={`Edit end timecode of row ${entry.index}`}
                                 />
                                 <EditableCell
                                     value={entry.text}
                                     onCommit={v => handleCellEdit(globalIndex, "text", v)}
                                     className="p-3 text-zinc-400"
                                     multiline
+                                    required
+                                    ariaLabel={`Edit subtitle text of row ${entry.index}`}
                                 />
                             </tr>
                         ))}
@@ -297,6 +342,13 @@ function XlsxTableView({ data, headers, onUpdate, fileName }: XlsxTableViewProps
     const [page, setPage] = useState(1)
     const pageSize = 100
     const totalPages = Math.ceil(data.length / pageSize) || 1
+
+    // Safety clamp: if the row count shrinks below the current page, snap back
+    const [lastTotalPages, setLastTotalPages] = useState(totalPages)
+    if (totalPages !== lastTotalPages) {
+        setLastTotalPages(totalPages)
+        if (page > totalPages) setPage(totalPages)
+    }
 
     const visibleRows = useMemo(() => {
         const start = (page - 1) * pageSize
@@ -406,7 +458,16 @@ export default function OutputPreview({
     outputFormat
 }: OutputPreviewProps) {
     const [copied, setCopied] = useState(false)
+    const [copyFailed, setCopyFailed] = useState(false)
     const [viewMode, setViewMode] = useState<"table" | "raw">("table")
+    const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // Clear any pending copy-indicator timer on unmount
+    useEffect(() => {
+        return () => {
+            if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+        }
+    }, [])
 
     // Filter converted files
     const convertedFiles = useMemo(() => {
@@ -442,7 +503,13 @@ export default function OutputPreview({
 
         if (outputFormat === "xlsx") {
             const count = activeFile.xlsxData?.length || 0
-            const size = activeFile.xlsxBuffer ? (activeFile.xlsxBuffer.byteLength / 1024).toFixed(1) : "0.0"
+            // Buffer is materialized after conversion; after table edits it's
+            // rebuilt at download time, so show an estimate instead of 0.0.
+            const size = activeFile.xlsxBuffer
+                ? (activeFile.xlsxBuffer.byteLength / 1024).toFixed(1)
+                : activeFile.xlsxData
+                  ? (new TextEncoder().encode(JSON.stringify(activeFile.xlsxData)).length / 1024).toFixed(1)
+                  : "0.0"
             return {
                 lineCount: count,
                 sizeKb: size,
@@ -456,7 +523,7 @@ export default function OutputPreview({
 
         const lines = content.split("\n")
         const count = lines.length
-        const size = (new Blob([content]).size / 1024).toFixed(1)
+        const size = (new TextEncoder().encode(content).length / 1024).toFixed(1)
 
         const MAX_DISPLAY_LINES = 1000
         const isTruncated = count > MAX_DISPLAY_LINES
@@ -475,24 +542,59 @@ export default function OutputPreview({
         return Object.keys(activeFile.xlsxData[0])
     }, [activeFile])
 
+    // Raw XLSX view: capped + memoized so large sheets don't build multi-MB strings per render
+    const MAX_RAW_ROWS = 1000
+    const rawXlsxContent = useMemo(() => {
+        if (!activeFile?.xlsxData) return { text: "", truncated: false, total: 0 }
+        const rows = activeFile.xlsxData
+        const visible = rows.slice(0, MAX_RAW_ROWS)
+        return {
+            text: visible.map(row => xlsxHeaders.map(h => String(row[h] ?? "")).join("\t")).join("\n"),
+            truncated: rows.length > MAX_RAW_ROWS,
+            total: rows.length
+        }
+    }, [activeFile, xlsxHeaders])
+
     const handleCopy = async () => {
         if (!activeFile) return
         try {
             await navigator.clipboard.writeText(activeFile.outputContent)
             setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
+            setCopyFailed(false)
         } catch (err) {
             console.error("Failed to copy text", err)
+            setCopied(false)
+            setCopyFailed(true)
         }
+        // Reset the indicator after 2s; replace (not stack) any pending timer
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+        copyTimerRef.current = setTimeout(() => {
+            setCopied(false)
+            setCopyFailed(false)
+        }, 2000)
     }
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
         if (!activeFile) return
         let blob: Blob
-        if (outputFormat === "xlsx" && activeFile.xlsxBuffer) {
-            blob = new Blob([activeFile.xlsxBuffer as BlobPart], {
-                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            })
+        if (outputFormat === "xlsx" && activeFile.xlsxData) {
+            try {
+                // Regenerate at download time so recent table edits are included
+                const { regenerateXlsxBuffer } = await import("@/lib/converters/xlsx-export")
+                const buffer = regenerateXlsxBuffer(activeFile.xlsxData, activeFile.name)
+                blob = new Blob([buffer as BlobPart], {
+                    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                })
+            } catch (err) {
+                console.error("Failed to generate Excel workbook:", err)
+                if (activeFile.xlsxBuffer) {
+                    blob = new Blob([activeFile.xlsxBuffer as BlobPart], {
+                        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    })
+                } else {
+                    return
+                }
+            }
         } else {
             blob = new Blob([activeFile.outputContent], { type: "text/plain" })
         }
@@ -548,7 +650,7 @@ export default function OutputPreview({
         >
             {/* aria-live announces copy action result */}
             <div aria-live="polite" aria-atomic="true" className="sr-only">
-                {copied ? "Output copied to clipboard." : ""}
+                {copied ? "Output copied to clipboard." : copyFailed ? "Failed to copy output." : ""}
             </div>
 
             {/* Header info */}
@@ -674,7 +776,7 @@ export default function OutputPreview({
                             onClick={() => onSelectPreview(f.id)}
                             className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-colors border ${
                                 f.id === activePreviewId
-                                    ? "bg-zinc-800/80 text-zinc-150 border-zinc-700"
+                                    ? "bg-zinc-800/80 text-zinc-200 border-zinc-700"
                                     : "text-zinc-500 hover:text-zinc-300 border-transparent hover:bg-zinc-900/45"
                             }`}
                         >
@@ -694,24 +796,37 @@ export default function OutputPreview({
                 {outputFormat === "xlsx" && activeFile.xlsxData ? (
                     viewMode === "table" ? (
                         <XlsxTableView
+                            key={activeFile.id}
                             data={activeFile.xlsxData}
                             headers={xlsxHeaders}
                             onUpdate={handleXlsxDataUpdate}
                             fileName={activeFile.name}
                         />
                     ) : (
-                        <pre
-                            className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre"
-                            aria-label="XLSX raw data"
-                        >
-                            {activeFile.xlsxData
-                                .map(row => xlsxHeaders.map(h => String(row[h] ?? "")).join("\t"))
-                                .join("\n")}
-                        </pre>
+                        <>
+                            <pre
+                                className="font-mono text-[13px] text-zinc-300 leading-relaxed overflow-x-auto max-h-[450px] scrollbar-thin whitespace-pre"
+                                aria-label="XLSX raw data"
+                            >
+                                {rawXlsxContent.text}
+                            </pre>
+                            {rawXlsxContent.truncated && (
+                                <div
+                                    role="alert"
+                                    className="mt-4 p-3 bg-blue-900/20 border border-blue-900/30 rounded flex items-center gap-3"
+                                >
+                                    <AlertCircle size={16} className="text-blue-500 shrink-0" aria-hidden="true" />
+                                    <p className="text-[11px] text-blue-300 font-medium uppercase tracking-wider">
+                                        Preview truncated for performance ({rawXlsxContent.total - MAX_RAW_ROWS} rows
+                                        hidden). Download to see full content.
+                                    </p>
+                                </div>
+                            )}
+                        </>
                     )
                 ) : outputFormat === "srt" && viewMode === "table" && srtEntries.length > 0 ? (
                     /* SRT Editable Table View */
-                    <SrtTableView entries={srtEntries} onUpdate={handleSrtEntriesUpdate} />
+                    <SrtTableView key={activeFile.id} entries={srtEntries} onUpdate={handleSrtEntriesUpdate} />
                 ) : (
                     /* Raw text fallback */
                     <pre

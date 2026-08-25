@@ -1,29 +1,25 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { Layers, Info, Cpu, ShieldCheck } from "lucide-react"
 import FileDropzone, { type QueuedFile } from "@/components/file-dropzone"
 import ModeSelector, { type ConversionMode } from "@/components/mode-selector"
 import OptionsPanel from "@/components/options-panel"
 import OutputPreview from "@/components/output-preview"
 import ColumnMapper from "@/components/column-mapper"
+// Only lightweight/pure converter modules are imported statically — the heavy
+// ones (xlsx-js-style, ytt pipeline, spreadsheet parsing) are dynamically
+// imported at point-of-use below to keep the initial bundle small.
 import { convertNormalSrt, DEFAULT_NORMAL_OPTIONS, type NormalSrtOptions } from "@/lib/converters/normal-srt"
 import { convertKeepTs, DEFAULT_KEEPTS_OPTIONS, type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { convertResampleTs, type ResampleOptions } from "@/lib/converters/resample-ts"
 import { convertToCsv, DEFAULT_CSV_OPTIONS, type CsvExportOptions } from "@/lib/converters/csv-export"
-import { convertToYtt, DEFAULT_YTT_OPTIONS, type YttExportOptions } from "@/lib/converters/ytt-export"
 import {
-    convertToXlsxData,
-    convertToXlsxBuffer,
     DEFAULT_XLSX_OPTIONS,
+    DEFAULT_YTT_OPTIONS,
     type XlsxExportOptions,
-    createCombinedXlsxBuffer,
-    regenerateXlsxBuffer
-} from "@/lib/converters/xlsx-export"
-import {
-    type ColumnMapping,
-    parseSpreadsheet,
-    parseSpreadsheetSegment,
-    readSpreadsheetRows
-} from "@/lib/spreadsheet-parser"
+    type YttExportOptions
+} from "@/lib/export-options"
+import type { ColumnMapping } from "@/lib/spreadsheet-parser"
+import type { AssTrack } from "@/lib/ass-parser"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
@@ -51,52 +47,63 @@ export default function Home() {
     const [xlsxOptions, setXlsxOptions] = useState<XlsxExportOptions>(DEFAULT_XLSX_OPTIONS)
     const [yttOptions, setYttOptions] = useState<YttExportOptions>(DEFAULT_YTT_OPTIONS)
 
-    const handleFilesAdded = (newFiles: QueuedFile[]) => {
-        setFiles(prev => {
-            const updated = [...prev, ...newFiles]
+    // Timers for staggered bulk downloads — cancelled on unmount / re-run
+    const downloadTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+    useEffect(() => {
+        return () => {
+            for (const t of downloadTimersRef.current) clearTimeout(t)
+            downloadTimersRef.current = []
+        }
+    }, [])
 
-            // Heuristic resolution setup from first subtitle file containing script resolution info
-            const firstWithRes = newFiles.find(f => f.track && f.track.scriptInfo.PlayResX)
-            if (firstWithRes && firstWithRes.track) {
-                setResampleOptions(prevOpts => {
-                    if (prevOpts.sourceWidth === 0) {
-                        return {
-                            ...prevOpts,
-                            sourceWidth: firstWithRes.track!.scriptInfo.PlayResX || 0,
-                            sourceHeight: firstWithRes.track!.scriptInfo.PlayResY || 0
-                        }
-                    }
-                    return prevOpts
-                })
+    const adoptSourceResolution = useCallback((track: AssTrack | null | undefined) => {
+        if (!track || !track.scriptInfo.PlayResX) return
+        setResampleOptions(prevOpts => {
+            if (prevOpts.sourceWidth === 0) {
+                return {
+                    ...prevOpts,
+                    sourceWidth: track.scriptInfo.PlayResX || 0,
+                    sourceHeight: track.scriptInfo.PlayResY || 0
+                }
             }
-
-            return updated
+            return prevOpts
         })
+    }, [])
+
+    const handleFilesAdded = (newFiles: QueuedFile[]) => {
+        setFiles(prev => [...prev, ...newFiles])
+
+        // Heuristic resolution setup from first subtitle file containing script resolution info
+        // (kept outside the setFiles updater — updaters must be pure)
+        const firstWithRes = newFiles.find(f => f.track && f.track.scriptInfo.PlayResX)
+        if (firstWithRes) adoptSourceResolution(firstWithRes.track)
     }
 
     const handleRemoveFile = (id: string) => {
-        setFiles(prev => {
-            const filtered = prev.filter(f => f.id !== id)
-            if (activePreviewId === id) {
-                const nextConverted = filtered.find(f => f.status === "converted")
-                setActivePreviewId(nextConverted ? nextConverted.id : null)
-            }
-            return filtered
-        })
+        const filtered = files.filter(f => f.id !== id)
+        setFiles(filtered)
+        if (activePreviewId === id) {
+            const nextConverted = filtered.find(f => f.status === "converted")
+            setActivePreviewId(nextConverted ? nextConverted.id : null)
+        }
     }
 
-    const handleColumnMappingConfirm = (id: string, mapping: ColumnMapping, hasHeader: boolean, fps: number) => {
+    const handleColumnMappingConfirm = async (id: string, mapping: ColumnMapping, hasHeader: boolean, fps: number) => {
         const file = files.find(f => f.id === id)
         if (!file || !file.spreadsheetBuffer) return
 
         try {
+            // Loaded on demand — pulls xlsx-js-style into the bundle only when needed
+            const { readSpreadsheetRows, parseSpreadsheetSegment, parseSpreadsheet } =
+                await import("@/lib/spreadsheet-parser")
+
             // Check if multiple segments are present in preview
             if (file.spreadsheetPreview?.segments && file.spreadsheetPreview.segments.length > 0) {
                 const rows = readSpreadsheetRows(file.spreadsheetBuffer)
                 const extension = file.name.substring(file.name.lastIndexOf("."))
                 const baseName = file.name.substring(0, file.name.lastIndexOf("."))
 
-                const segmentFiles = file.spreadsheetPreview.segments.map(segment => {
+                const segmentFiles: QueuedFile[] = file.spreadsheetPreview.segments.map(segment => {
                     const track = parseSpreadsheetSegment(rows, segment, mapping, hasHeader, fps)
                     const virtualName = `${baseName} - ${segment.name}${extension}`
                     return {
@@ -123,19 +130,7 @@ export default function Home() {
                 })
 
                 // Auto-setup source width/height from the first segment track if available
-                const firstTrack = segmentFiles[0]?.track
-                if (firstTrack && firstTrack.scriptInfo.PlayResX) {
-                    setResampleOptions(prevOpts => {
-                        if (prevOpts.sourceWidth === 0) {
-                            return {
-                                ...prevOpts,
-                                sourceWidth: firstTrack.scriptInfo.PlayResX || 0,
-                                sourceHeight: firstTrack.scriptInfo.PlayResY || 0
-                            }
-                        }
-                        return prevOpts
-                    })
-                }
+                adoptSourceResolution(segmentFiles[0]?.track)
             } else {
                 const track = parseSpreadsheet(file.spreadsheetBuffer, mapping, hasHeader, fps)
                 setFiles(prev =>
@@ -151,18 +146,7 @@ export default function Home() {
                 )
 
                 // Auto-setup source width/height for resampler if this is the first loaded track with resolutions set
-                if (track && track.scriptInfo.PlayResX) {
-                    setResampleOptions(prevOpts => {
-                        if (prevOpts.sourceWidth === 0) {
-                            return {
-                                ...prevOpts,
-                                sourceWidth: track.scriptInfo.PlayResX || 0,
-                                sourceHeight: track.scriptInfo.PlayResY || 0
-                            }
-                        }
-                        return prevOpts
-                    })
-                }
+                adoptSourceResolution(track)
             }
 
             if (mappingFileId === id) {
@@ -195,6 +179,10 @@ export default function Home() {
         await new Promise(resolve => setTimeout(resolve, 50))
 
         try {
+            // Load only the module required by the selected mode (bundle stays lean)
+            const xlsxMod = mode === "xlsx" ? await import("@/lib/converters/xlsx-export") : null
+            const yttMod = mode === "ytt" ? await import("@/lib/converters/ytt-export") : null
+
             const updatedFiles = await Promise.all(
                 convertibles.map(async file => {
                     if (!file.track) return file
@@ -211,11 +199,11 @@ export default function Home() {
                             outputContent = convertResampleTs(file.track, resampleOptions)
                         } else if (mode === "csv") {
                             outputContent = convertToCsv(file.track, csvOptions)
-                        } else if (mode === "ytt") {
-                            outputContent = convertToYtt(file.track, yttOptions)
-                        } else if (mode === "xlsx") {
-                            xlsxData = convertToXlsxData(file.track, xlsxOptions)
-                            xlsxBuffer = convertToXlsxBuffer(file.track, xlsxOptions, file.name)
+                        } else if (mode === "ytt" && yttMod) {
+                            outputContent = yttMod.convertToYtt(file.track, yttOptions)
+                        } else if (mode === "xlsx" && xlsxMod) {
+                            xlsxData = xlsxMod.convertToXlsxData(file.track, xlsxOptions)
+                            xlsxBuffer = xlsxMod.convertToXlsxBuffer(file.track, xlsxOptions, file.name)
                             outputContent = "EXCEL_EXPORT_SUCCESS"
                         }
 
@@ -256,7 +244,7 @@ export default function Home() {
         }
     }
 
-    const handleDownloadCombinedXlsx = () => {
+    const handleDownloadCombinedXlsx = async () => {
         const convertedFiles = files.filter(f => f.status === "converted")
         if (convertedFiles.length === 0) return
 
@@ -270,8 +258,9 @@ export default function Home() {
         if (filesData.length === 0) return
 
         try {
+            const { createCombinedXlsxBuffer } = await import("@/lib/converters/xlsx-export")
             const combinedBuffer = createCombinedXlsxBuffer(filesData, xlsxOptions.combinedMode)
-            const blob = new Blob([combinedBuffer as unknown as BlobPart], {
+            const blob = new Blob([combinedBuffer as BlobPart], {
                 type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             })
             const url = URL.createObjectURL(blob)
@@ -297,33 +286,50 @@ export default function Home() {
         }
     }
 
-    const handleDownloadAll = () => {
+    const handleDownloadAll = async () => {
         const convertedFiles = files.filter(f => f.status === "converted")
         if (convertedFiles.length === 0) return
 
+        // Cancel any pending staggered downloads from a previous click
+        for (const t of downloadTimersRef.current) clearTimeout(t)
+        downloadTimersRef.current = []
+
+        // Buffers are (re)generated at download time so table edits are always included
+        let xlsxWriter: ((data: Record<string, string | number>[], name?: string) => Uint8Array) | null = null
+        const format = getOutputFormat()
+        if (format === "xlsx") {
+            const { regenerateXlsxBuffer } = await import("@/lib/converters/xlsx-export")
+            xlsxWriter = regenerateXlsxBuffer
+        }
+
         convertedFiles.forEach((file, index) => {
-            setTimeout(() => {
-                let blob: Blob
-                const format = getOutputFormat()
+            const timer = setTimeout(async () => {
+                try {
+                    let blob: Blob
 
-                if (format === "xlsx" && file.xlsxBuffer) {
-                    blob = new Blob([file.xlsxBuffer as BlobPart], {
-                        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    })
-                } else {
-                    blob = new Blob([file.outputContent], { type: "text/plain" })
+                    if (format === "xlsx" && file.xlsxData && xlsxWriter) {
+                        const buffer = xlsxWriter(file.xlsxData, file.name)
+                        blob = new Blob([buffer as BlobPart], {
+                            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        })
+                    } else {
+                        blob = new Blob([file.outputContent], { type: "text/plain" })
+                    }
+
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement("a")
+                    a.href = url
+                    const baseName = file.name.replace(/\.[^/.]+$/, "")
+                    a.download = `${baseName}.${format}`
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                    URL.revokeObjectURL(url)
+                } catch (err) {
+                    console.error(`Failed to download ${file.name}:`, err)
                 }
-
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement("a")
-                a.href = url
-                const baseName = file.name.replace(/\.[^/.]+$/, "")
-                a.download = `${baseName}.${format}`
-                document.body.appendChild(a)
-                a.click()
-                document.body.removeChild(a)
-                URL.revokeObjectURL(url)
             }, index * 300) // 300ms staggered delay to prevent browser blockages on multiple tab downloads
+            downloadTimersRef.current.push(timer)
         })
     }
 
@@ -340,13 +346,15 @@ export default function Home() {
     }, [])
 
     const handleUpdateXlsxData = useCallback((fileId: string, newData: Record<string, string | number>[]) => {
+        // Only update the data — the .xlsx buffer is (re)built lazily at download
+        // time, so we avoid a full synchronous SheetJS serialization per cell edit.
         setFiles(prev =>
             prev.map(f =>
                 f.id === fileId
                     ? {
                           ...f,
                           xlsxData: newData,
-                          xlsxBuffer: regenerateXlsxBuffer(newData, f.name)
+                          xlsxBuffer: null
                       }
                     : f
             )
@@ -357,6 +365,8 @@ export default function Home() {
     const fileToMap =
         files.find(f => f.id === mappingFileId && f.status === "pending_mapping") ||
         files.find(f => f.status === "pending_mapping")
+
+    const convertibleCount = files.filter(f => f.status === "ready" || f.status === "converted").length
 
     return (
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-12 flex flex-col gap-10 relative z-10">
@@ -444,7 +454,7 @@ export default function Home() {
                             setYttOptions={setYttOptions}
                         />
 
-                        {files.some(f => f.status === "ready" || f.status === "converted") && (
+                        {convertibleCount > 0 && (
                             <div className="flex justify-end">
                                 <Button
                                     onClick={handleConvert}
@@ -456,9 +466,8 @@ export default function Home() {
                                             <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                                             Converting...
                                         </>
-                                    ) : files.filter(f => f.status === "ready" || f.status === "converted").length >
-                                      1 ? (
-                                        `Convert ${files.filter(f => f.status === "ready" || f.status === "converted").length} Files`
+                                    ) : convertibleCount > 1 ? (
+                                        `Convert ${convertibleCount} Files`
                                     ) : (
                                         "Convert File"
                                     )}

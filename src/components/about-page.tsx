@@ -26,14 +26,14 @@ export default function AboutPage() {
             <header className="max-w-4xl mx-auto px-6 pt-20 pb-16 flex flex-col items-center text-center space-y-6">
                 <a
                     href="/"
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-450 hover:text-blue-500 hover:border-blue-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-blue-500 hover:border-blue-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
                 >
                     <ArrowLeft size={14} />
                     Back to Converter
                 </a>
                 <a
                     href="/qc/"
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-450 hover:text-emerald-500 hover:border-emerald-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-emerald-500 hover:border-emerald-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
                 >
                     <ShieldCheck size={14} />
                     Quality Check
@@ -111,7 +111,7 @@ export default function AboutPage() {
                                     </CardTitle>
                                 </div>
                             </CardHeader>
-                            <CardContent className="text-xs text-zinc-550 leading-relaxed space-y-2">
+                            <CardContent className="text-xs text-zinc-500 leading-relaxed space-y-2">
                                 <p>Converts styled subtitles to clean, industry-standard SRT files.</p>
                                 <ul className="list-disc pl-4 space-y-1 text-[11px] text-zinc-500">
                                     <li>
@@ -137,7 +137,7 @@ export default function AboutPage() {
                                     </CardTitle>
                                 </div>
                             </CardHeader>
-                            <CardContent className="text-xs text-zinc-550 leading-relaxed space-y-2">
+                            <CardContent className="text-xs text-zinc-500 leading-relaxed space-y-2">
                                 <p>
                                     Preserves all typesetting code blocks verbatim for advanced players (e.g. mpv, VLC).
                                 </p>
@@ -165,7 +165,7 @@ export default function AboutPage() {
                                     </CardTitle>
                                 </div>
                             </CardHeader>
-                            <CardContent className="text-xs text-zinc-550 leading-relaxed space-y-2">
+                            <CardContent className="text-xs text-zinc-500 leading-relaxed space-y-2">
                                 <p>Scales coordinate metrics to match targets when video resolution changes.</p>
                                 <ul className="list-disc pl-4 space-y-1 text-[11px] text-zinc-500">
                                     <li>
@@ -217,34 +217,34 @@ export default function AboutPage() {
                                         <div className="text-zinc-500">{"// Timings Mapping"}</div>
                                         <div>
                                             <span className="text-blue-400">Start Time:</span>{" "}
-                                            <span className="text-zinc-350">"In", "From", "Start", "Timecode In"</span>
+                                            <span className="text-zinc-400">"In", "From", "Start", "Timecode In"</span>
                                         </div>
                                         <div>
                                             <span className="text-blue-400">End Time:</span>{" "}
-                                            <span className="text-zinc-350">"Out", "To", "End", "Timecode Out"</span>
+                                            <span className="text-zinc-400">"Out", "To", "End", "Timecode Out"</span>
                                         </div>
                                         <div>
                                             <span className="text-blue-400">Duration:</span>{" "}
-                                            <span className="text-zinc-350">"Dur", "Duration", "Length"</span>
+                                            <span className="text-zinc-400">"Dur", "Duration", "Length"</span>
                                         </div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="text-zinc-500">{"// Dialogue Mapping"}</div>
                                         <div>
                                             <span className="text-emerald-400">Text Content:</span>{" "}
-                                            <span className="text-zinc-350">"Sub", "Subtitle", "Text", "Dialogue"</span>
+                                            <span className="text-zinc-400">"Sub", "Subtitle", "Text", "Dialogue"</span>
                                         </div>
                                         <div>
                                             <span className="text-emerald-400">Actor/Speaker:</span>{" "}
-                                            <span className="text-zinc-350">"Char", "Who", "Name", "Speaker"</span>
+                                            <span className="text-zinc-400">"Char", "Who", "Name", "Speaker"</span>
                                         </div>
                                         <div>
                                             <span className="text-emerald-400">Style/Layer:</span>{" "}
-                                            <span className="text-zinc-350">"Style", "Font", "Layer", "Level"</span>
+                                            <span className="text-zinc-400">"Style", "Font", "Layer", "Level"</span>
                                         </div>
                                     </div>
                                 </div>
-                                <p className="text-zinc-550 text-xs">
+                                <p className="text-zinc-500 text-xs">
                                     Timestamps can be formatted as fractional days (Excel time format), decimal seconds,
                                     milliseconds, standard timecodes (<code>HH:MM:SS.mmm</code>), or frame-based codes (
                                     <code>HH:MM:SS:FF</code>). Frame-based timestamps are translated accurately using
@@ -279,7 +279,7 @@ export default function AboutPage() {
                                         }
                                     </div>
                                 </div>
-                                <p className="text-zinc-550 text-xs">
+                                <p className="text-zinc-500 text-xs">
                                     Upon discovering marker rows, the compiler splits the spreadsheet's dialog lists
                                     into discrete sub-tracks, letting you name, preview, modify, and convert individual
                                     episode subtitle files in a single pass.
@@ -330,7 +330,7 @@ export default function AboutPage() {
                             Privacy by Architecture
                         </h2>
                     </div>
-                    <p className="text-sm leading-relaxed text-zinc-350">
+                    <p className="text-sm leading-relaxed text-zinc-400">
                         Unlike online subtitle sites that upload personal documents to backend servers, this application
                         runs on a <strong>Zero-Trust architecture</strong>. All parsing, resampling, spreadsheet
                         mapping, and workbook formatting happen entirely inside your local browser memory space.
@@ -379,8 +379,8 @@ function TechItem({ title, description, icon }: { title: string; description: st
                 {icon}
             </div>
             <div className="space-y-1">
-                <h4 className="text-sm font-bold text-zinc-150">{title}</h4>
-                <p className="text-xs text-zinc-550 leading-normal">{description}</p>
+                <h4 className="text-sm font-bold text-zinc-200">{title}</h4>
+                <p className="text-xs text-zinc-500 leading-normal">{description}</p>
             </div>
         </Card>
     )

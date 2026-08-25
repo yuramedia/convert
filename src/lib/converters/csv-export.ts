@@ -1,34 +1,14 @@
 import { type AssTrack } from "../ass-parser"
 import { convertTagsToHtml, stripTags, tokenizeText } from "../ass-tags"
 import { isLikelySign } from "./normal-srt"
+import { DEFAULT_CSV_OPTIONS, type CsvExportOptions } from "../export-options"
 
-export interface CsvExportOptions {
-    useHtmlTags: boolean
-    stripSigns?: boolean
-    showIndex: boolean
-    showStart: boolean
-    showEnd: boolean
-    showDuration: boolean
-    showActor: boolean
-    showStyle: boolean
-    showLayer: boolean
-    showText: boolean
-}
-
-export const DEFAULT_CSV_OPTIONS: Required<CsvExportOptions> = {
-    useHtmlTags: true,
-    stripSigns: false,
-    showIndex: true,
-    showStart: true,
-    showEnd: true,
-    showDuration: true,
-    showActor: true,
-    showStyle: false,
-    showLayer: false,
-    showText: true
-}
+export { DEFAULT_CSV_OPTIONS }
+export type { CsvExportOptions }
 
 function formatTime(ms: number): string {
+    // Round fractional ms (frame-gap math produces them) and clamp negatives
+    ms = Math.max(0, Math.round(ms))
     const totalSeconds = Math.floor(ms / 1000)
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
@@ -44,8 +24,14 @@ function escapeCsvField(field: string): string {
     field = field.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
     // Detect formula injection vulnerability even with leading spaces or tabs
     const trimmedLead = field.trimStart()
-    if (/^[=+\-@\t]/.test(trimmedLead)) {
+    const lead = trimmedLead.charAt(0)
+    if (lead === "=" || lead === "+" || lead === "@") {
         field = `'${field}`
+    } else if (lead === "-") {
+        // A "-" followed by whitespace is a dialogue dash, not a formula — leave it alone
+        if (!/^-[\s]/.test(trimmedLead)) {
+            field = `'${field}`
+        }
     }
     if (field.includes(",") || field.includes('"') || field.includes("\n")) {
         return `"${field.replace(/"/g, '""')}"`

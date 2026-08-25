@@ -180,9 +180,10 @@ describe("createCombinedXlsxBuffer", () => {
             defval: ""
         })
 
-        // row 0: title, row 1: blank, row 2: Ep1 marker, row 3: headers, row 4: data,
+        // row 0: title ("Ep1" — shared base name of the stacked files), row 1: blank,
+        // row 2: Ep1 marker, row 3: headers, row 4: data,
         // row 5: blank spacer, row 6: Ep2 marker, row 7: headers, row 8: data
-        expect(rows[0][0]).toBe("")
+        expect(rows[0][0]).toBe("Ep1")
         expect(rows[2][0]).toBe("Ep1")
         expect(rows[3]).toEqual(["No.", "Subtitle"])
         expect(rows[4]).toEqual([1, "Hello from Episode 1"])

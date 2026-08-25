@@ -40,7 +40,7 @@ export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_
     const styleMap = new Map(track.styles.map(s => [s.Name, s]))
 
     // Pre-process: filter Dialogue, detect sign-ness
-    const eventsWithMeta = track.events
+    let eventsWithMeta = track.events
         .filter(e => e.type === "Dialogue")
         .map(event => {
             const style = styleMap.get(event.Style)
@@ -95,8 +95,8 @@ export function convertKeepTs(track: AssTrack, options: KeepTsOptions = DEFAULT_
             i = j
         }
 
-        eventsWithMeta.length = 0
-        eventsWithMeta.push(...reordered)
+        // Reassign instead of spread-push: spreading ~65k+ items overflows the call stack
+        eventsWithMeta = reordered
     }
 
     for (const { event, style } of eventsWithMeta) {

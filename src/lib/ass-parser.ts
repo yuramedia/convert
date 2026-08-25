@@ -114,9 +114,10 @@ export function parseTimestamp(str: string): number {
  */
 export function formatAssTimestamp(ms: number): string {
     const sign = ms < 0 ? "-" : ""
-    ms = Math.abs(ms)
-    const cs = Math.round(ms / 10) % 100
-    const totalSeconds = Math.floor(ms / 1000)
+    // Work in integer centiseconds so rounding carries into seconds/minutes/hours
+    const totalCs = Math.round(Math.abs(ms) / 10)
+    const cs = totalCs % 100
+    const totalSeconds = Math.floor(totalCs / 100)
     const s = totalSeconds % 60
     const totalMinutes = Math.floor(totalSeconds / 60)
     const m = totalMinutes % 60
@@ -195,12 +196,13 @@ export function parseAss(content: string): AssTrack {
 
         // Skip empty lines and comments (lines starting with ;)
         if (trimmed === "" || trimmed.startsWith(";")) {
+            const currentLower = currentSection.toLowerCase()
             if (
                 currentRawSection &&
-                currentSection !== "[Script Info]" &&
-                currentSection !== "[V4+ Styles]" &&
-                currentSection !== "[V4 Styles]" &&
-                currentSection !== "[Events]"
+                currentLower !== "[script info]" &&
+                currentLower !== "[v4+ styles]" &&
+                currentLower !== "[v4 styles]" &&
+                currentLower !== "[events]"
             ) {
                 currentRawSection.lines.push(line)
             }
@@ -211,15 +213,17 @@ export function parseAss(content: string): AssTrack {
         if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
             const sectionName = trimmed
             currentSection = sectionName
+            // libass matches section names case-insensitively (strncasecmp)
+            const sectionLower = sectionName.toLowerCase()
 
             if (
-                sectionName === "[Script Info]" ||
-                sectionName === "[V4+ Styles]" ||
-                sectionName === "[V4 Styles]" ||
-                sectionName === "[Events]"
+                sectionLower === "[script info]" ||
+                sectionLower === "[v4+ styles]" ||
+                sectionLower === "[v4 styles]" ||
+                sectionLower === "[events]"
             ) {
-                if (sectionName === "[V4+ Styles]") track.trackType = "ASS"
-                else if (sectionName === "[V4 Styles]") track.trackType = "SSA"
+                if (sectionLower === "[v4+ styles]") track.trackType = "ASS"
+                else if (sectionLower === "[v4 styles]") track.trackType = "SSA"
                 currentRawSection = null
             } else {
                 // Unknown section (Fonts, Graphics, Aegisub, etc.) — preserve raw
@@ -230,15 +234,16 @@ export function parseAss(content: string): AssTrack {
         }
 
         // Parse by section
-        switch (currentSection) {
-            case "[Script Info]":
+        const currentLower = currentSection.toLowerCase()
+        switch (currentLower) {
+            case "[script info]":
                 parseScriptInfoLine(trimmed, track)
                 break
-            case "[V4+ Styles]":
-            case "[V4 Styles]":
+            case "[v4+ styles]":
+            case "[v4 styles]":
                 parseStylesLine(trimmed, track)
                 break
-            case "[Events]":
+            case "[events]":
                 parseEventsLine(trimmed, track)
                 break
             default:
@@ -328,15 +333,16 @@ function parseStylesLine(line: string, track: AssTrack): void {
     if (!line.toLowerCase().startsWith("style:")) return
 
     const content = line.substring(line.indexOf(":") + 1).trim()
-    const fields = splitFields(content, track.styleFormat.length)
-
-    const raw: Record<string, string> = {}
+    // Resolve effective format BEFORE splitting (a Style line may precede its Format line)
     const format =
         track.styleFormat.length > 0
             ? track.styleFormat
             : parseFormatLine(
                   "Format: " + (track.trackType === "SSA" ? DEFAULT_SSA_STYLE_FORMAT : DEFAULT_ASS_STYLE_FORMAT)
               )
+    const fields = splitFields(content, format.length)
+
+    const raw: Record<string, string> = {}
 
     for (let i = 0; i < format.length && i < fields.length; i++) {
         raw[format[i]] = fields[i]
@@ -425,7 +431,8 @@ function parseEventsLine(line: string, track: AssTrack): void {
 
     const event: AssEvent = {
         type: eventType,
-        Layer: parseInt(raw["Layer"] || raw["Marked"] || "0", 10),
+        // SSA files use `Marked=0` (literal prefix); strip it before parsing (libass Marked= handling)
+        Layer: parseLayerField(raw["Layer"], raw["Marked"]),
         Start: startMs,
         End: endMs,
         Style: raw["Style"] || "Default",
@@ -438,6 +445,16 @@ function parseEventsLine(line: string, track: AssTrack): void {
     }
 
     track.events.push(event)
+}
+
+// ─── Layer/Marked parsing (SSA Marked=N) ─────────────────────────────────────
+
+function parseLayerField(layer: string | undefined, marked: string | undefined): number {
+    const value = layer ?? marked ?? ""
+    // SSA stores "Marked=0"; strip the prefix like libass does
+    const normalized = value.startsWith("Marked=") ? value.slice("Marked=".length) : value
+    const parsed = parseInt(normalized, 10)
+    return Number.isFinite(parsed) ? parsed : 0
 }
 
 // ─── Field splitting utilities ───────────────────────────────────────────────

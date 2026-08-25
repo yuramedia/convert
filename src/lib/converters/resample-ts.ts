@@ -12,6 +12,9 @@ import { type AssTrack } from "../ass-parser"
 import { tokenizeText, parseClip } from "../ass-tags"
 import { writeAss } from "../ass-writer"
 import { convertKeepTs } from "./keep-ts"
+import { RESOLUTION_PRESETS } from "../export-options"
+
+export { RESOLUTION_PRESETS }
 
 export interface ResampleOptions {
     sourceWidth: number
@@ -26,20 +29,6 @@ export interface ResampleOptions {
     /** When true, sort sign/TS lines before dialogue in SRT output so dialogue renders on top. Only used when outputFormat is "srt". */
     signFirst?: boolean
 }
-
-export const RESOLUTION_PRESETS: { label: string; width: number; height: number }[] = [
-    { label: "640×360 (nHD widescreen)", width: 640, height: 360 },
-    { label: "640×480 (VGA fullscreen)", width: 640, height: 480 },
-    { label: "720×480 (NTSC storage)", width: 720, height: 480 },
-    { label: "848×480 (NTSC display 16:9)", width: 848, height: 480 },
-    { label: "720×576 (PAL storage)", width: 720, height: 576 },
-    { label: "1024×576 (PAL display 16:9)", width: 1024, height: 576 },
-    { label: "1280×720 (HD 720p)", width: 1280, height: 720 },
-    { label: "1920×1080 (FHD 1080p)", width: 1920, height: 1080 },
-    { label: "2560×1440 (QHD 1440p)", width: 2560, height: 1440 },
-    { label: "3840×2160 (4K UHD 2160p)", width: 3840, height: 2160 },
-    { label: "1080×1920 (FHD vertical)", width: 1080, height: 1920 }
-]
 
 export function convertResampleTs(track: AssTrack, options: ResampleOptions): string {
     const compensate = options.compensateAspectRatio !== false

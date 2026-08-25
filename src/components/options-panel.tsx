@@ -4,10 +4,14 @@ import { useState } from "react"
 import { type ConversionMode } from "./mode-selector"
 import { type NormalSrtOptions } from "@/lib/converters/normal-srt"
 import { type KeepTsOptions } from "@/lib/converters/keep-ts"
-import { type ResampleOptions, RESOLUTION_PRESETS } from "@/lib/converters/resample-ts"
-import { type CsvExportOptions } from "@/lib/converters/csv-export"
-import { type XlsxExportOptions } from "@/lib/converters/xlsx-export"
-import { DEFAULT_YTT_OPTIONS, type YttExportOptions } from "@/lib/converters/ytt-export"
+import { type ResampleOptions } from "@/lib/converters/resample-ts"
+import {
+    DEFAULT_YTT_OPTIONS,
+    RESOLUTION_PRESETS,
+    type CsvExportOptions,
+    type XlsxExportOptions,
+    type YttExportOptions
+} from "@/lib/export-options"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -33,8 +37,8 @@ function CustomCheckbox({ label, checked, onChange }: CustomCheckboxProps) {
                     onChange={e => onChange(e.target.checked)}
                     aria-label={label}
                 />
-                <div className="h-[18px] w-[18px] rounded border border-zinc-700 bg-zinc-900 transition-all peer-checked:bg-purple-600 peer-checked:border-purple-600 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-white hidden peer-checked:block" strokeWidth={3.5} />
+                <div className="h-[18px] w-[18px] rounded border border-zinc-700 bg-zinc-900 transition-all peer-checked:bg-purple-600 peer-checked:border-purple-600 flex items-center justify-center peer-checked:[&_svg]:block">
+                    <Check className="h-3 w-3 text-white hidden" strokeWidth={3.5} aria-hidden="true" />
                 </div>
             </div>
             <span className="text-sm font-medium">{label}</span>
@@ -569,7 +573,12 @@ export default function OptionsPanel({
                                 </div>
                                 <Select
                                     value={normalOptions.frameGapMode === "de-framegap" ? "de-framegap" : "frame-gap"}
-                                    onValueChange={v => setNormalOptions({ ...normalOptions, frameGapMode: v as any })}
+                                    onValueChange={v =>
+                                        setNormalOptions({
+                                            ...normalOptions,
+                                            frameGapMode: v as NormalSrtOptions["frameGapMode"]
+                                        })
+                                    }
                                 >
                                     <SelectTrigger className="w-[180px]">
                                         <SelectValue>
@@ -825,14 +834,15 @@ export default function OptionsPanel({
 
                         <Field className="col-span-1 md:col-span-2">
                             <FieldLabel>Custom Dimensions</FieldLabel>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 max-w-full">
                                 <Input
                                     type="number"
+                                    min={0}
                                     value={resampleOptions.targetWidth || ""}
                                     onChange={e =>
                                         setResampleOptions({
                                             ...resampleOptions,
-                                            targetWidth: parseInt(e.target.value) || 0
+                                            targetWidth: Math.max(0, parseInt(e.target.value) || 0)
                                         })
                                     }
                                     placeholder="Width"
@@ -840,11 +850,12 @@ export default function OptionsPanel({
                                 <span className="text-muted-foreground font-bold">×</span>
                                 <Input
                                     type="number"
+                                    min={0}
                                     value={resampleOptions.targetHeight || ""}
                                     onChange={e =>
                                         setResampleOptions({
                                             ...resampleOptions,
-                                            targetHeight: parseInt(e.target.value) || 0
+                                            targetHeight: Math.max(0, parseInt(e.target.value) || 0)
                                         })
                                     }
                                     placeholder="Height"

@@ -2,36 +2,14 @@ import * as XLSX from "xlsx-js-style"
 import { type AssTrack } from "../ass-parser"
 import { convertTagsToHtml, stripTags, tokenizeText } from "../ass-tags"
 import { isLikelySign } from "./normal-srt"
+import { DEFAULT_XLSX_OPTIONS, type XlsxExportOptions } from "../export-options"
 
-export interface XlsxExportOptions {
-    useHtmlTags: boolean
-    stripSigns?: boolean
-    showIndex: boolean
-    showStart: boolean
-    showEnd: boolean
-    showDuration: boolean
-    showActor: boolean
-    showStyle: boolean
-    showLayer: boolean
-    showText: boolean
-    combinedMode?: "sheets" | "single"
-}
-
-export const DEFAULT_XLSX_OPTIONS: Required<XlsxExportOptions> = {
-    useHtmlTags: true,
-    stripSigns: false,
-    showIndex: true,
-    showStart: true,
-    showEnd: true,
-    showDuration: true,
-    showActor: true,
-    showStyle: false,
-    showLayer: false,
-    showText: true,
-    combinedMode: "sheets"
-}
+export { DEFAULT_XLSX_OPTIONS }
+export type { XlsxExportOptions }
 
 function formatTime(ms: number): string {
+    // Round fractional ms (frame-gap math produces them) and clamp negatives
+    ms = Math.max(0, Math.round(ms))
     const totalSeconds = Math.floor(ms / 1000)
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
@@ -99,7 +77,7 @@ export function convertToXlsxJson(track: AssTrack, options: XlsxExportOptions = 
 }
 
 export function buildStyledWorksheet(
-    _titleText: string,
+    titleText: string,
     filesData: { name: string; data: Record<string, string | number>[] }[]
 ): XLSX.WorkSheet {
     const aoa: unknown[][] = []
@@ -119,7 +97,7 @@ export function buildStyledWorksheet(
     }
 
     // 1. Title Row (Row 0)
-    const titleLine = ""
+    const titleLine = titleText
 
     const titleStyle = {
         fill: { fgColor: { rgb: "4472C4" } },
@@ -312,7 +290,7 @@ export function cleanSheetName(name: string, index: number, usedNames: Set<strin
     // Collapse consecutive spaces
     clean = clean.replace(/\s+/g, " ").trim()
 
-    // Excel sheet name limit is 31 chars
+    // Excel sheet name limit is 31 chars; keep a char of headroom for dedup suffixes
     if (clean.length > 30) {
         clean = clean.substring(0, 30)
     }
@@ -341,6 +319,11 @@ export function createCombinedXlsxBuffer(
 ): Uint8Array {
     const workbook = XLSX.utils.book_new()
     const usedNames = new Set<string>()
+
+    if (filesData.length === 0) {
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+        return new Uint8Array(excelBuffer)
+    }
 
     if (combinedMode === "single") {
         const firstBaseName = filesData[0].name.replace(/\.[^/.]+$/, "")

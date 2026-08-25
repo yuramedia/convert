@@ -30,6 +30,16 @@ export function parseSrtTimestamp(str: string): number {
     return sign * (((h * 60 + m) * 60 + s) * 1000 + ms)
 }
 
+/**
+ * Like parseSrtTimestamp but distinguishes "invalid input" (null) from a
+ * genuinely-zero timestamp (0) — callers validating user edits need this.
+ */
+export function tryParseSrtTimestamp(str: string): number | null {
+    const match = str.trim().match(/^(-?)(\d+):(\d{2}):(\d{2})[,.](\d{1,3})$/)
+    if (!match) return null
+    return parseSrtTimestamp(str)
+}
+
 // ─── HTML → ASS tag conversion ───────────────────────────────────────────────
 
 /**

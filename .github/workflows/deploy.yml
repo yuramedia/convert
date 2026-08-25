@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
     group: "pages"
-    cancel-in-progress: false
+    cancel-in-progress: true
 
 jobs:
     build:
@@ -37,7 +37,8 @@ jobs:
               uses: withastro/action@v6
               with:
                   package-manager: bun
-                  build-cmd: bun run test && bun run build
+                  # Gate deploys on lint + typecheck + tests so main can never ship unverified code
+                  build-cmd: bun run lint && bun run test && bun run build
 
     deploy:
         needs: build

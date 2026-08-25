@@ -68,7 +68,11 @@
     }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (Firefox + WebKit) */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-muted) transparent;
+}
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

@@ -14,450 +14,40 @@
  */
 
 import { type AssTrack, type AssEvent } from "./ass-parser"
+import {
+    QC_RULES,
+    DEFAULT_QC_OPTIONS,
+    type QcSeverity,
+    type QcCategory,
+    type QcIssue,
+    type QcRule,
+    type QcResult,
+    type QcOptions
+} from "./qc-rules"
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-export type QcSeverity = "error" | "warning" | "info"
-export type QcCategory = "text" | "punctuation" | "timing" | "formatting" | "casing"
-
-export interface QcIssue {
-    id: string
-    lineIndex: number
-    ruleId: string
-    severity: QcSeverity
-    category: QcCategory
-    message: string
-    original: string
-    fixed: string | null
-}
-
-export interface QcRule {
-    id: string
-    name: string
-    description: string
-    category: QcCategory
-    severity: QcSeverity
-    enabled: boolean
-    example?: string
-}
-
-export interface QcResult {
-    issues: QcIssue[]
-    fixedTrack: AssTrack
-    stats: {
-        errors: number
-        warnings: number
-        info: number
-        total: number
-        fixable: number
-    }
-}
-
-export interface QcOptions {
-    maxLineLength: number
-    maxDurationMs: number
-    minDurationMs: number
-    minGapMs: number
-    convertEllipsis: boolean
-    enabledRules: Set<string>
-}
-
-// ─── Rule Definitions (matching SubtitleEdit defaults) ───────────────────────
-//
-// Rules are ordered to match SubtitleEdit's "Fix common errors" dialog.
-// The `enabled` field reflects SubtitleEdit's default checked state.
-
-export const QC_RULES: QcRule[] = [
-    // ── Text ─────────────────────────────────────────────────────────────────
-    {
-        id: "remove-empty-lines",
-        name: "Remove Empty Lines",
-        description: "Detect subtitle lines with no visible text content",
-        category: "text",
-        severity: "error",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "Has only one valid line\\N<i></i> → Has only one valid line!"
-    },
-    {
-        id: "fix-double-spaces",
-        name: "Remove Unneeded Spaces",
-        description: "Replace multiple consecutive spaces with a single space",
-        category: "text",
-        severity: "error",
-        enabled: true
-    },
-    {
-        id: "fix-leading-trailing-whitespace",
-        name: "Fix Leading/Trailing Whitespace",
-        description: "Remove leading and trailing spaces from each line",
-        category: "text",
-        severity: "error",
-        enabled: true
-    },
-    {
-        id: "fix-line-break-issues",
-        name: "Fix Line Break Issues",
-        description: "Clean up \\N at start/end of text and double \\N\\N",
-        category: "text",
-        severity: "error",
-        enabled: true
-    },
-    {
-        id: "fix-long-lines",
-        name: "Break Long Lines",
-        description: "Warn about lines exceeding the maximum character length",
-        category: "text",
-        severity: "warning",
-        enabled: true
-    },
-    {
-        id: "merge-short-lines",
-        name: "Merge Short Lines",
-        description: "Remove line breaks in short texts (all except dialogs)",
-        category: "text",
-        severity: "info",
-        enabled: true
-    },
-    {
-        id: "fix-three-plus-lines",
-        name: "Fix Subtitles With More Than Two Lines",
-        description: "Warn about subtitles with three or more lines",
-        category: "text",
-        severity: "warning",
-        enabled: false // SubtitleEdit: UNCHECKED by default
-    },
-
-    // ── Punctuation ──────────────────────────────────────────────────────────
-    {
-        id: "fix-double-punctuation",
-        name: "Remove Unneeded Periods",
-        description: "Remove duplicate punctuation marks (.. → ., ,, → ,, etc.)",
-        category: "punctuation",
-        severity: "error",
-        enabled: false // SubtitleEdit: UNCHECKED by default
-    },
-    {
-        id: "fix-space-before-punctuation",
-        name: "Fix Space Before Punctuation",
-        description: "Remove spaces before . , ! ? : ;",
-        category: "punctuation",
-        severity: "error",
-        enabled: true,
-        example: "Hey , there. → Hey, there."
-    },
-    {
-        id: "fix-missing-space-after-punctuation",
-        name: "Fix Missing Spaces",
-        description: "Add missing space after . , ! ? when followed by a word character",
-        category: "punctuation",
-        severity: "warning",
-        enabled: true,
-        example: "Hey,You. → Hey, You"
-    },
-    {
-        id: "fix-commas",
-        name: "Fix Commas",
-        description: "Fix comma-related issues (double commas, misplaced commas)",
-        category: "punctuation",
-        severity: "error",
-        enabled: true,
-        example: ",-, → -,-"
-    },
-    {
-        id: "fix-ellipsis",
-        name: "Fix Ellipsis",
-        description: "Convert three dots (...) to proper ellipsis character (…)",
-        category: "punctuation",
-        severity: "info",
-        enabled: false // Not in SubtitleEdit defaults
-    },
-    {
-        id: "fix-double-apostrophes",
-        name: "Fix Double Apostrophes",
-        description: "Fix double apostrophe characters ('') to a single quote (')",
-        category: "punctuation",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: '"Has double single quotes" → "Has single double quote"'
-    },
-    {
-        id: "split-dialog-on-one-line",
-        name: "Split Dialogs on One Line",
-        description: "Split single-line dialog with two speakers into two lines",
-        category: "punctuation",
-        severity: "info",
-        enabled: true,
-        example: "- Hi John! - Hi Ida! → - Hi John!\\N- Hi Ida!"
-    },
-    {
-        id: "fix-missing-dialogue-dash",
-        name: "Fix Dash in Dialog",
-        description: "Add missing dash on second line when first line starts with a dash",
-        category: "punctuation",
-        severity: "info",
-        enabled: false // SubtitleEdit: UNCHECKED by default
-    },
-    {
-        id: "fix-missing-periods-at-end",
-        name: "Add Period After Lines Before Uppercase",
-        description: "Add period after lines where next line starts with uppercase letter",
-        category: "punctuation",
-        severity: "info",
-        enabled: true,
-        example: "Hello world\\NHello. → Hello world.\\NHello."
-    },
-    {
-        id: "fix-double-dash",
-        name: "Fix Double Dash",
-        description: "Replace double dashes (--) with em-dashes (—)",
-        category: "punctuation",
-        severity: "info",
-        enabled: true,
-        example: "Hello--world → Hello—world"
-    },
-
-    // ── Timing ───────────────────────────────────────────────────────────────
-    {
-        id: "fix-overlapping-times",
-        name: "Fix Overlapping Display Times",
-        description: "Warn when a subtitle's end time overlaps the next subtitle's start time",
-        category: "timing",
-        severity: "warning",
-        enabled: true
-    },
-    {
-        id: "fix-short-duration",
-        name: "Fix Short Display Times",
-        description: "Warn about subtitles displayed for less than 500ms",
-        category: "timing",
-        severity: "warning",
-        enabled: true
-    },
-    {
-        id: "fix-long-duration",
-        name: "Fix Long Display Times",
-        description: "Warn about subtitles displayed for more than 10 seconds",
-        category: "timing",
-        severity: "warning",
-        enabled: true
-    },
-    {
-        id: "fix-short-gaps",
-        name: "Fix Short Gaps",
-        description: "Warn about gaps between subtitles shorter than the minimum",
-        category: "timing",
-        severity: "warning",
-        enabled: true
-    },
-
-    // ── Formatting ───────────────────────────────────────────────────────────
-    {
-        id: "fix-unmatched-tags",
-        name: "Fix Invalid Italic Tags",
-        description: "Warn about unmatched ASS override tags (e.g., {\\b1} without {\\b0})",
-        category: "formatting",
-        severity: "warning",
-        enabled: true,
-        example: "<i>What do I care.</i> → <i>What do I care.</i>"
-    },
-
-    // ── Casing ───────────────────────────────────────────────────────────────
-    {
-        id: "fix-uppercase-after-paragraph",
-        name: "Start With Uppercase After Paragraph",
-        description: "Capitalize first letter of each subtitle line",
-        category: "casing",
-        severity: "info",
-        enabled: false,
-        example: "p1. Foobar! | p2. foobar → p1. Foobar! | p2. Foobar"
-    },
-    {
-        id: "fix-uppercase-after-period",
-        name: "Start With Uppercase After Period",
-        description: "Capitalize first letter after a period inside a paragraph",
-        category: "casing",
-        severity: "info",
-        enabled: false,
-        example: "Hello there! how are you? → Hello there! How are you?"
-    },
-    {
-        id: "fix-uppercase-after-colon",
-        name: "Start With Uppercase After Colon",
-        description: "Capitalize first letter after a colon or semicolon",
-        category: "casing",
-        severity: "info",
-        enabled: false,
-        example: "Speaker: hello world → Speaker: Hello world"
-    },
-
-    // ── SubtitleEdit Additional Rules ────────────────────────────────────────
-    {
-        id: "fix-hyphens-remove-dash-single-line",
-        name: "Remove Dash in Single Line",
-        description: "Remove dialogue dashes from single-line subtitles",
-        category: "punctuation",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "- Hello. → Hello."
-    },
-    {
-        id: "remove-dialog-first-line-in-non-dialogs",
-        name: "Remove Dialog First Line in Non-Dialogs",
-        description: "Remove dash from first line if second line has no dash",
-        category: "punctuation",
-        severity: "info",
-        enabled: true, // SubtitleEdit: CHECKED by default
-        example: "- Hello.\\NWorld. → Hello.\\NWorld."
-    },
-    {
-        id: "fix-double-greater-than",
-        name: "Fix Double Greater-Than (>>)",
-        description: "Replace double greater than (>>) with single (>)",
-        category: "punctuation",
-        severity: "warning",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: ">> Hello → > Hello"
-    },
-    {
-        id: "fix-music-notation",
-        name: "Fix Music Notation",
-        description: "Convert text music markers to music note symbols (♪)",
-        category: "punctuation",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "# Singing # → ♪ Singing ♪"
-    },
-    {
-        id: "fix-missing-open-bracket",
-        name: "Fix Missing Open Bracket",
-        description: "Add missing opening bracket when a closing one exists",
-        category: "formatting",
-        severity: "warning",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "Hello) → (Hello)"
-    },
-    {
-        id: "fix-missing-close-bracket",
-        name: "Fix Missing Close Bracket",
-        description: "Add missing closing bracket when an opening one exists",
-        category: "formatting",
-        severity: "warning",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "[Hello → [Hello]"
-    },
-    {
-        id: "fix-unnecessary-leading-dots",
-        name: "Fix Unnecessary Leading Dots",
-        description: "Remove unneeded periods at the start of lines",
-        category: "punctuation",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: ". Hello → Hello"
-    },
-    {
-        id: "remove-space-between-numbers",
-        name: "Remove Space Between Numbers",
-        description: "Remove spaces between digits in a number",
-        category: "text",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "1 000 → 1000"
-    },
-    {
-        id: "fix-continuation-style",
-        name: "Fix Continuation Style",
-        description: "Fix redundant ellipsis at start of continuation lines",
-        category: "punctuation",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "Line 1...\\N...Line 2 → Line 1...\\NLine 2"
-    },
-    {
-        id: "normalize-strings",
-        name: "Normalize Strings",
-        description: "Clean up non-standard string markers and control chars",
-        category: "text",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "Really!?! → Really!?"
-    },
-    {
-        id: "fix-alone-lowercase-i",
-        name: "Fix Alone Lowercase 'i'",
-        description: "Capitalize standalone 'i' to 'I'",
-        category: "casing",
-        severity: "info",
-        enabled: false, // Disabled by default
-        example: "i think → I think"
-    },
-    {
-        id: "fix-turkish-ansi",
-        name: "Fix Turkish ANSI",
-        description: "Replace legacy Turkish ANSI characters with proper Unicode equivalents",
-        category: "text",
-        severity: "error",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "Ýstanbul → İstanbul"
-    },
-    {
-        id: "fix-spanish-inverted-marks",
-        name: "Fix Spanish Inverted Marks",
-        description: "Prepend inverted question (¿) or exclamation (¡) in Spanish",
-        category: "punctuation",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "Hola! → ¡Hola!"
-    },
-    {
-        id: "add-missing-quotes",
-        name: "Add Missing Quotes",
-        description: "Balance unclosed double quotes",
-        category: "punctuation",
-        severity: "warning",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: '"Hello → "Hello"'
-    },
-    {
-        id: "fix-unneeded-period-after-abbreviation",
-        name: "Fix Period After Abbreviation",
-        description: "Remove period after common abbreviations followed by lowercase letter",
-        category: "punctuation",
-        severity: "info",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "Mr. smith → Mr smith"
-    },
-    {
-        id: "fix-uppercase-i-inside-words",
-        name: "Fix Uppercase 'I' Inside Words",
-        description: "Fix lowercase words containing uppercase 'I' (OCR artifact)",
-        category: "casing",
-        severity: "warning",
-        enabled: false, // SubtitleEdit: UNCHECKED by default
-        example: "thIs → this"
-    }
-]
-
-// ─── Default Options ─────────────────────────────────────────────────────────
-
-export const DEFAULT_QC_OPTIONS: QcOptions = {
-    maxLineLength: 42,
-    maxDurationMs: 10_000,
-    minDurationMs: 500,
-    minGapMs: 24,
-    convertEllipsis: true,
-    enabledRules: new Set(QC_RULES.filter(r => r.enabled).map(r => r.id))
-}
+export { QC_RULES, DEFAULT_QC_OPTIONS }
+export type { QcSeverity, QcCategory, QcIssue, QcRule, QcResult, QcOptions }
 
 const OVERRIDE_TAGS_REGEX = /\{[^}]*\}/g
+const OVERRIDE_TAGS_TEST = /\{[^}]*\}/
 
 // ─── Utility: strip ASS override tags for text analysis ──────────────────────
 
 /**
  * Strip ASS override tags `{...}` from text for measuring visible content.
  * Preserves `\N` line breaks.
+ *
+ * Memoizes the last result: every rule checker strips the same event text,
+ * so consecutive duplicate calls (~35 per event) become O(1).
  */
+let _stripLastIn: string | null = null
+let _stripLastOut = ""
 export function stripOverrideTags(text: string): string {
-    return text.replace(OVERRIDE_TAGS_REGEX, "")
+    if (text === _stripLastIn) return _stripLastOut
+    const out = OVERRIDE_TAGS_TEST.test(text) ? text.replace(OVERRIDE_TAGS_REGEX, "") : text
+    _stripLastIn = text
+    _stripLastOut = out
+    return out
 }
 
 /**
@@ -623,17 +213,20 @@ function checkSpaceBeforePunctuation(event: AssEvent, index: number): QcIssue | 
 
 function checkMissingSpaceAfterPunctuation(event: AssEvent, index: number): QcIssue | null {
     const text = stripOverrideTags(event.Text)
-    const hasMissing = /[.,!?][A-Za-zÀ-ÿ]/.test(text) && !/\d[.,]\d/.test(text)
+    const hasMissing = /[.,!?][A-Za-zÀ-ÿ]/.test(text)
 
     if (hasMissing) {
         const fixed = fixOutsideTags(event.Text, t => {
-            return t.replace(/([.,!?])([A-Za-zÀ-ÿ])/g, (match, punct, letter) => {
-                const idx = t.indexOf(match)
-                if (idx > 0 && /\d/.test(t[idx - 1]) && (punct === "." || punct === ",")) {
-                    return match
+            return t.replace(
+                /([.,!?])([A-Za-zÀ-ÿ])/g,
+                (match: string, punct: string, letter: string, offset: number) => {
+                    // Per-match check: leave decimal numbers like 3.5 or 1,000 alone
+                    if ((punct === "." || punct === ",") && offset > 0 && /\d/.test(t[offset - 1])) {
+                        return match
+                    }
+                    return `${punct} ${letter}`
                 }
-                return `${punct} ${letter}`
-            })
+            )
         })
 
         if (fixed !== event.Text) {
@@ -704,23 +297,47 @@ function checkSplitDialogOnOneLine(event: AssEvent, index: number): QcIssue | nu
     // Only process single-line subtitles
     if (lines.length !== 1) return null
 
-    const text = stripOverrideTags(event.Text)
+    // Build the visible text while recording where each visible character lives in
+    // the ORIGINAL string, so we can insert \N without destroying mid-line tags.
+    let stripped = ""
+    const offsetMap: number[] = []
+    let inTag = false
+    for (let i = 0; i < event.Text.length; i++) {
+        const ch = event.Text[i]
+        if (ch === "{") {
+            inTag = true
+            continue
+        }
+        if (ch === "}") {
+            inTag = false
+            continue
+        }
+        if (!inTag) {
+            offsetMap.push(i)
+            stripped += ch
+        }
+    }
+
     // Pattern: "- text - text" on a single line (two speakers)
     // Match starts with dash, followed by text, then space, then second speaker starting with dash
-    const dialogMatch = text.match(/^([-–—])\s*(.+?)\s+([-–—]\s+.+)/)
-    if (!dialogMatch) return null
+    const dialogMatch = stripped.match(/^([-–—])\s*(.+?)\s+([-–—]\s+.+)/)
+    if (!dialogMatch || dialogMatch.index === undefined) return null
 
-    const firstDash = dialogMatch[1]
-    const firstText = dialogMatch[2]
-    const secondSpeaker = dialogMatch[3]
+    // Group 3 always ends the match, so its start is exact
+    const splitIdxInStripped = dialogMatch.index + dialogMatch[0].length - dialogMatch[3].length
+    const dashIdxOriginal = offsetMap[splitIdxInStripped]
+    if (dashIdxOriginal === undefined) return null
 
-    // Construct the parts
-    const firstPart = `${firstDash} ${firstText}`
-    const secondPart = secondSpeaker
+    // Cut the separator whitespace before the second dash so neither half keeps it
+    let firstPartEnd = dashIdxOriginal
+    while (firstPartEnd > 0 && /\s/.test(event.Text.charAt(firstPartEnd - 1))) {
+        firstPartEnd--
+    }
 
-    // Preserve any leading override tags
-    const tagPrefix = event.Text.match(/^((?:\{[^}]*\})*)/)?.[1] || ""
-    const fixed = tagPrefix + firstPart + "\\N" + secondPart
+    // Split at the second speaker's dash; all override tags stay exactly where they are
+    const fixed = event.Text.slice(0, firstPartEnd) + "\\N" + event.Text.slice(dashIdxOriginal)
+
+    if (fixed === event.Text) return null
 
     return {
         id: `splitdlg-${index}`,
@@ -915,24 +532,27 @@ function checkLineBreakIssues(event: AssEvent, index: number): QcIssue | null {
     return null
 }
 
+// Precompiled once — this rule runs for every tag block of every event
+const TOGGLE_TAG_REGEXES = ["b", "i", "u", "s"].map(tag => ({
+    tag,
+    open: new RegExp(`\\\\${tag}1`),
+    close: new RegExp(`\\\\${tag}0`)
+}))
+
 function checkUnmatchedTags(event: AssEvent, index: number): QcIssue | null {
     const text = event.Text
     const tagBlocks = text.match(/\{[^}]*\}/g)
     if (!tagBlocks) return null
 
-    const toggleTags = ["b", "i", "u", "s"]
     const openTags: string[] = []
 
     for (const block of tagBlocks) {
         const inner = block.slice(1, -1)
-        for (const tag of toggleTags) {
-            const openRe = new RegExp(`\\\\${tag}1`)
-            const closeRe = new RegExp(`\\\\${tag}0`)
-
-            if (openRe.test(inner)) {
+        for (const { tag, open, close } of TOGGLE_TAG_REGEXES) {
+            if (open.test(inner)) {
                 openTags.push(tag)
             }
-            if (closeRe.test(inner)) {
+            if (close.test(inner)) {
                 const idx = openTags.lastIndexOf(tag)
                 if (idx !== -1) {
                     openTags.splice(idx, 1)
@@ -1152,6 +772,8 @@ function checkMusicNotation(event: AssEvent, index: number): QcIssue | null {
         const fixed = fixOutsideTags(event.Text, t => {
             return t.replace(/^[#*]\s*/g, "♪ ").replace(/\s*[#*]$/g, " ♪")
         })
+        // Guard against detection firing while the anchored fix is a no-op
+        if (fixed === event.Text) return null
         return {
             id: `music-${index}`,
             lineIndex: index,
@@ -1284,14 +906,17 @@ function checkNormalizeStrings(event: AssEvent, index: number): QcIssue | null {
     const text = event.Text
     const hasGarbledCombo = /[!?]{2,}/.test(text) || /[\u200E\u200F\u202A-\u202E]/.test(text)
     if (hasGarbledCombo) {
-        const fixed = text
-            .replace(/\u200E|\u200F|[\u202A-\u202E]/g, "")
-            .replace(/!\?!/g, "!?")
-            .replace(/\?!\?/g, "?!")
-            .replace(/\?!+/g, "?!")
-            .replace(/!\?+/g, "!?")
-            .replace(/\?{3,}/g, "???")
-            .replace(/!{3,}/g, "!!!")
+        // Only rewrite visible text — never edit inside override tag blocks
+        const fixed = fixOutsideTags(text, t =>
+            t
+                .replace(/\u200E|\u200F|[\u202A-\u202E]/g, "")
+                .replace(/!\?!/g, "!?")
+                .replace(/\?!\?/g, "?!")
+                .replace(/\?!+/g, "?!")
+                .replace(/!\?+/g, "!?")
+                .replace(/\?{3,}/g, "???")
+                .replace(/!{3,}/g, "!!!")
+        )
         if (fixed !== text) {
             return {
                 id: `normstr-${index}`,
@@ -1332,13 +957,17 @@ function checkTurkishAnsi(event: AssEvent, index: number): QcIssue | null {
     const text = event.Text
     const needsFix = /[ÝýþÞðÐ]/.test(text)
     if (needsFix) {
-        const fixed = text
-            .replace(/Ý/g, "İ")
-            .replace(/ý/g, "ı")
-            .replace(/þ/g, "ş")
-            .replace(/Þ/g, "Ş")
-            .replace(/ð/g, "ğ")
-            .replace(/Ð/g, "Ğ")
+        // Only rewrite visible text — a font name like {\fnÝstanbul} must stay intact
+        const fixed = fixOutsideTags(text, t =>
+            t
+                .replace(/Ý/g, "İ")
+                .replace(/ý/g, "ı")
+                .replace(/þ/g, "ş")
+                .replace(/Þ/g, "Ş")
+                .replace(/ð/g, "ğ")
+                .replace(/Ð/g, "Ğ")
+        )
+        if (fixed === text) return null
         return {
             id: `turkansi-${index}`,
             lineIndex: index,
@@ -1553,6 +1182,7 @@ function appendToVisibleText(text: string, char: string): string {
  * Format milliseconds as a readable timestamp string for display.
  */
 function formatMs(ms: number): string {
+    ms = Math.max(0, Math.round(ms))
     const h = Math.floor(ms / 3_600_000)
     const m = Math.floor((ms % 3_600_000) / 60_000)
     const s = Math.floor((ms % 60_000) / 1000)
@@ -1761,18 +1391,17 @@ export function runQualityCheck(track: AssTrack, options: QcOptions = DEFAULT_QC
         }
     }
 
-    // Check overlapping times and short gaps (requires sorted Dialogue events)
+    // Check overlapping times and short gaps — MUST be run on Dialogue events
+    // sorted by start time; file order interleaves signs/layers arbitrarily.
     if (enabled.has("fix-overlapping-times") || enabled.has("fix-short-gaps")) {
-        const sortedDialogueIndices: number[] = []
-        for (let i = 0; i < track.events.length; i++) {
-            if (track.events[i].type === "Dialogue") {
-                sortedDialogueIndices.push(i)
-            }
-        }
+        const sortedDialogue = track.events
+            .map((event, idx) => ({ event, idx }))
+            .filter(x => x.event.type === "Dialogue")
+            .sort((a, b) => a.event.Start - b.event.Start || a.event.End - b.event.End)
 
-        for (let j = 0; j < sortedDialogueIndices.length - 1; j++) {
-            const idx = sortedDialogueIndices[j]
-            const tempEvents = [track.events[sortedDialogueIndices[j]], track.events[sortedDialogueIndices[j + 1]]]
+        for (let j = 0; j < sortedDialogue.length - 1; j++) {
+            const { idx } = sortedDialogue[j]
+            const tempEvents = [sortedDialogue[j].event, sortedDialogue[j + 1].event]
 
             if (enabled.has("fix-overlapping-times")) {
                 const issue = checkOverlappingTimes(tempEvents, 0)
@@ -1798,19 +1427,29 @@ export function runQualityCheck(track: AssTrack, options: QcOptions = DEFAULT_QC
         }
     }
 
-    // Apply auto-fixes to the cloned track
+    // Apply auto-fixes to the cloned track.
+    // Every issue's `fixed` string was computed against the ORIGINAL line text, so
+    // applying a second issue's fix would overwrite (and undo) the first one.
+    // Only the first reported fixable issue per line is applied safely.
     const indicesToRemove = new Set<number>()
+    const linesWithAppliedFix = new Set<number>()
+    let appliedFixCount = 0
 
     for (const issue of issues) {
         if (issue.fixed === null) continue
 
         if (issue.ruleId === "remove-empty-lines" && issue.fixed === "") {
-            indicesToRemove.add(issue.lineIndex)
-        } else if (issue.fixed !== null) {
+            if (!indicesToRemove.has(issue.lineIndex)) {
+                indicesToRemove.add(issue.lineIndex)
+                appliedFixCount++
+            }
+        } else if (!linesWithAppliedFix.has(issue.lineIndex)) {
             fixedTrack.events[issue.lineIndex] = {
                 ...fixedTrack.events[issue.lineIndex],
                 Text: issue.fixed
             }
+            linesWithAppliedFix.add(issue.lineIndex)
+            appliedFixCount++
         }
     }
 
@@ -1824,7 +1463,8 @@ export function runQualityCheck(track: AssTrack, options: QcOptions = DEFAULT_QC
         warnings: issues.filter(i => i.severity === "warning").length,
         info: issues.filter(i => i.severity === "info").length,
         total: issues.length,
-        fixable: issues.filter(i => i.fixed !== null).length
+        // Only count fixes that actually landed on the track
+        fixable: appliedFixCount
     }
 
     return { issues, fixedTrack, stats }

@@ -9,27 +9,10 @@ import {
     type YttWindowStyle,
     type YttSpan
 } from "../ytt-writer"
+import { DEFAULT_YTT_OPTIONS, type YttExportOptions } from "../export-options"
 
-export interface YttExportOptions {
-    /** Background box opacity override: 0 = use style-derived value, >0 = force this opacity on all pens (default: 0) */
-    wfo: number
-    /** Convert pure white (#FFFFFF) to off-white (#FEFEFE) for YouTube Android compatibility (default: true) */
-    useOffWhite: boolean
-    /** Convert ASS \k karaoke tags to inline timed spans <s> (default: true) */
-    convertKaraoke: boolean
-    /** Convert ASS alignment (\an) and position (\pos) tags to window positions <wp> (default: true) */
-    convertPositioning: boolean
-    /** Apply YouTube player enhancement workarounds (italic prefetch, dark text hack, etc.) per YTSubConverter (default: true) */
-    applyEnhancements: boolean
-}
-
-export const DEFAULT_YTT_OPTIONS: YttExportOptions = {
-    wfo: 0,
-    useOffWhite: true,
-    convertKaraoke: true,
-    convertPositioning: true,
-    applyEnhancements: true
-}
+export { DEFAULT_YTT_OPTIONS }
+export type { YttExportOptions }
 
 // ─── Reference Resolution ────────────────────────────────────────────────────
 // YTSubConverter uses a fixed 1280×720 reference resolution for all coordinate

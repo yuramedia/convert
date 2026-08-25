@@ -9,7 +9,7 @@ export default function NotFoundContent() {
                 <Layers size={18} className="text-white" />
             </div>
             <div className="space-y-2">
-                <h2 className="text-5xl font-extrabold tracking-tight text-zinc-50">404</h2>
+                <h1 className="text-5xl font-extrabold tracking-tight text-zinc-50">404</h1>
                 <p className="text-sm text-zinc-500">Page not found.</p>
             </div>
             <a

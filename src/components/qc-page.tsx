@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useMemo } from "react"
 import {
     ShieldCheck,
     Upload,
@@ -20,12 +20,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { parseAss, type AssTrack } from "@/lib/ass-parser"
-import { parseSrt } from "@/lib/srt-parser"
-import { writeAss } from "@/lib/ass-writer"
-import { writeSrt, type SrtEntry } from "@/lib/srt-writer"
+import type { AssTrack } from "@/lib/ass-parser"
+import type { SrtEntry } from "@/lib/srt-writer"
+// Rule metadata is dependency-free; the analysis engine itself is dynamically
+// imported at point-of-use (loadFile / handleRerun) to keep the island lean.
 import {
-    runQualityCheck,
     QC_RULES,
     DEFAULT_QC_OPTIONS,
     type QcIssue,
@@ -33,7 +32,7 @@ import {
     type QcOptions,
     type QcCategory,
     type QcSeverity
-} from "@/lib/qc-engine"
+} from "@/lib/qc-rules"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -74,6 +73,9 @@ const CATEGORY_LABELS: Record<QcCategory, string> = {
     casing: "Casing"
 }
 
+/** O(1) rule lookups for rendered rows (instead of Array.find per row per render) */
+const QC_RULES_MAP = new Map(QC_RULES.map(r => [r.id, r]))
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function QcPage() {
@@ -94,8 +96,16 @@ export default function QcPage() {
 
     const loadFile = useCallback(
         async (rawFile: File) => {
+            if (isLoading) return
             setIsLoading(true)
             try {
+                // Engine + parsers are loaded on demand
+                const [{ parseAss }, { parseSrt }, { runQualityCheck }] = await Promise.all([
+                    import("@/lib/ass-parser"),
+                    import("@/lib/srt-parser"),
+                    import("@/lib/qc-engine")
+                ])
+
                 const text = await rawFile.text()
                 const isSrt = /\.srt$/i.test(rawFile.name)
                 const track = isSrt ? parseSrt(text) : parseAss(text)
@@ -107,13 +117,14 @@ export default function QcPage() {
                 const qcResult = runQualityCheck(track, options)
                 setResult(qcResult)
                 setExcludedIssues(new Set())
-            } catch {
+            } catch (err) {
+                console.error("Failed to load subtitle file:", err)
                 alert(`Failed to parse "${rawFile.name}". Please ensure it's a valid subtitle file.`)
             } finally {
                 setIsLoading(false)
             }
         },
-        [options]
+        [options, isLoading]
     )
 
     const handleDrop = useCallback(
@@ -136,8 +147,9 @@ export default function QcPage() {
         [loadFile]
     )
 
-    const handleRerun = useCallback(() => {
+    const handleRerun = useCallback(async () => {
         if (!file) return
+        const { runQualityCheck } = await import("@/lib/qc-engine")
         const qcResult = runQualityCheck(file.track, options)
         setResult(qcResult)
         setExcludedIssues(new Set())
@@ -177,7 +189,7 @@ export default function QcPage() {
 
     // ─── Download Fixed File ─────────────────────────────────────────────────
 
-    const handleDownload = useCallback(() => {
+    const handleDownload = useCallback(async () => {
         if (!result || !file) return
 
         // Apply only non-excluded fixes
@@ -186,6 +198,7 @@ export default function QcPage() {
         let ext: string
 
         if (file.format === "srt") {
+            const { writeSrt } = await import("@/lib/srt-writer")
             // Convert AssTrack events to SrtEntry[]
             const entries: SrtEntry[] = fixedTrack.events
                 .filter(e => e.type === "Dialogue")
@@ -198,6 +211,7 @@ export default function QcPage() {
             output = writeSrt(entries)
             ext = "srt"
         } else {
+            const { writeAss } = await import("@/lib/ass-writer")
             output = writeAss(fixedTrack)
             ext = "ass"
         }
@@ -216,16 +230,29 @@ export default function QcPage() {
 
     // ─── Filtered issues ─────────────────────────────────────────────────────
 
-    const filteredIssues = result
-        ? result.issues.filter(issue => {
-              if (filterSeverity !== "all" && issue.severity !== filterSeverity) return false
-              if (filterCategory !== "all" && issue.category !== filterCategory) return false
-              return true
-          })
-        : []
+    const filteredIssues = useMemo(
+        () =>
+            result
+                ? result.issues.filter(issue => {
+                      if (filterSeverity !== "all" && issue.severity !== filterSeverity) return false
+                      if (filterCategory !== "all" && issue.category !== filterCategory) return false
+                      return true
+                  })
+                : [],
+        [result, filterSeverity, filterCategory]
+    )
 
     const pageSize = 50
     const totalPages = Math.ceil(filteredIssues.length / pageSize) || 1
+
+    // Reset to page 1 whenever the filters change so we never show a blank page
+    const [lastFilterKey, setLastFilterKey] = useState(`${filterSeverity}|${filterCategory}`)
+    const filterKey = `${filterSeverity}|${filterCategory}`
+    if (filterKey !== lastFilterKey) {
+        setLastFilterKey(filterKey)
+        setPage(1)
+    }
+
     const visibleIssues = filteredIssues.slice((page - 1) * pageSize, page * pageSize)
 
     // ─── Render ──────────────────────────────────────────────────────────────
@@ -236,7 +263,7 @@ export default function QcPage() {
             <div className="flex justify-between items-center">
                 <a
                     href="/"
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-450 hover:text-blue-500 hover:border-blue-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-blue-500 hover:border-blue-500/30 transition-all bg-zinc-950/50 hover:bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800/80 shadow-sm"
                 >
                     <ArrowLeft size={14} />
                     Back to Converter
@@ -329,6 +356,7 @@ export default function QcPage() {
                                     variant="ghost"
                                     size="icon-sm"
                                     onClick={() => setShowSettings(!showSettings)}
+                                    aria-label="Toggle rule settings"
                                     title="Settings"
                                 >
                                     <Settings2 size={14} />
@@ -337,11 +365,18 @@ export default function QcPage() {
                                     variant="ghost"
                                     size="icon-sm"
                                     onClick={handleRerun}
+                                    aria-label="Re-run quality check"
                                     title="Re-run quality check"
                                 >
                                     <RotateCcw size={14} />
                                 </Button>
-                                <Button variant="ghost" size="icon-sm" onClick={handleClear} title="Clear">
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={handleClear}
+                                    aria-label="Clear loaded file"
+                                    title="Clear"
+                                >
                                     <X size={14} />
                                 </Button>
                             </div>
@@ -451,7 +486,10 @@ export default function QcPage() {
                                     value={result.stats.errors}
                                     color="text-red-400"
                                     bg="bg-red-500/5"
-                                    onClick={() => setFilterSeverity(filterSeverity === "error" ? "all" : "error")}
+                                    onClick={() => {
+                                        setFilterSeverity(filterSeverity === "error" ? "all" : "error")
+                                        setPage(1)
+                                    }}
                                     active={filterSeverity === "error"}
                                 />
                                 <StatCard
@@ -459,7 +497,10 @@ export default function QcPage() {
                                     value={result.stats.warnings}
                                     color="text-amber-400"
                                     bg="bg-amber-500/5"
-                                    onClick={() => setFilterSeverity(filterSeverity === "warning" ? "all" : "warning")}
+                                    onClick={() => {
+                                        setFilterSeverity(filterSeverity === "warning" ? "all" : "warning")
+                                        setPage(1)
+                                    }}
                                     active={filterSeverity === "warning"}
                                 />
                                 <StatCard
@@ -467,7 +508,10 @@ export default function QcPage() {
                                     value={result.stats.info}
                                     color="text-blue-400"
                                     bg="bg-blue-500/5"
-                                    onClick={() => setFilterSeverity(filterSeverity === "info" ? "all" : "info")}
+                                    onClick={() => {
+                                        setFilterSeverity(filterSeverity === "info" ? "all" : "info")
+                                        setPage(1)
+                                    }}
                                     active={filterSeverity === "info"}
                                 />
                                 <StatCard
@@ -507,7 +551,7 @@ export default function QcPage() {
                                     )}
                                 </div>
                                 <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-550">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                                         Show Diff:
                                     </span>
                                     <Switch size="sm" checked={showDiff} onCheckedChange={setShowDiff} />
@@ -701,7 +745,7 @@ function IssueRow({
     onToggle: () => void
 }) {
     const sev = SEVERITY_CONFIG[issue.severity]
-    const rule = QC_RULES.find(r => r.id === issue.ruleId)
+    const rule = QC_RULES_MAP.get(issue.ruleId)
 
     return (
         <tr
@@ -715,6 +759,7 @@ function IssueRow({
                         type="checkbox"
                         checked={!excluded}
                         onChange={onToggle}
+                        aria-label={`Apply fix: ${issue.message}`}
                         className="w-3.5 h-3.5 rounded accent-emerald-500 cursor-pointer"
                     />
                 ) : (
@@ -760,7 +805,7 @@ function IssueRow({
                             </>
                         ) : (
                             <div className="flex items-start gap-2">
-                                <span className="text-[10px] font-bold text-zinc-550 w-7 shrink-0 pt-0.5">LINE</span>
+                                <span className="text-[10px] font-bold text-zinc-600 w-7 shrink-0 pt-0.5">LINE</span>
                                 <code className="text-[11px] font-mono text-zinc-400 bg-zinc-900/40 px-2 py-0.5 rounded break-all leading-relaxed">
                                     {displayText(issue.original)}
                                 </code>
@@ -797,19 +842,23 @@ function applySelectiveFixes(originalTrack: AssTrack, issues: QcIssue[], exclude
     }
 
     const indicesToRemove = new Set<number>()
+    const linesWithAppliedFix = new Set<number>()
 
-    // Apply non-excluded fixes
+    // Apply non-excluded fixes.
+    // Mirrors the engine: each issue's `fixed` was computed against the ORIGINAL
+    // line, so only the first reported fix per line can be applied safely.
     for (const issue of issues) {
         if (issue.fixed === null) continue
         if (excluded.has(issue.id)) continue
 
         if (issue.ruleId === "remove-empty-lines" && issue.fixed === "") {
             indicesToRemove.add(issue.lineIndex)
-        } else {
+        } else if (!linesWithAppliedFix.has(issue.lineIndex)) {
             track.events[issue.lineIndex] = {
                 ...track.events[issue.lineIndex],
                 Text: issue.fixed
             }
+            linesWithAppliedFix.add(issue.lineIndex)
         }
     }
 

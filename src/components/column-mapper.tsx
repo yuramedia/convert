@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { type ColumnMapping, type SpreadsheetPreview } from "@/lib/spreadsheet-parser"
+import { getColumnLetter } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,10 +15,51 @@ interface ColumnMapperProps {
     onConfirm: (mapping: ColumnMapping, hasHeader: boolean, fps: number) => void
 }
 
+const SELECT_CLASS =
+    "w-full h-9 rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+
+interface MappingSelectProps {
+    id: string
+    label: React.ReactNode
+    value: number
+    onChange: (value: string) => void
+    noneLabel: string
+    headers: string[]
+    disabled?: boolean
+}
+
+function MappingSelect({ id, label, value, onChange, noneLabel, headers, disabled = false }: MappingSelectProps) {
+    return (
+        <div className="space-y-1.5">
+            <label
+                htmlFor={id}
+                className="text-xs font-bold text-zinc-400 uppercase tracking-wide flex items-center justify-between"
+            >
+                {label}
+            </label>
+            <select
+                id={id}
+                value={value}
+                disabled={disabled}
+                onChange={e => onChange(e.target.value)}
+                className={SELECT_CLASS}
+            >
+                <option value="-1">{noneLabel}</option>
+                {headers.map((h, idx) => (
+                    <option key={idx} value={idx}>
+                        Column {getColumnLetter(idx)}: {h}
+                    </option>
+                ))}
+            </select>
+        </div>
+    )
+}
+
 export default function ColumnMapper({ preview, fileName, onCancel, onConfirm }: ColumnMapperProps) {
     const [mapping, setMapping] = useState<ColumnMapping>({ ...preview.autoMapping })
     const [hasHeader, setHasHeader] = useState(true)
-    const [fps, setFps] = useState(23.976)
+    // Kept as raw text so clearing/mid-typing states don't snap back to a preset value
+    const [fpsText, setFpsText] = useState("23.976")
 
     const handleSelectChange = (field: keyof ColumnMapping, value: string) => {
         const idx = parseInt(value, 10)
@@ -29,11 +71,9 @@ export default function ColumnMapper({ preview, fileName, onCancel, onConfirm }:
             alert("Please select a column for the Subtitle Text field.")
             return
         }
-        onConfirm(mapping, hasHeader, fps)
+        const fps = parseFloat(fpsText)
+        onConfirm(mapping, hasHeader, Number.isFinite(fps) && fps > 0 ? fps : 23.976)
     }
-
-    // Helper to generate letter coordinates (A, B, C...)
-    const getColLetter = (index: number) => String.fromCharCode(65 + index)
 
     return (
         <Card className="w-full bg-zinc-950 border-zinc-800 animate-in fade-in slide-in-from-bottom-2 duration-300 shadow-xl">
@@ -46,149 +86,96 @@ export default function ColumnMapper({ preview, fileName, onCancel, onConfirm }:
             <CardContent className="p-6 space-y-8">
                 {/* Column Mappers */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {/* Subtitle Text (Required) */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide flex items-center justify-between">
-                            Subtitle Text{" "}
-                            <span className="text-[10px] text-red-500 font-medium normal-case font-mono">
-                                *required
-                            </span>
-                        </label>
-                        <select
-                            value={mapping.text}
-                            onChange={e => handleSelectChange("text", e.target.value)}
-                            className="w-full h-9 rounded-md border border-zinc-850 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors"
-                        >
-                            <option value="-1">-- Select Column --</option>
-                            {preview.headers.map((h, idx) => (
-                                <option key={idx} value={idx}>
-                                    Column {getColLetter(idx)}: {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <MappingSelect
+                        id="map-text"
+                        label={
+                            <>
+                                Subtitle Text{" "}
+                                <span className="text-[10px] text-red-500 font-medium normal-case font-mono">
+                                    *required
+                                </span>
+                            </>
+                        }
+                        value={mapping.text}
+                        onChange={v => handleSelectChange("text", v)}
+                        noneLabel="-- Select Column --"
+                        headers={preview.headers}
+                    />
 
-                    {/* Start Time */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">Start Time</label>
-                        <select
-                            value={mapping.start}
-                            onChange={e => handleSelectChange("start", e.target.value)}
-                            className="w-full h-9 rounded-md border border-zinc-850 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors"
-                        >
-                            <option value="-1">-- None (Auto-assign) --</option>
-                            {preview.headers.map((h, idx) => (
-                                <option key={idx} value={idx}>
-                                    Column {getColLetter(idx)}: {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <MappingSelect
+                        id="map-start"
+                        label="Start Time"
+                        value={mapping.start}
+                        onChange={v => handleSelectChange("start", v)}
+                        noneLabel="-- None (Auto-assign) --"
+                        headers={preview.headers}
+                    />
 
-                    {/* End Time */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">End Time</label>
-                        <select
-                            value={mapping.end}
-                            disabled={mapping.duration !== -1}
-                            onChange={e => handleSelectChange("end", e.target.value)}
-                            className="w-full h-9 rounded-md border border-zinc-850 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <option value="-1">-- None (Use Duration/Auto) --</option>
-                            {preview.headers.map((h, idx) => (
-                                <option key={idx} value={idx}>
-                                    Column {getColLetter(idx)}: {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <MappingSelect
+                        id="map-end"
+                        label="End Time"
+                        value={mapping.end}
+                        disabled={mapping.duration !== -1}
+                        onChange={v => handleSelectChange("end", v)}
+                        noneLabel="-- None (Use Duration/Auto) --"
+                        headers={preview.headers}
+                    />
 
-                    {/* Duration */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">Duration</label>
-                        <select
-                            value={mapping.duration}
-                            disabled={mapping.end !== -1}
-                            onChange={e => handleSelectChange("duration", e.target.value)}
-                            className="w-full h-9 rounded-md border border-zinc-850 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <option value="-1">-- None (Use End Time) --</option>
-                            {preview.headers.map((h, idx) => (
-                                <option key={idx} value={idx}>
-                                    Column {getColLetter(idx)}: {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <MappingSelect
+                        id="map-duration"
+                        label="Duration"
+                        value={mapping.duration}
+                        disabled={mapping.end !== -1}
+                        onChange={v => handleSelectChange("duration", v)}
+                        noneLabel="-- None (Use End Time) --"
+                        headers={preview.headers}
+                    />
 
-                    {/* Style */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
-                            Subtitle Style
-                        </label>
-                        <select
-                            value={mapping.style}
-                            onChange={e => handleSelectChange("style", e.target.value)}
-                            className="w-full h-9 rounded-md border border-zinc-850 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors"
-                        >
-                            <option value="-1">-- None (Default style) --</option>
-                            {preview.headers.map((h, idx) => (
-                                <option key={idx} value={idx}>
-                                    Column {getColLetter(idx)}: {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <MappingSelect
+                        id="map-style"
+                        label="Subtitle Style"
+                        value={mapping.style}
+                        onChange={v => handleSelectChange("style", v)}
+                        noneLabel="-- None (Default style) --"
+                        headers={preview.headers}
+                    />
 
-                    {/* Actor */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
-                            Actor / Speaker
-                        </label>
-                        <select
-                            value={mapping.actor}
-                            onChange={e => handleSelectChange("actor", e.target.value)}
-                            className="w-full h-9 rounded-md border border-zinc-850 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors"
-                        >
-                            <option value="-1">-- None --</option>
-                            {preview.headers.map((h, idx) => (
-                                <option key={idx} value={idx}>
-                                    Column {getColLetter(idx)}: {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <MappingSelect
+                        id="map-actor"
+                        label="Actor / Speaker"
+                        value={mapping.actor}
+                        onChange={v => handleSelectChange("actor", v)}
+                        noneLabel="-- None --"
+                        headers={preview.headers}
+                    />
 
-                    {/* Layer */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">Layer</label>
-                        <select
-                            value={mapping.layer}
-                            onChange={e => handleSelectChange("layer", e.target.value)}
-                            className="w-full h-9 rounded-md border border-zinc-850 bg-zinc-900/50 px-3 py-1 text-sm text-zinc-100 shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-colors"
-                        >
-                            <option value="-1">-- None (Layer 0) --</option>
-                            {preview.headers.map((h, idx) => (
-                                <option key={idx} value={idx}>
-                                    Column {getColLetter(idx)}: {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <MappingSelect
+                        id="map-layer"
+                        label="Layer"
+                        value={mapping.layer}
+                        onChange={v => handleSelectChange("layer", v)}
+                        noneLabel="-- None (Layer 0) --"
+                        headers={preview.headers}
+                    />
 
                     {/* FPS */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
+                        <label
+                            htmlFor="map-fps"
+                            className="text-xs font-bold text-zinc-400 uppercase tracking-wide flex items-center justify-between"
+                        >
                             System FPS{" "}
                             <span className="text-[10px] text-zinc-600 font-medium normal-case">
                                 (for frame timings)
                             </span>
                         </label>
                         <Input
+                            id="map-fps"
                             type="number"
                             step="any"
-                            value={fps}
-                            onChange={e => setFps(parseFloat(e.target.value) || 23.976)}
+                            min={0.001}
+                            value={fpsText}
+                            onChange={e => setFpsText(e.target.value)}
                             className="h-9"
                         />
                     </div>
@@ -223,7 +210,7 @@ export default function ColumnMapper({ preview, fileName, onCancel, onConfirm }:
                                         Row
                                     </th>
                                     {preview.headers.map((h, idx) => {
-                                        const colLetter = getColLetter(idx)
+                                        const colLetter = getColumnLetter(idx)
                                         const isMappedText = mapping.text === idx
                                         const isMappedStart = mapping.start === idx
                                         const isMappedEnd = mapping.end === idx
@@ -278,7 +265,7 @@ export default function ColumnMapper({ preview, fileName, onCancel, onConfirm }:
                                         key={rowIdx}
                                         className="border-b border-zinc-900/50 hover:bg-zinc-900/10 last:border-0"
                                     >
-                                        <td className="p-3 text-zinc-650 font-bold font-mono text-center bg-zinc-900/10 border-r border-zinc-900">
+                                        <td className="p-3 text-zinc-600 font-bold font-mono text-center bg-zinc-900/10 border-r border-zinc-900">
                                             {rowIdx + (hasHeader ? 2 : 1)}
                                         </td>
                                         {row.map((cell, cellIdx) => (

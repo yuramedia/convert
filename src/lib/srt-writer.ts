@@ -51,8 +51,7 @@ export function writeSrt(entries: SrtEntry[], addBom: boolean = false): string {
  * Ensures no duplicate lines are added, even if the input text contains multiple lines.
  */
 export function mergeduplicates(entries: SrtEntry[]): SrtEntry[] {
-    const merged: SrtEntry[] = []
-    const timeMap = new Map<string, { entry: SrtEntry; lines: Set<string> }>()
+    const timeMap = new Map<string, { entry: SrtEntry; lines: Set<string>; pendingLines: string[] }>()
 
     for (const entry of entries) {
         const key = `${entry.startMs}-${entry.endMs}`
@@ -65,18 +64,22 @@ export function mergeduplicates(entries: SrtEntry[]): SrtEntry[] {
         if (existing) {
             for (const line of newLines) {
                 if (!existing.lines.has(line)) {
-                    existing.entry.text += "\n" + line
+                    existing.pendingLines.push(line)
                     existing.lines.add(line)
                 }
             }
         } else {
-            const newEntry = { ...entry, index: merged.length + 1 }
-            merged.push(newEntry)
-            timeMap.set(key, { entry: newEntry, lines: new Set(newLines) })
+            const newEntry = { ...entry, index: 0 }
+            timeMap.set(key, { entry: newEntry, lines: new Set(newLines), pendingLines: [] })
         }
     }
 
-    return merged
+    // Join accumulated lines once per entry (avoids O(n²) string reallocation)
+    return [...timeMap.values()].map(({ entry, pendingLines }, i) => ({
+        ...entry,
+        index: i + 1,
+        text: pendingLines.length > 0 ? `${entry.text}\n${pendingLines.join("\n")}` : entry.text
+    }))
 }
 
 /**
