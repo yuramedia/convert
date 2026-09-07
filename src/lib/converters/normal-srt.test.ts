@@ -459,3 +459,100 @@ Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\an8}<i>Kita memang begini!\
         expect(srt).toContain("&lt;/i&gt;")
     })
 })
+
+// ─── keepAlignment ──────────────────────────────────────────────────────────
+
+describe("convertNormalSrt — keepAlignment", () => {
+    const ALIGNMENT_ASS = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: TopStyle,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,8,10,10,10,1
+Style: MidStyle,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,5,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Bottom dialogue
+Dialogue: 0,0:00:03.00,0:00:06.00,TopStyle,,0,0,0,,Top style text
+Dialogue: 0,0:00:06.00,0:00:09.00,Default,,0,0,0,,{\\an8}Inline top override
+Dialogue: 0,0:00:09.00,0:00:12.00,MidStyle,,0,0,0,,Middle style text
+Dialogue: 0,0:00:12.00,0:00:15.00,TopStyle,,0,0,0,,{\\an2}Override to bottom
+`
+
+    const track = parseAss(ALIGNMENT_ASS)
+
+    it("injects {\\an8} for top-aligned style when keepAlignment=true", () => {
+        const srt = convertNormalSrt(track, {
+            keepAlignment: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        expect(srt).toContain("{\\an8}Top style text")
+    })
+
+    it("does NOT inject {\\an2} for default bottom alignment", () => {
+        const srt = convertNormalSrt(track, {
+            keepAlignment: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        // Bottom dialogue should have no alignment tag prefix
+        expect(srt).toContain("Bottom dialogue")
+        expect(srt).not.toContain("{\\an2}Bottom dialogue")
+    })
+
+    it("uses inline \\an8 override instead of style default", () => {
+        const srt = convertNormalSrt(track, {
+            keepAlignment: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        // Default style is \\an2, but inline override is \\an8
+        expect(srt).toContain("{\\an8}Inline top override")
+    })
+
+    it("uses inline \\an2 override on top-style (no tag injected since \\an2 is default)", () => {
+        const srt = convertNormalSrt(track, {
+            keepAlignment: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        // TopStyle is \\an8, but inline override is \\an2 — so no tag injected
+        expect(srt).toContain("Override to bottom")
+        expect(srt).not.toContain("{\\an2}Override to bottom")
+        expect(srt).not.toContain("{\\an8}Override to bottom")
+    })
+
+    it("strips all alignment tags when keepAlignment=false (default)", () => {
+        const srt = convertNormalSrt(track, {
+            keepAlignment: false,
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        expect(srt).not.toContain("{\\an")
+    })
+
+    it("combines alignment tags with HTML formatting", () => {
+        const srt = convertNormalSrt(track, {
+            keepAlignment: true,
+            useHtmlTags: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        // TopStyle text should have alignment prepended to HTML-tagged output
+        expect(srt).toContain("{\\an8}Top style text")
+    })
+
+    it("injects {\\an5} for middle-aligned style", () => {
+        const srt = convertNormalSrt(track, {
+            keepAlignment: true,
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        expect(srt).toContain("{\\an5}Middle style text")
+    })
+})

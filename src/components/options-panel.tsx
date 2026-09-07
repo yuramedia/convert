@@ -481,7 +481,8 @@ export default function OptionsPanel({
                                     stripSigns: false,
                                     mergeDuplicates: true,
                                     stripEmptyLines: true,
-                                    uppercaseSigns: true
+                                    uppercaseSigns: true,
+                                    keepAlignment: false
                                 })
                             }
                         >
@@ -500,6 +501,19 @@ export default function OptionsPanel({
                             <Switch
                                 checked={normalOptions.useHtmlTags}
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, useHtmlTags: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Keep Alignment</FieldLabel>
+                                <FieldDescription>
+                                    Preserve \an alignment tags (e.g. \an8) from the .ass file in SRT output for
+                                    libass-compatible players (mpv, VLC).
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={normalOptions.keepAlignment ?? false}
+                                onCheckedChange={c => setNormalOptions({ ...normalOptions, keepAlignment: c })}
                             />
                         </Field>
                         <Field orientation="horizontal">

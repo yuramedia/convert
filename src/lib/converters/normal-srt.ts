@@ -23,6 +23,11 @@ export interface NormalSrtOptions {
     stripSigns?: boolean
     /** Convert sign/typesetting text to UPPERCASE. Default true. */
     uppercaseSigns?: boolean
+    /** Preserve \an alignment tags in SRT output. Default false.
+     *  When enabled, injects {\\anN} for non-default alignments
+     *  (from inline overrides or style defaults), matching .ass behavior.
+     *  Useful for libass-based players (mpv, VLC) that render ASS tags in SRT. */
+    keepAlignment?: boolean
     /** Enable Frame Gap & De-FrameGap timing adjustments. Default false. */
     enableFrameGap?: boolean
     /** Adjustment mode: 'both', 'frame-gap' (Min Gap), or 'de-framegap' (Snap). Default 'both'. */
@@ -41,10 +46,11 @@ export interface NormalSrtOptions {
 
 export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     useHtmlTags: true,
-    mergeDuplicates: true,
+    mergeDuplicates: false,
     stripEmptyLines: true,
     stripSigns: false,
-    uppercaseSigns: true,
+    uppercaseSigns: false,
+    keepAlignment: true,
     enableFrameGap: false,
     frameGapMode: "frame-gap",
     snapThreshold: 2,
@@ -55,6 +61,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
 }
 
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
+const ALIGN_TAGS = new Set(["an", "a"])
 /**
  * Regex patterns for style names that indicate typesetting.
  * - "sign", "typeset" match anywhere (catches TopSign, SignTS, etc.)
@@ -174,6 +181,15 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         text = text.trim()
         if (fullOptions.stripEmptyLines && !text) continue
 
+        // Inject {\anN} alignment tag when keepAlignment is enabled
+        if (fullOptions.keepAlignment) {
+            const alignment = resolveAlignment(segments, style)
+            // Only inject for non-default alignment (\an2 is the SRT/libass default)
+            if (alignment !== 2) {
+                text = `{\\an${alignment}}${text}`
+            }
+        }
+
         entries.push({
             index: entries.length + 1,
             startMs: event.Start,
@@ -263,4 +279,26 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
     entries = reindex(entries)
 
     return writeSrt(entries)
+}
+
+/**
+ * Resolve the effective alignment for an event.
+ * Checks inline override tags first (\an or \a), then falls back to the style default.
+ * Clamps to valid ASS numpad range 1-9 (same guard as keep-ts.ts).
+ */
+function resolveAlignment(segments: TextSegment[], style?: AssStyle): number {
+    // Check inline override tags
+    for (const seg of segments) {
+        if (seg.type !== "tags" || !seg.tags) continue
+        for (const tag of seg.tags) {
+            if (ALIGN_TAGS.has(tag.name.toLowerCase())) {
+                const val = parseInt(tag.value, 10)
+                if (val >= 1 && val <= 9) return val
+            }
+        }
+    }
+
+    // Fall back to style default
+    const rawAlignment = style?.Alignment ?? 2
+    return rawAlignment >= 1 && rawAlignment <= 9 ? rawAlignment : 2
 }
