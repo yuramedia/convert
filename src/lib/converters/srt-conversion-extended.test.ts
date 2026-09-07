@@ -105,7 +105,8 @@ describe("convertNormalSrt — ASS positioning/style tags stripped", () => {
         useHtmlTags: true,
         mergeDuplicates: false,
         stripEmptyLines: true,
-        uppercaseSigns: false
+        uppercaseSigns: false,
+        keepAlignment: false
     })
 
     it("strips \\pos, keeps text", () => {
@@ -239,7 +240,8 @@ describe("convertNormalSrt — extradata stripping", () => {
         useHtmlTags: true,
         mergeDuplicates: false,
         stripEmptyLines: true,
-        uppercaseSigns: false
+        uppercaseSigns: false,
+        keepAlignment: false
     })
 
     it("strips {=N} extradata blocks, keeps tag content", () => {

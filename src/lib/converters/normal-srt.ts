@@ -15,16 +15,17 @@ import { type SrtEntry, writeSrt, mergeduplicates, reindex } from "../srt-writer
 
 export interface NormalSrtOptions {
     useHtmlTags?: boolean
+    /** Merge consecutive identical subtitle lines. Default false. */
     mergeDuplicates?: boolean
     stripEmptyLines?: boolean
-    /** Strip typesetting/sign lines from output. Default true.
+    /** Strip typesetting/sign lines from output. Default false.
      *  Signs use \pos, \clip, etc. which SRT doesn't support,
      *  so they are useless in plain SRT. Use Keep-TS mode instead. */
     stripSigns?: boolean
-    /** Convert sign/typesetting text to UPPERCASE. Default true. */
+    /** Convert sign/typesetting text to UPPERCASE. Default false. */
     uppercaseSigns?: boolean
-    /** Preserve \an alignment tags in SRT output. Default false.
-     *  When enabled, injects {\\anN} for non-default alignments
+    /** Preserve \an alignment tags in SRT output. Default true.
+     *  When enabled, injects {\anN} for non-default alignments
      *  (from inline overrides or style defaults), matching .ass behavior.
      *  Useful for libass-based players (mpv, VLC) that render ASS tags in SRT. */
     keepAlignment?: boolean

@@ -420,13 +420,13 @@ Dialogue: 0,0:00:03.00,0:00:05.00,Sign,,0,0,0,,{\\pos(960,54)}This is a sign
 `)
 
     it("converts sign lines to uppercase when HTML tags are disabled", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: false })
+        const srt = convertNormalSrt(track, { useHtmlTags: false, uppercaseSigns: true })
         expect(srt).toContain("This is dialogue text")
         expect(srt).toContain("THIS IS A SIGN")
     })
 
     it("keeps sign line casing when HTML tags are enabled", () => {
-        const srt = convertNormalSrt(track, { useHtmlTags: true })
+        const srt = convertNormalSrt(track, { useHtmlTags: true, uppercaseSigns: true })
         expect(srt).toContain("This is dialogue text")
         expect(srt).toContain("This is a sign")
     })
@@ -527,13 +527,21 @@ Dialogue: 0,0:00:12.00,0:00:15.00,TopStyle,,0,0,0,,{\\an2}Override to bottom
         expect(srt).not.toContain("{\\an8}Override to bottom")
     })
 
-    it("strips all alignment tags when keepAlignment=false (default)", () => {
+    it("strips all alignment tags when keepAlignment=false", () => {
         const srt = convertNormalSrt(track, {
             keepAlignment: false,
             mergeDuplicates: false,
             stripEmptyLines: true
         })
         expect(srt).not.toContain("{\\an")
+    })
+
+    it("preserves alignment tags by default", () => {
+        const srt = convertNormalSrt(track, {
+            mergeDuplicates: false,
+            stripEmptyLines: true
+        })
+        expect(srt).toContain("{\\an8}Top style text")
     })
 
     it("combines alignment tags with HTML formatting", () => {
