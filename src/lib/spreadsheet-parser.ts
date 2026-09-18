@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx-js-style"
 import { type AssTrack, type AssEvent, type AssStyle } from "./ass-parser"
 import { getColumnLetter } from "./utils"
+import { htmlToAssTags } from "./srt-parser"
 
 export interface ColumnMapping {
     start: number // -1 if none
@@ -52,16 +53,28 @@ export function autoDetectColumns(headers: string[]): ColumnMapping {
             (h === "in" ||
                 h === "from" ||
                 h.includes("start") ||
-                h.includes("timecode") ||
                 h.includes("inpoint") ||
-                h.includes("timein"))
+                h.includes("timein") ||
+                h.includes("intime") ||
+                h.includes("timecodein") ||
+                h.includes("tcin") ||
+                (h.includes("timecode") && !h.includes("out") && !h.includes("end")) ||
+                (h.includes("tc") && !h.includes("out") && !h.includes("end") && h !== "etc"))
         ) {
             mapping.start = i
         }
         // End Time detection
         else if (
             mapping.end === -1 &&
-            (h === "out" || h === "to" || h.includes("end") || h.includes("outpoint") || h.includes("timeout"))
+            (h === "out" ||
+                h === "to" ||
+                h.includes("end") ||
+                h.includes("outpoint") ||
+                h.includes("timeout") ||
+                h.includes("outtime") ||
+                h.includes("timecodeout") ||
+                h.includes("tcout")) &&
+            !h.includes("strike")
         ) {
             mapping.end = i
         }
@@ -393,7 +406,7 @@ export function parseSpreadsheet(
             MarginR: 0,
             MarginV: 0,
             Effect: "",
-            Text: textVal.replace(/\r?\n/g, "\\N") // Normalize newlines to ASS format
+            Text: htmlToAssTags(textVal.replace(/\r?\n/g, "\\N")) // Normalize newlines & convert HTML tags to ASS
         })
     }
 
@@ -576,7 +589,7 @@ export function parseSpreadsheetSegment(
             MarginR: 0,
             MarginV: 0,
             Effect: "",
-            Text: textVal.replace(/\r?\n/g, "\\N")
+            Text: htmlToAssTags(textVal.replace(/\r?\n/g, "\\N"))
         })
     }
 

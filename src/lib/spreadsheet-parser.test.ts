@@ -6,6 +6,7 @@ import {
     getSpreadsheetPreview,
     parseSpreadsheet
 } from "./spreadsheet-parser"
+import { convertNormalSrt } from "./converters/normal-srt"
 
 describe("Spreadsheet Timestamp Parsing", () => {
     it("parses numbers correctly", () => {
@@ -76,6 +77,24 @@ describe("Spreadsheet Column Auto-detection", () => {
         expect(mapping.text).toBe(3)
         expect(mapping.actor).toBe(4)
     })
+
+    it("detects Timecode In and Timecode Out headers", () => {
+        const headers = ["No.", "Timecode In", "Timecode Out", "Subtitle"]
+        const mapping = autoDetectColumns(headers)
+
+        expect(mapping.start).toBe(1)
+        expect(mapping.end).toBe(2)
+        expect(mapping.text).toBe(3)
+    })
+
+    it("detects TC In and TC Out headers", () => {
+        const headers = ["Index", "TC In", "TC Out", "Text"]
+        const mapping = autoDetectColumns(headers)
+
+        expect(mapping.start).toBe(1)
+        expect(mapping.end).toBe(2)
+        expect(mapping.text).toBe(3)
+    })
 })
 
 describe("Spreadsheet Workbook Parsing Flow", () => {
@@ -137,5 +156,53 @@ describe("Spreadsheet Workbook Parsing Flow", () => {
         const styleNames = track.styles.map(s => s.Name)
         expect(styleNames).toContain("Default")
         expect(styleNames).toContain("ItalicStyle")
+    })
+})
+
+describe("Spreadsheet HTML Formatting in Subtitles", () => {
+    it("converts HTML tags (<i>, <b>, etc.) from spreadsheet cells to ASS tags and then clean SRT", () => {
+        const headers = ["No.", "Timecode In", "Timecode Out", "Subtitle"]
+        const mockData = [
+            headers,
+            ["1", "00:03:43.200", "00:03:44.200", "<i>二階堂…</i>"],
+            ["2", "00:03:44.700", "00:03:46.100", "<b>太字テキスト</b>"],
+            ["3", "00:03:46.560", "00:03:48.050", "Normal text with <i>inline</i> style"],
+            ["4", "00:03:55.260", "00:03:56.950", "よろしく、二階堂さん"]
+        ]
+
+        const worksheet = XLSX.utils.aoa_to_sheet(mockData)
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Subtitles")
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+
+        const mapping = autoDetectColumns(headers)
+        expect(mapping.start).toBe(1)
+        expect(mapping.end).toBe(2)
+        expect(mapping.text).toBe(3)
+
+        const track = parseSpreadsheet(excelBuffer, mapping, true)
+
+        // Verify ASS event text contains converted ASS tags, not raw HTML tags
+        expect(track.events[0].Text).toBe("{\\i1}二階堂…{\\i0}")
+        expect(track.events[1].Text).toBe("{\\b1}太字テキスト{\\b0}")
+        expect(track.events[2].Text).toBe("Normal text with {\\i1}inline{\\i0} style")
+        expect(track.events[3].Text).toBe("よろしく、二階堂さん")
+
+        // Verify conversion to Normal SRT with useHtmlTags=true produces clean HTML tags (not &lt;i&gt;)
+        const srtWithHtml = convertNormalSrt(track, { useHtmlTags: true })
+        expect(srtWithHtml).toContain("<i>二階堂…</i>")
+        expect(srtWithHtml).not.toContain("&lt;i&gt;")
+        expect(srtWithHtml).toContain("<b>太字テキスト</b>")
+        expect(srtWithHtml).not.toContain("&lt;b&gt;")
+        expect(srtWithHtml).toContain("Normal text with <i>inline</i> style")
+        expect(srtWithHtml).toContain("よろしく、二階堂さん")
+
+        // Verify conversion to Normal SRT with useHtmlTags=false strips formatting completely
+        const srtPlain = convertNormalSrt(track, { useHtmlTags: false })
+        expect(srtPlain).toContain("二階堂…")
+        expect(srtPlain).not.toContain("<i>")
+        expect(srtPlain).not.toContain("&lt;i&gt;")
+        expect(srtPlain).toContain("太字テキスト")
+        expect(srtPlain).not.toContain("<b>")
     })
 })

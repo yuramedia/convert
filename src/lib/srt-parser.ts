@@ -49,16 +49,24 @@ export function tryParseSrtTimestamp(str: string): number | null {
  */
 export function htmlToAssTags(text: string): string {
     return text
-        .replace(/<b>/gi, "{\\b1}")
-        .replace(/<\/b>/gi, "{\\b0}")
-        .replace(/<i>/gi, "{\\i1}")
-        .replace(/<\/i>/gi, "{\\i0}")
-        .replace(/<u>/gi, "{\\u1}")
-        .replace(/<\/u>/gi, "{\\u0}")
-        .replace(/<s>/gi, "{\\s1}")
-        .replace(/<\/s>/gi, "{\\s0}")
-        .replace(/<font[^>]*>/gi, "")
-        .replace(/<\/font>/gi, "")
+        .replace(/<\s*b(?:\s+[^>]*)?>/gi, "{\\b1}")
+        .replace(/<\/\s*b\s*>/gi, "{\\b0}")
+        .replace(/<\s*strong(?:\s+[^>]*)?>/gi, "{\\b1}")
+        .replace(/<\/\s*strong\s*>/gi, "{\\b0}")
+        .replace(/<\s*i(?:\s+[^>]*)?>/gi, "{\\i1}")
+        .replace(/<\/\s*i\s*>/gi, "{\\i0}")
+        .replace(/<\s*em(?:\s+[^>]*)?>/gi, "{\\i1}")
+        .replace(/<\/\s*em\s*>/gi, "{\\i0}")
+        .replace(/<\s*u(?:\s+[^>]*)?>/gi, "{\\u1}")
+        .replace(/<\/\s*u\s*>/gi, "{\\u0}")
+        .replace(/<\s*s(?:\s+[^>]*)?>/gi, "{\\s1}")
+        .replace(/<\/\s*s\s*>/gi, "{\\s0}")
+        .replace(/<\s*strike(?:\s+[^>]*)?>/gi, "{\\s1}")
+        .replace(/<\/\s*strike\s*>/gi, "{\\s0}")
+        .replace(/<\s*br\s*\/?>/gi, "\\N")
+        .replace(/<\s*font[^>]*>/gi, "")
+        .replace(/<\/\s*font\s*>/gi, "")
+        .replace(/&nbsp;/gi, "\\h")
 }
 
 // ─── SRT Cue interface ───────────────────────────────────────────────────────
