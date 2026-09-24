@@ -463,9 +463,8 @@ export default function OptionsPanel({
                                     YouTube SRT Preset
                                 </h4>
                                 <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                                    Applies optimal settings for YouTube SRT uploads (strips HTML tags since YouTube
-                                    renders them as literal text, auto-uppercases sign/typesetting lines, merges
-                                    duplicates).
+                                    Applies optimal settings for YouTube SRT uploads (enables HTML tags, auto-uppercases
+                                    sign/typesetting lines, merges duplicates).
                                 </p>
                             </div>
                         </div>
@@ -477,7 +476,7 @@ export default function OptionsPanel({
                             onClick={() =>
                                 setNormalOptions({
                                     ...normalOptions,
-                                    useHtmlTags: false,
+                                    useHtmlTags: true,
                                     stripSigns: false,
                                     mergeDuplicates: true,
                                     stripEmptyLines: true,
