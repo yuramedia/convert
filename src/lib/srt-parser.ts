@@ -67,6 +67,9 @@ export function htmlToAssTags(text: string): string {
         .replace(/<\s*font[^>]*>/gi, "")
         .replace(/<\/\s*font\s*>/gi, "")
         .replace(/&nbsp;/gi, "\\h")
+        .replace(/&amp;/gi, "&")
+        .replace(/&quot;/gi, '"')
+        .replace(/&(?:#39|apos);/gi, "'")
 }
 
 // ─── SRT Cue interface ───────────────────────────────────────────────────────

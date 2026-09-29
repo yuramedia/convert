@@ -23,6 +23,8 @@ import type { AssTrack } from "@/lib/ass-parser"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
+const CURRENT_YEAR = new Date().getFullYear()
+
 export default function Home() {
     const [files, setFiles] = useState<QueuedFile[]>([])
     const [mode, setMode] = useState<ConversionMode>("normal")
@@ -501,7 +503,7 @@ export default function Home() {
                     </a>
                 </div>
                 <a href="https://yuramedia.com" target="_blank" className="text-center text-[10px] text-zinc-500">
-                    &copy; {new Date().getFullYear()} Made with ❤️ by Yuramedia Link
+                    &copy; {CURRENT_YEAR} Made with ❤️ by Yuramedia Link
                 </a>
                 <p>No data uploaded. Privacy guaranteed.</p>
             </footer>

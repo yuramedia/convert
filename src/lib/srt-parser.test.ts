@@ -78,6 +78,11 @@ describe("htmlToAssTags", () => {
     it("returns plain text unchanged", () => {
         expect(htmlToAssTags("plain text")).toBe("plain text")
     })
+
+    it("decodes HTML entities like &amp;, &quot;, &apos;, &nbsp;", () => {
+        expect(htmlToAssTags("Findbp &amp; Yosua Adi")).toBe("Findbp & Yosua Adi")
+        expect(htmlToAssTags("&quot;Hello&quot; &amp; &apos;World&apos;")).toBe("\"Hello\" & 'World'")
+    })
 })
 
 // ─── parseSrtCues ────────────────────────────────────────────────────────────

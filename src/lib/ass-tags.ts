@@ -28,7 +28,7 @@ export interface TextSegment {
 }
 
 function escapeHtml(text: string): string {
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    return text.replace(/&amp;/gi, "&").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
 // ─── Tag definitions ─────────────────────────────────────────────────────────

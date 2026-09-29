@@ -287,7 +287,9 @@ describe("convertTagsToHtml", () => {
     it("handles \\N, \\n, \\h in text", () => {
         expect(convertTagsToHtml("A\\NB\\nC\\hD")).toBe("A\nB C\u00A0D")
     })
-    it("escapes literal HTML characters in text", () => {
-        expect(convertTagsToHtml("A & B < C > D")).toBe("A &amp; B &lt; C &gt; D")
+    it("escapes literal HTML tags in text while keeping ampersands intact", () => {
+        expect(convertTagsToHtml("A & B < C > D")).toBe("A & B &lt; C &gt; D")
+        expect(convertTagsToHtml("Findbp & Yosua Adi")).toBe("Findbp & Yosua Adi")
+        expect(convertTagsToHtml("Findbp &amp; Yosua Adi")).toBe("Findbp & Yosua Adi")
     })
 })

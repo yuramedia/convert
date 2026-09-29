@@ -425,9 +425,9 @@ function parseEventsLine(line: string, track: AssTrack): void {
     const startMs = parseTimestamp(raw["Start"] || "0:00:00.00")
     const endMs = parseTimestamp(raw["End"] || "0:00:00.00")
 
-    // Trim trailing whitespace from Text (libass behavior)
+    // Trim trailing whitespace from Text (libass behavior) and unescape HTML entity artifacts
     let text = raw["Text"] || ""
-    text = text.replace(/[\r\t ]+$/, "")
+    text = text.replace(/[\r\t ]+$/, "").replace(/&amp;/gi, "&")
 
     const event: AssEvent = {
         type: eventType,

@@ -564,3 +564,25 @@ Dialogue: 0,0:00:12.00,0:00:15.00,TopStyle,,0,0,0,,{\\an2}Override to bottom
         expect(srt).toContain("{\\an5}Middle style text")
     })
 })
+
+describe("convertNormalSrt — ampersand handling", () => {
+    it("keeps literal ampersands intact and does not convert & to &amp;", () => {
+        const track = parseAss(`[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:01:03.03,0:01:04.40,Default,,0,0,0,,Subtitle provided by: Yuramedia Link\\NTL: Afiyah / QA: Findbp & Yosua Adi
+Dialogue: 0,0:01:05.00,0:01:07.00,Default,,0,0,0,,Rock & Roll &amp; R&B
+`)
+
+        const srt = convertNormalSrt(track, { useHtmlTags: true })
+        expect(srt).toContain("Findbp & Yosua Adi")
+        expect(srt).not.toContain("&amp;")
+        expect(srt).toContain("Rock & Roll & R&B")
+    })
+})

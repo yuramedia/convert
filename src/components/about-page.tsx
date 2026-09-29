@@ -19,6 +19,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
+const CURRENT_YEAR = new Date().getFullYear()
+
 export default function AboutPage() {
     return (
         <div className="min-h-screen bg-background text-zinc-400 font-sans relative z-10">
@@ -366,7 +368,7 @@ export default function AboutPage() {
 
             {/* Footer */}
             <footer className="max-w-4xl mx-auto px-6 py-12 border-t border-zinc-900 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
-                &copy; {new Date().getFullYear()} Yuuume ASS Converter. Made with ❤️ by Yuramedia Link
+                &copy; {CURRENT_YEAR} Yuuume ASS Converter. Made with ❤️ by Yuramedia Link
             </footer>
         </div>
     )
