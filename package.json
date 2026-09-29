@@ -12,16 +12,16 @@
         "test": "vitest run"
     },
     "dependencies": {
-        "@astrojs/markdown-satteri": "^0.4.1",
-        "@astrojs/react": "6.0.6",
+        "@astrojs/markdown-satteri": "^0.4.2",
+        "@astrojs/react": "7.0.0",
         "@base-ui/react": "^1.8.0",
         "@fontsource/geist-mono": "^5.3.0",
         "@fontsource/geist-sans": "^5.3.0",
         "@tailwindcss/vite": "4.3.3",
-        "astro": "7.3.3",
+        "astro": "7.3.5",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
-        "lucide-react": "^1.47.0",
+        "lucide-react": "^1.48.0",
         "react": "19.3.0",
         "react-dom": "19.3.0",
         "tailwind-merge": "^3.7.0",
@@ -30,16 +30,16 @@
     },
     "devDependencies": {
         "@types/bun": "^1.4.2",
-        "@types/node": "^26.6.1",
+        "@types/node": "^26.6.3",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
-        "eslint": "^10.10.0",
-        "oxfmt": "^0.68.0",
-        "oxlint": "^1.83.0",
+        "eslint": "^10.11.0",
+        "oxfmt": "^0.71.0",
+        "oxlint": "^1.86.0",
         "shadcn": "^4.21.0",
         "tailwindcss": "^4.3.3",
         "typescript": "^7.0.2",
-        "vitest": "^5.0.1"
+        "vitest": "^5.0.2"
     },
     "trustedDependencies": [
         "sharp",
