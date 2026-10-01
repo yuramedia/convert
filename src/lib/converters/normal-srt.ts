@@ -370,49 +370,52 @@ function collapseFrameByFrame(events: EventMeta[], options: Required<NormalSrtOp
     // Allow 1 frame gap for frame-by-frame events (contiguous or overlapping)
     const maxGap = msPerFrame * 1.5
 
-    // Extract plain text for comparison (cached per event to avoid re-tokenizing)
-    const plainTextCache = new Map<EventMeta, string>()
-    const getPlainText = (meta: EventMeta): string => {
-        let cached = plainTextCache.get(meta)
-        if (cached === undefined) {
-            cached = stripTags(meta.segments).trim()
-            plainTextCache.set(meta, cached)
-        }
-        return cached
-    }
-
-    // Sort signs by start time for sequential collapse
     const signs = events.filter(e => e.isSign)
     const nonSigns = events.filter(e => !e.isSign)
 
     if (signs.length <= 1) return events
 
-    signs.sort((a, b) => a.event.Start - b.event.Start)
-
-    const collapsed: EventMeta[] = []
-    let current = signs[0]
-
-    for (let i = 1; i < signs.length; i++) {
-        const next = signs[i]
-        const gap = next.event.Start - current.event.End
-
-        if (gap <= maxGap && getPlainText(current) === getPlainText(next)) {
-            // Extend current event's time span
-            current = {
-                ...current,
-                event: {
-                    ...current.event,
-                    End: Math.max(current.event.End, next.event.End)
-                }
-            }
-        } else {
-            collapsed.push(current)
-            current = next
+    // Group signs by normalized plain text to prevent interleaved signs, layers,
+    // or drawing lines from breaking sequential frame-by-frame collapse
+    const groups = new Map<string, EventMeta[]>()
+    for (const sign of signs) {
+        const text = stripTags(sign.segments).trim()
+        if (!text) continue // Drop drawing-only or empty signs
+        let list = groups.get(text)
+        if (!list) {
+            list = []
+            groups.set(text, list)
         }
+        list.push(sign)
     }
-    collapsed.push(current)
 
-    return [...collapsed, ...nonSigns]
+    const collapsedSigns: EventMeta[] = []
+    for (const list of groups.values()) {
+        list.sort((a, b) => a.event.Start - b.event.Start)
+        let current = list[0]
+
+        for (let i = 1; i < list.length; i++) {
+            const next = list[i]
+            const gap = next.event.Start - current.event.End
+
+            if (gap <= maxGap) {
+                // Extend current event's time span
+                current = {
+                    ...current,
+                    event: {
+                        ...current.event,
+                        End: Math.max(current.event.End, next.event.End)
+                    }
+                }
+            } else {
+                collapsedSigns.push(current)
+                current = next
+            }
+        }
+        collapsedSigns.push(current)
+    }
+
+    return [...collapsedSigns, ...nonSigns]
 }
 
 /**

@@ -661,6 +661,28 @@ Dialogue: 0,0:00:10.16,0:00:10.20,Signs,,0,0,0,,{\\\\pos(960.4,500.4)}Kereta Api
         expect(srt).toContain("00:00:10,200")
     })
 
+    it("collapses interleaved frame-by-frame signs and drawings correctly", () => {
+        // Interleaved frame-by-frame events for two signs and a drawing command
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:10.04,Signs,,0,0,0,,{\\\\pos(960,500)}Sign One
+Dialogue: 0,0:00:10.00,0:00:10.04,Signs,,0,0,0,,{\\\\pos(100,200)}Sign Two
+Dialogue: 0,0:00:10.00,0:00:10.04,Signs,,0,0,0,,{\\\\p1}m 0 0 l 10 10
+Dialogue: 0,0:00:10.04,0:00:10.08,Signs,,0,0,0,,{\\\\pos(960.1,500.1)}Sign One
+Dialogue: 0,0:00:10.04,0:00:10.08,Signs,,0,0,0,,{\\\\pos(100.1,200.1)}Sign Two
+Dialogue: 0,0:00:10.04,0:00:10.08,Signs,,0,0,0,,{\\\\p1}m 0 0 l 10 10
+Dialogue: 0,0:00:10.08,0:00:10.12,Signs,,0,0,0,,{\\\\pos(960.2,500.2)}Sign One
+Dialogue: 0,0:00:10.08,0:00:10.12,Signs,,0,0,0,,{\\\\pos(100.2,200.2)}Sign Two
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        // Both Sign One and Sign Two should collapse into 00:00:10,000 --> 00:00:10,120
+        expect(srt).toContain("(Sign One)")
+        expect(srt).toContain("(Sign Two)")
+        expect(srt).toContain("00:00:10,000 --> 00:00:10,120")
+        expect(srt).not.toContain("m 0 0")
+    })
+
     it("merges multiple signs overlapping same dialogue", () => {
         const track = parseAss(
             MERGE_ASS +
