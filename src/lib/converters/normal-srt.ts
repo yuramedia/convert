@@ -24,6 +24,11 @@ export interface NormalSrtOptions {
     stripSigns?: boolean
     /** Convert sign/typesetting text to UPPERCASE. Default false. */
     uppercaseSigns?: boolean
+    /** Merge sign/typesetting lines with overlapping dialogue. Default false.
+     *  When enabled, sign text is wrapped in (parentheses) and prepended above
+     *  the dialogue text. If uppercaseSigns is also enabled, signs are uppercased
+     *  without parentheses (uppercase alone is sufficient distinction). */
+    mergeSignLines?: boolean
     /** Preserve \an alignment tags in SRT output. Default true.
      *  When enabled, injects {\anN} for non-default alignments
      *  (from inline overrides or style defaults), matching .ass behavior.
@@ -51,6 +56,7 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     stripEmptyLines: true,
     stripSigns: false,
     uppercaseSigns: false,
+    mergeSignLines: false,
     keepAlignment: true,
     enableFrameGap: false,
     frameGapMode: "frame-gap",
@@ -120,7 +126,7 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
     // 2. Pre-calculate metadata to avoid redundant expensive calls
     // Use flatMap to filter and map in one pass (Dialogue only)
-    const eventWithMetadata = track.events.flatMap(event => {
+    let eventWithMetadata = track.events.flatMap(event => {
         if (event.type !== "Dialogue") return []
 
         const segments = tokenizeText(event.Text)
@@ -128,6 +134,7 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         const isSign = isLikelySign(segments, style)
 
         // Filter out sign/TS lines when stripSigns is enabled
+        // (stripSigns takes priority over mergeSignLines)
         if (fullOptions.stripSigns && isSign) return []
 
         return [
@@ -139,6 +146,11 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
             }
         ]
     })
+
+    // 2b. Collapse frame-by-frame sign events when mergeSignLines is enabled
+    if (fullOptions.mergeSignLines) {
+        eventWithMetadata = collapseFrameByFrame(eventWithMetadata, fullOptions)
+    }
 
     // 3. Sort events by start time, then sign-ness, then layer, then end time
     // Signs first so they appear at the top of merged SRT blocks (dialogue at bottom)
@@ -153,22 +165,28 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
         return a.event.End - b.event.End
     })
 
+    // Separate sign and dialogue metadata for merge step
+    const signMeta: Array<{ startMs: number; endMs: number; text: string }> = []
     let entries: SrtEntry[] = []
 
     for (const { event, segments, style, isSign } of eventWithMetadata) {
         // Uppercase text content BEFORE HTML conversion if this is a sign
-        // Only apply this to plain SRT output; HTML-tagged output keeps original casing.
-        const processedSegments =
-            isSign && fullOptions.uppercaseSigns && !fullOptions.useHtmlTags
-                ? segments.map(seg => ({
-                      ...seg,
-                      content: seg.type === "text" ? seg.content.toUpperCase() : seg.content
-                  }))
-                : segments
+        // When mergeSignLines is enabled, signs are always plain text (prepended above dialogue),
+        // so uppercasing applies regardless of useHtmlTags.
+        // Without mergeSignLines, only uppercase when HTML tags are disabled (legacy behavior).
+        const shouldUppercase =
+            isSign && fullOptions.uppercaseSigns && (fullOptions.mergeSignLines || !fullOptions.useHtmlTags)
+        const processedSegments = shouldUppercase
+            ? segments.map(seg => ({
+                  ...seg,
+                  content: seg.type === "text" ? seg.content.toUpperCase() : seg.content
+              }))
+            : segments
 
         let text: string
 
-        if (fullOptions.useHtmlTags) {
+        // Signs do not use HTML tags (styling like \b1 or \i1 in ASS is typesetting-specific)
+        if (fullOptions.useHtmlTags && !isSign) {
             text = convertTagsToHtml(processedSegments, true, {
                 // b: style?.Bold, // Ignored per user request, only inline {\b1} will trigger <b>
                 i: style?.Italic,
@@ -181,6 +199,12 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
 
         text = text.trim()
         if (fullOptions.stripEmptyLines && !text) continue
+
+        // When mergeSignLines is enabled, collect sign entries separately for merge
+        if (fullOptions.mergeSignLines && isSign) {
+            signMeta.push({ startMs: event.Start, endMs: event.End, text })
+            continue
+        }
 
         // Inject {\anN} alignment tag when keepAlignment is enabled
         if (fullOptions.keepAlignment) {
@@ -197,6 +221,11 @@ export function convertNormalSrt(track: AssTrack, options: NormalSrtOptions = DE
             endMs: event.End,
             text
         })
+    }
+
+    // 3b. Merge sign lines with overlapping dialogue when mergeSignLines is enabled
+    if (fullOptions.mergeSignLines && signMeta.length > 0) {
+        entries = mergeSignsWithDialogue(entries, signMeta, fullOptions)
     }
 
     if (fullOptions.mergeDuplicates) {
@@ -302,4 +331,173 @@ function resolveAlignment(segments: TextSegment[], style?: AssStyle): number {
     // Fall back to style default
     const rawAlignment = style?.Alignment ?? 2
     return rawAlignment >= 1 && rawAlignment <= 9 ? rawAlignment : 2
+}
+
+// ─── Sign Merge Helpers ──────────────────────────────────────────────────────
+
+interface EventMeta {
+    event: {
+        type: "Dialogue" | "Comment"
+        Layer: number
+        Start: number
+        End: number
+        Style: string
+        Name: string
+        MarginL: number
+        MarginR: number
+        MarginV: number
+        Effect: string
+        Text: string
+    }
+    segments: TextSegment[]
+    style: AssStyle | undefined
+    isSign: boolean
+}
+
+/**
+ * Collapse consecutive frame-by-frame sign events into a single event.
+ * Many ASS typesetting workflows generate dozens of events with identical text
+ * but slightly different \pos coordinates (one per video frame) to animate motion.
+ * This function merges them by extending the time span when:
+ * - Both events are signs
+ * - They have identical plain text (ignoring tags)
+ * - The gap between them is ≤ 1 frame (~42ms at 23.976fps)
+ */
+function collapseFrameByFrame(events: EventMeta[], options: Required<NormalSrtOptions>): EventMeta[] {
+    if (events.length === 0) return events
+
+    const msPerFrame = 1000 / Math.max(0.001, options.fps)
+    // Allow 1 frame gap for frame-by-frame events (contiguous or overlapping)
+    const maxGap = msPerFrame * 1.5
+
+    // Extract plain text for comparison (cached per event to avoid re-tokenizing)
+    const plainTextCache = new Map<EventMeta, string>()
+    const getPlainText = (meta: EventMeta): string => {
+        let cached = plainTextCache.get(meta)
+        if (cached === undefined) {
+            cached = stripTags(meta.segments).trim()
+            plainTextCache.set(meta, cached)
+        }
+        return cached
+    }
+
+    // Sort signs by start time for sequential collapse
+    const signs = events.filter(e => e.isSign)
+    const nonSigns = events.filter(e => !e.isSign)
+
+    if (signs.length <= 1) return events
+
+    signs.sort((a, b) => a.event.Start - b.event.Start)
+
+    const collapsed: EventMeta[] = []
+    let current = signs[0]
+
+    for (let i = 1; i < signs.length; i++) {
+        const next = signs[i]
+        const gap = next.event.Start - current.event.End
+
+        if (gap <= maxGap && getPlainText(current) === getPlainText(next)) {
+            // Extend current event's time span
+            current = {
+                ...current,
+                event: {
+                    ...current.event,
+                    End: Math.max(current.event.End, next.event.End)
+                }
+            }
+        } else {
+            collapsed.push(current)
+            current = next
+        }
+    }
+    collapsed.push(current)
+
+    return [...collapsed, ...nonSigns]
+}
+
+/**
+ * Wrap sign text in parentheses for SRT output.
+ * - If uppercaseSigns is enabled, text is already uppercased → no parentheses needed
+ * - If text is already parenthesized, don't double-wrap
+ * - Multi-line sign text (\N) is joined with " - " inside parentheses
+ */
+function parenthesizeSign(text: string, uppercase: boolean): string {
+    // Strip any alignment tags that may have been injected — signs in merged output
+    // don't need their own alignment since they appear above dialogue
+    const cleaned = text.replace(/\{\\an\d\}/g, "").trim()
+    if (!cleaned) return ""
+
+    // Flatten multi-line to single line with " - " separator
+    const flattened = cleaned.replace(/\n/g, " - ")
+
+    if (uppercase) {
+        // Uppercase signs don't need parentheses (uppercase is sufficient distinction)
+        return flattened
+    }
+
+    // Check if already fully parenthesized
+    if (flattened.startsWith("(") && flattened.endsWith(")")) {
+        return flattened
+    }
+
+    return `(${flattened})`
+}
+
+/**
+ * Merge sign entries with overlapping dialogue entries.
+ * Signs are prepended above dialogue text. Standalone signs (no overlapping dialogue)
+ * are emitted as separate cues.
+ */
+function mergeSignsWithDialogue(
+    dialogueEntries: SrtEntry[],
+    signMeta: Array<{ startMs: number; endMs: number; text: string }>,
+    options: Required<NormalSrtOptions>
+): SrtEntry[] {
+    // Track which signs were merged into at least one dialogue
+    const mergedSigns = new Set<number>()
+
+    // For each dialogue, find overlapping signs and prepend their text
+    for (const entry of dialogueEntries) {
+        const overlappingSigns: string[] = []
+
+        for (let i = 0; i < signMeta.length; i++) {
+            const sign = signMeta[i]
+            // Check time overlap: sign.start < dialog.end && sign.end > dialog.start
+            if (sign.startMs < entry.endMs && sign.endMs > entry.startMs) {
+                const formatted = parenthesizeSign(sign.text, options.uppercaseSigns)
+                if (formatted) {
+                    overlappingSigns.push(formatted)
+                    mergedSigns.add(i)
+                }
+            }
+        }
+
+        if (overlappingSigns.length > 0) {
+            // Deduplicate identical sign lines
+            const uniqueSigns = [...new Set(overlappingSigns)]
+            entry.text = uniqueSigns.join("\n") + "\n" + entry.text
+        }
+    }
+
+    // Collect standalone signs (not merged into any dialogue)
+    const standaloneEntries: SrtEntry[] = []
+    for (let i = 0; i < signMeta.length; i++) {
+        if (!mergedSigns.has(i)) {
+            const sign = signMeta[i]
+            const formatted = parenthesizeSign(sign.text, options.uppercaseSigns)
+            if (formatted) {
+                standaloneEntries.push({
+                    index: 0,
+                    startMs: sign.startMs,
+                    endMs: sign.endMs,
+                    text: formatted
+                })
+            }
+        }
+    }
+
+    // Combine and re-sort by start time
+    const combined = [...dialogueEntries, ...standaloneEntries]
+    combined.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs)
+    return combined
 }

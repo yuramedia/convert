@@ -464,7 +464,7 @@ export default function OptionsPanel({
                                 </h4>
                                 <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
                                     Applies optimal settings for YouTube SRT uploads (enables HTML tags, auto-uppercases
-                                    sign/typesetting lines, merges duplicates).
+                                    sign/typesetting lines, merges signs with dialogue, merges duplicates).
                                 </p>
                             </div>
                         </div>
@@ -481,6 +481,7 @@ export default function OptionsPanel({
                                     mergeDuplicates: true,
                                     stripEmptyLines: true,
                                     uppercaseSigns: true,
+                                    mergeSignLines: true,
                                     keepAlignment: false
                                 })
                             }
@@ -558,6 +559,19 @@ export default function OptionsPanel({
                             <Switch
                                 checked={normalOptions.uppercaseSigns ?? true}
                                 onCheckedChange={c => setNormalOptions({ ...normalOptions, uppercaseSigns: c })}
+                            />
+                        </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Merge Sign Lines</FieldLabel>
+                                <FieldDescription>
+                                    Merge sign/typesetting lines with overlapping dialogue. Signs appear above dialogue
+                                    wrapped in (parentheses), or UPPERCASE when combined with Uppercase Signs.
+                                </FieldDescription>
+                            </div>
+                            <Switch
+                                checked={normalOptions.mergeSignLines ?? false}
+                                onCheckedChange={c => setNormalOptions({ ...normalOptions, mergeSignLines: c })}
                             />
                         </Field>
                         <Field orientation="horizontal">

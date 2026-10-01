@@ -586,3 +586,229 @@ Dialogue: 0,0:01:05.00,0:01:07.00,Default,,0,0,0,,Rock & Roll &amp; R&B
         expect(srt).toContain("Rock & Roll & R&B")
     })
 })
+
+describe("convertNormalSrt — mergeSignLines", () => {
+    const MERGE_ASS = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+Style: Signs,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,5,20,20,15,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`
+
+    it("merges a single sign with overlapping dialogue", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Stasiun Seibu-Shinjuku
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Tapi biasanya setiap hari aku sibuk,
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        expect(srt).toContain("(Stasiun Seibu-Shinjuku)")
+        expect(srt).toContain("(Stasiun Seibu-Shinjuku)\nTapi biasanya setiap hari aku sibuk,")
+        // Should be a single cue, not two
+        expect(srt.match(/-->/g)?.length).toBe(1)
+    })
+
+    it("merges sign into multiple overlapping dialogues", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:20.00,Signs,,0,0,0,,{\\\\pos(960,500)}Episode 1
+Dialogue: 20,0:00:10.00,0:00:13.00,Default,,0,0,0,,Dialog A
+Dialogue: 20,0:00:13.00,0:00:16.00,Default,,0,0,0,,Dialog B
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        expect(srt).toContain("(Episode 1)\nDialog A")
+        expect(srt).toContain("(Episode 1)\nDialog B")
+    })
+
+    it("emits standalone sign when no overlapping dialogue", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:05.00,0:00:08.00,Signs,,0,0,0,,{\\\\pos(960,500)}Standalone Sign
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Some dialogue
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        expect(srt).toContain("(Standalone Sign)")
+        expect(srt.match(/-->/g)?.length).toBe(2) // two separate cues
+    })
+
+    it("collapses frame-by-frame sign events into a single cue", () => {
+        // Simulate 5 frame-by-frame events at ~40ms intervals (23.976fps)
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:10.04,Signs,,0,0,0,,{\\\\pos(960,500)}Kereta Api
+Dialogue: 0,0:00:10.04,0:00:10.08,Signs,,0,0,0,,{\\\\pos(960.1,500.1)}Kereta Api
+Dialogue: 0,0:00:10.08,0:00:10.12,Signs,,0,0,0,,{\\\\pos(960.2,500.2)}Kereta Api
+Dialogue: 0,0:00:10.12,0:00:10.16,Signs,,0,0,0,,{\\\\pos(960.3,500.3)}Kereta Api
+Dialogue: 0,0:00:10.16,0:00:10.20,Signs,,0,0,0,,{\\\\pos(960.4,500.4)}Kereta Api
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        // Should produce a single standalone sign cue
+        expect(srt).toContain("(Kereta Api)")
+        expect(srt.match(/-->/g)?.length).toBe(1)
+        // Time span should cover full range
+        expect(srt).toContain("00:00:10,000")
+        expect(srt).toContain("00:00:10,200")
+    })
+
+    it("merges multiple signs overlapping same dialogue", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,100)}Sign A
+Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,800)}Sign B
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue text
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        expect(srt).toContain("(Sign A)\n(Sign B)\nDialogue text")
+    })
+
+    it("flattens multi-line sign text with dash separator", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Line One\\NLine Two
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        expect(srt).toContain("(Line One - Line Two)")
+        expect(srt).toContain("(Line One - Line Two)\nDialogue")
+    })
+
+    it("does not double-wrap already parenthesized sign text", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}(Already Wrapped)
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        expect(srt).toContain("(Already Wrapped)\nDialogue")
+        expect(srt).not.toContain("((Already Wrapped))")
+    })
+
+    it("produces identical output when mergeSignLines is false (no regression)", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Sign Text
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue text
+`
+        )
+        const withMerge = convertNormalSrt(track, { mergeSignLines: false, useHtmlTags: false, keepAlignment: false })
+        const withoutMerge = convertNormalSrt(track, { useHtmlTags: false, keepAlignment: false })
+        expect(withMerge).toBe(withoutMerge)
+    })
+
+    it("stripSigns takes priority over mergeSignLines", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Sign Text
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue text
+`
+        )
+        const srt = convertNormalSrt(track, {
+            mergeSignLines: true,
+            stripSigns: true,
+            useHtmlTags: false,
+            keepAlignment: false
+        })
+        expect(srt).not.toContain("Sign Text")
+        expect(srt).toContain("Dialogue text")
+    })
+
+    it("uppercaseSigns with mergeSignLines produces uppercase sign without parentheses", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Station Name
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue text
+`
+        )
+        const srt = convertNormalSrt(track, {
+            mergeSignLines: true,
+            uppercaseSigns: true,
+            useHtmlTags: false,
+            keepAlignment: false
+        })
+        expect(srt).toContain("STATION NAME\nDialogue text")
+        expect(srt).not.toContain("(STATION NAME)")
+    })
+
+    it("drops drawing-only sign events", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)\\\\p1}m -15 5 l -15 -5 l 15 -5 l 15 5
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue text
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        expect(srt).toContain("Dialogue text")
+        // Drawing should be stripped - no sign text prepended
+        expect(srt).not.toContain("m -15 5")
+        expect(srt.match(/-->/g)?.length).toBe(1)
+    })
+
+    it("handles partial time overlap correctly", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:08.00,0:00:20.00,Signs,,0,0,0,,{\\\\pos(960,500)}Long Sign
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialog A
+Dialogue: 20,0:00:18.00,0:00:22.00,Default,,0,0,0,,Dialog B
+Dialogue: 20,0:00:25.00,0:00:30.00,Default,,0,0,0,,Dialog C
+`
+        )
+        const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
+        // Sign overlaps Dialog A and Dialog B, but NOT Dialog C
+        expect(srt).toContain("(Long Sign)\nDialog A")
+        expect(srt).toContain("(Long Sign)\nDialog B")
+        expect(srt).not.toContain("(Long Sign)\nDialog C")
+        expect(srt).toContain("Dialog C")
+    })
+
+    it("works with useHtmlTags enabled (YouTube preset scenario)", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Sign Text
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,{\\\\i1}Italic dialogue
+`
+        )
+        const srt = convertNormalSrt(track, {
+            mergeSignLines: true,
+            uppercaseSigns: true,
+            useHtmlTags: true,
+            keepAlignment: false
+        })
+        expect(srt).toContain("SIGN TEXT\n<i>Italic dialogue</i>")
+    })
+
+    it("strips \\b1 bold tags from signs when useHtmlTags is true (no <b> on signs)", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:02:16.95,0:02:18.37,Signs,,0,0,0,,{\\\\an5\\\\fnCalibri\\\\b1\\\\bord0\\\\pos(968,144)}Dingin
+Dialogue: 0,0:03:37.36,0:03:41.74,Signs,,0,0,0,,{\\\\an4\\\\b1\\\\pos(358,115)}Jalur Kereta
+Dialogue: 20,0:03:37.66,0:03:41.74,Default,,0,0,0,,{\\\\i1}Ujung Jepang paling barat?
+`
+        )
+        const srt = convertNormalSrt(track, {
+            mergeSignLines: true,
+            uppercaseSigns: true,
+            useHtmlTags: true,
+            keepAlignment: false
+        })
+        // Standalone sign should be clean uppercase without <b>
+        expect(srt).toContain("DINGIN")
+        expect(srt).not.toContain("<b>DINGIN</b>")
+        // Merged sign should be clean uppercase without <b>, while dialogue keeps <i>
+        expect(srt).toContain("JALUR KERETA\n<i>Ujung Jepang paling barat?</i>")
+        expect(srt).not.toContain("<b>JALUR KERETA</b>")
+    })
+})
