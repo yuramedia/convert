@@ -316,6 +316,8 @@ Style: OP,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0
 Style: ED,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
 Style: Sign-TS,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
 Style: OP Karaoke,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,2,2,20,20,15,1
+Style: Translation Top,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,8,10,10,10,1
+Style: Stopwatch,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -331,6 +333,8 @@ Dialogue: 0,0:00:17.00,0:00:19.00,OP,,0,0,0,,OP line should be stripped
 Dialogue: 0,0:00:19.00,0:00:21.00,ED,,0,0,0,,ED line should be stripped
 Dialogue: 0,0:00:21.00,0:00:23.00,Sign-TS,,0,0,0,,Sign-TS line should be stripped
 Dialogue: 0,0:00:23.00,0:00:25.00,OP Karaoke,,0,0,0,,OP Karaoke line should be stripped
+Dialogue: 0,0:00:25.00,0:00:27.00,Translation Top,,0,0,0,,Translation Top line should be stripped
+Dialogue: 0,0:00:27.00,0:00:29.00,Stopwatch,,0,0,0,,Stopwatch dialogue
 `
 
 describe("convertNormalSrt — keyword false-positive regression", () => {
@@ -396,6 +400,16 @@ describe("convertNormalSrt — keyword false-positive regression", () => {
     it("DOES strip 'OP Karaoke' style (word boundary match)", () => {
         const srt = convertNormalSrt(track, opts)
         expect(srt).not.toContain("OP Karaoke line should be stripped")
+    })
+
+    it("DOES strip 'Translation Top' style (word boundary match on 'top')", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).not.toContain("Translation Top line should be stripped")
+    })
+
+    it("does NOT strip 'Stopwatch' style (contains 'top' as substring)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("Stopwatch dialogue")
     })
 
     it("keeps Default style dialogue", () => {

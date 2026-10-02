@@ -72,10 +72,12 @@ const ALIGN_TAGS = new Set(["an", "a"])
 /**
  * Regex patterns for style names that indicate typesetting.
  * - "sign", "typeset" match anywhere (catches TopSign, SignTS, etc.)
- * - "ts", "op", "ed" require word boundaries to avoid false positives
- *   (Defaults, Closed, Proper won't match)
+ * - "ts", "op", "ed", "top" require word boundaries to avoid false positives
+ *   (Defaults, Closed, Proper, Stopwatch won't match)
+ * - "top" catches "Translation Top", "Italics Top" etc. which are
+ *   sign/typesetting styles positioned at the top of the frame
  */
-const SIGN_KEYWORD_RE = /sign|typeset(?:ting)?|(?:\bts\b)|(?:\bop\b)|(?:\bed\b)/i
+const SIGN_KEYWORD_RE = /sign|typeset(?:ting)?|(?:\bts\b)|(?:\bop\b)|(?:\bed\b)|(?:\btop\b)/i
 
 /**
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
