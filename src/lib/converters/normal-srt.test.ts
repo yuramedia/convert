@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { parseAss } from "../ass-parser"
-import { convertNormalSrt } from "./normal-srt"
+import { convertNormalSrt, YOUTUBE_SRT_PRESET } from "./normal-srt"
 
 const SAMPLE_ASS = `[Script Info]
 ScriptType: v4.00+
@@ -810,7 +810,21 @@ Dialogue: 20,0:00:25.00,0:00:30.00,Default,,0,0,0,,Dialog C
         expect(srt).toContain("Dialog C")
     })
 
-    it("works with useHtmlTags enabled (YouTube preset scenario)", () => {
+    it("works with YOUTUBE_SRT_PRESET (useHtmlTags disabled by default)", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Sign Text
+Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,{\\\\i1}Italic dialogue
+`
+        )
+        const srt = convertNormalSrt(track, {
+            ...YOUTUBE_SRT_PRESET
+        })
+        expect(srt).toContain("SIGN TEXT\nItalic dialogue")
+        expect(srt).not.toContain("<i>")
+    })
+
+    it("works with useHtmlTags enabled when explicitly set", () => {
         const track = parseAss(
             MERGE_ASS +
                 `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Sign Text

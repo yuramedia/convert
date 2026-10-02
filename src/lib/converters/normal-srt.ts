@@ -67,6 +67,17 @@ export const DEFAULT_NORMAL_OPTIONS: Required<NormalSrtOptions> = {
     fps: 23.976023976 // Accurate 24000/1001
 }
 
+/** Preset options recommended for YouTube SRT uploads (clean text, no HTML tags, merged & uppercased signs) */
+export const YOUTUBE_SRT_PRESET: Partial<NormalSrtOptions> = {
+    useHtmlTags: false,
+    stripSigns: false,
+    mergeDuplicates: true,
+    stripEmptyLines: true,
+    uppercaseSigns: true,
+    mergeSignLines: true,
+    keepAlignment: false
+}
+
 const SIGN_TAGS = new Set(["pos", "move", "clip", "iclip"])
 const ALIGN_TAGS = new Set(["an", "a"])
 /**

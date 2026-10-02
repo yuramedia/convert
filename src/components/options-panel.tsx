@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { type ConversionMode } from "./mode-selector"
-import { type NormalSrtOptions } from "@/lib/converters/normal-srt"
+import { type NormalSrtOptions, YOUTUBE_SRT_PRESET } from "@/lib/converters/normal-srt"
 import { type KeepTsOptions } from "@/lib/converters/keep-ts"
 import { type ResampleOptions } from "@/lib/converters/resample-ts"
 import {
@@ -463,8 +463,9 @@ export default function OptionsPanel({
                                     YouTube SRT Preset
                                 </h4>
                                 <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                                    Applies optimal settings for YouTube SRT uploads (enables HTML tags, auto-uppercases
-                                    sign/typesetting lines, merges signs with dialogue, merges duplicates).
+                                    Applies optimal settings for YouTube SRT uploads (disables HTML tags,
+                                    auto-uppercases sign/typesetting lines, merges signs with dialogue, merges
+                                    duplicates).
                                 </p>
                             </div>
                         </div>
@@ -476,13 +477,7 @@ export default function OptionsPanel({
                             onClick={() =>
                                 setNormalOptions({
                                     ...normalOptions,
-                                    useHtmlTags: true,
-                                    stripSigns: false,
-                                    mergeDuplicates: true,
-                                    stripEmptyLines: true,
-                                    uppercaseSigns: true,
-                                    mergeSignLines: true,
-                                    keepAlignment: false
+                                    ...YOUTUBE_SRT_PRESET
                                 })
                             }
                         >
