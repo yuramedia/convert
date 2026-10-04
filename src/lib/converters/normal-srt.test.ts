@@ -333,8 +333,10 @@ Dialogue: 0,0:00:17.00,0:00:19.00,OP,,0,0,0,,OP line should be stripped
 Dialogue: 0,0:00:19.00,0:00:21.00,ED,,0,0,0,,ED line should be stripped
 Dialogue: 0,0:00:21.00,0:00:23.00,Sign-TS,,0,0,0,,Sign-TS line should be stripped
 Dialogue: 0,0:00:23.00,0:00:25.00,OP Karaoke,,0,0,0,,OP Karaoke line should be stripped
-Dialogue: 0,0:00:25.00,0:00:27.00,Translation Top,,0,0,0,,Translation Top line should be stripped
+Dialogue: 0,0:00:25.00,0:00:27.00,Translation Top,,0,0,0,,Translation Top dialogue should be kept
 Dialogue: 0,0:00:27.00,0:00:29.00,Stopwatch,,0,0,0,,Stopwatch dialogue
+Dialogue: 0,0:00:29.00,0:00:31.00,Translation Top,,0,0,0,,(Parenthesized top sign should be stripped)
+Dialogue: 0,0:00:31.00,0:00:33.00,Defaults,,0,0,0,,(Parenthesized bottom thought should be kept)
 `
 
 describe("convertNormalSrt — keyword false-positive regression", () => {
@@ -402,9 +404,19 @@ describe("convertNormalSrt — keyword false-positive regression", () => {
         expect(srt).not.toContain("OP Karaoke line should be stripped")
     })
 
-    it("DOES strip 'Translation Top' style (word boundary match on 'top')", () => {
+    it("does NOT strip plain 'Translation Top' dialogue (top style is often dialogue)", () => {
         const srt = convertNormalSrt(track, opts)
-        expect(srt).not.toContain("Translation Top line should be stripped")
+        expect(srt).toContain("Translation Top dialogue should be kept")
+    })
+
+    it("DOES strip top-aligned fully parenthesized text (plain-text sign translation)", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).not.toContain("Parenthesized top sign should be stripped")
+    })
+
+    it("does NOT strip parenthesized text on a bottom-aligned style", () => {
+        const srt = convertNormalSrt(track, opts)
+        expect(srt).toContain("(Parenthesized bottom thought should be kept)")
     })
 
     it("does NOT strip 'Stopwatch' style (contains 'top' as substring)", () => {
@@ -709,7 +721,7 @@ Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue text
         expect(srt).toContain("(Sign A)\n(Sign B)\nDialogue text")
     })
 
-    it("flattens multi-line sign text with dash separator", () => {
+    it("flattens multi-line sign text with space separator", () => {
         const track = parseAss(
             MERGE_ASS +
                 `Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\\\pos(960,500)}Line One\\NLine Two
@@ -717,8 +729,8 @@ Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue
 `
         )
         const srt = convertNormalSrt(track, { mergeSignLines: true, useHtmlTags: false, keepAlignment: false })
-        expect(srt).toContain("(Line One - Line Two)")
-        expect(srt).toContain("(Line One - Line Two)\nDialogue")
+        expect(srt).toContain("(Line One Line Two)")
+        expect(srt).toContain("(Line One Line Two)\nDialogue")
     })
 
     it("does not double-wrap already parenthesized sign text", () => {
@@ -808,6 +820,26 @@ Dialogue: 20,0:00:25.00,0:00:30.00,Default,,0,0,0,,Dialog C
         expect(srt).toContain("(Long Sign)\nDialog B")
         expect(srt).not.toContain("(Long Sign)\nDialog C")
         expect(srt).toContain("Dialog C")
+    })
+
+    it("joins multi-line (\\N) sign text with spaces, not dashes", () => {
+        const track = parseAss(
+            MERGE_ASS +
+                "Dialogue: 0,0:00:00.00,0:00:04.98,Signs,,0,0,0,,{\\pos(960,500)}THIS STORY IS FICTIONAL.\\NFOREX TRADING CARRIES HIGH RISK,\\NAND LOSSES MAY EXCEED YOUR DEPOSIT.\n" +
+                "Dialogue: 0,0:00:10.00,0:00:15.00,Signs,,0,0,0,,{\\pos(960,500)}College Economics\\NReview\n" +
+                "Dialogue: 20,0:00:10.00,0:00:15.00,Default,,0,0,0,,Dialogue text\n"
+        )
+        const srt = convertNormalSrt(track, {
+            mergeSignLines: true,
+            uppercaseSigns: true,
+            useHtmlTags: false,
+            keepAlignment: false
+        })
+        expect(srt).toContain(
+            "THIS STORY IS FICTIONAL. FOREX TRADING CARRIES HIGH RISK, AND LOSSES MAY EXCEED YOUR DEPOSIT."
+        )
+        expect(srt).toContain("COLLEGE ECONOMICS REVIEW\nDialogue text")
+        expect(srt).not.toContain(" - ")
     })
 
     it("works with YOUTUBE_SRT_PRESET (useHtmlTags disabled by default)", () => {

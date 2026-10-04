@@ -83,12 +83,17 @@ const ALIGN_TAGS = new Set(["an", "a"])
 /**
  * Regex patterns for style names that indicate typesetting.
  * - "sign", "typeset" match anywhere (catches TopSign, SignTS, etc.)
- * - "ts", "op", "ed", "top" require word boundaries to avoid false positives
- *   (Defaults, Closed, Proper, Stopwatch won't match)
- * - "top" catches "Translation Top", "Italics Top" etc. which are
- *   sign/typesetting styles positioned at the top of the frame
+ * - "ts", "op", "ed" require word boundaries to avoid false positives
+ *   (Defaults, Closed, Proper won't match)
+ * - "top" is deliberately NOT a keyword: styles like "Translation Top" are
+ *   often used for regular dialogue moved to the top of the frame (to avoid
+ *   on-screen text). See the parenthesized top-aligned heuristic instead.
  */
-const SIGN_KEYWORD_RE = /sign|typeset(?:ting)?|(?:\bts\b)|(?:\bop\b)|(?:\bed\b)|(?:\btop\b)/i
+const SIGN_KEYWORD_RE = /sign|typeset(?:ting)?|(?:\bts\b)|(?:\bop\b)|(?:\bed\b)/i
+
+/** Text fully wrapped in parentheses, e.g. "(Tabira-Hiradoguchi)" (may span \N lines) */
+const FULLY_PARENTHESIZED_RE = /^\([\s\S]*\)$/
+const TOP_ALIGNMENTS = new Set([7, 8, 9])
 
 /**
  * Heuristic to detect if an event is likely Typesetting (Sign) vs Dialogue.
@@ -123,6 +128,15 @@ export function isLikelySign(segments: TextSegment[], style?: AssStyle): boolean
     // Fallback to common style name keywords (word-boundary match)
     if (style && SIGN_KEYWORD_RE.test(style.Name)) {
         return true
+    }
+
+    // Plain-text sign translations: top-aligned AND fully parenthesized.
+    // Translators often render signs without \pos as "(Station Name)" on a top
+    // style. Neither condition alone is reliable (top-aligned dialogue exists,
+    // and parenthesized thoughts exist at the bottom), but together they are.
+    if (TOP_ALIGNMENTS.has(resolveAlignment(segments, style))) {
+        const plain = stripTags(segments).trim()
+        if (FULLY_PARENTHESIZED_RE.test(plain)) return true
     }
 
     return false
@@ -435,7 +449,9 @@ function collapseFrameByFrame(events: EventMeta[], options: Required<NormalSrtOp
  * Wrap sign text in parentheses for SRT output.
  * - If uppercaseSigns is enabled, text is already uppercased → no parentheses needed
  * - If text is already parenthesized, don't double-wrap
- * - Multi-line sign text (\N) is joined with " - " inside parentheses
+ * - Multi-line sign text (\N) is joined with a single space. In typesetting,
+ *   \N is a visual line wrap (one sentence split across lines), so a separator
+ *   like " - " would break sentences mid-way ("HIGH RISK, - AND LOSSES...").
  */
 function parenthesizeSign(text: string, uppercase: boolean): string {
     // Strip any alignment tags that may have been injected — signs in merged output
@@ -443,8 +459,8 @@ function parenthesizeSign(text: string, uppercase: boolean): string {
     const cleaned = text.replace(/\{\\an\d\}/g, "").trim()
     if (!cleaned) return ""
 
-    // Flatten multi-line to single line with " - " separator
-    const flattened = cleaned.replace(/\n/g, " - ")
+    // Flatten multi-line to a single line, collapsing surrounding whitespace
+    const flattened = cleaned.replace(/[ \t]*\n[ \t]*/g, " ")
 
     if (uppercase) {
         // Uppercase signs don't need parentheses (uppercase is sufficient distinction)
