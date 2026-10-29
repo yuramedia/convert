@@ -6,6 +6,26 @@
  * initial bundle.
  */
 
+// ─── Shared Types ────────────────────────────────────────────────────────────
+
+export type TimecodeFormat = "time" | "smpte"
+
+export interface FpsPreset {
+    label: string
+    value: number
+}
+
+export const FPS_PRESETS: FpsPreset[] = [
+    { label: "23.976", value: 23.976023976 },
+    { label: "24", value: 24 },
+    { label: "25", value: 25 },
+    { label: "29.97", value: 29.97002997 },
+    { label: "30", value: 30 },
+    { label: "50", value: 50 },
+    { label: "59.94", value: 59.94005994 },
+    { label: "60", value: 60 }
+]
+
 // ─── CSV ─────────────────────────────────────────────────────────────────────
 
 export interface CsvExportOptions {
@@ -19,6 +39,8 @@ export interface CsvExportOptions {
     showStyle: boolean
     showLayer: boolean
     showText: boolean
+    timecodeFormat?: TimecodeFormat
+    fps?: number
 }
 
 export const DEFAULT_CSV_OPTIONS: Required<CsvExportOptions> = {
@@ -31,7 +53,9 @@ export const DEFAULT_CSV_OPTIONS: Required<CsvExportOptions> = {
     showActor: true,
     showStyle: false,
     showLayer: false,
-    showText: true
+    showText: true,
+    timecodeFormat: "time",
+    fps: 23.976023976
 }
 
 // ─── XLSX ────────────────────────────────────────────────────────────────────
@@ -48,6 +72,8 @@ export interface XlsxExportOptions {
     showLayer: boolean
     showText: boolean
     combinedMode?: "sheets" | "single"
+    timecodeFormat?: TimecodeFormat
+    fps?: number
 }
 
 export const DEFAULT_XLSX_OPTIONS: Required<XlsxExportOptions> = {
@@ -61,7 +87,9 @@ export const DEFAULT_XLSX_OPTIONS: Required<XlsxExportOptions> = {
     showStyle: false,
     showLayer: false,
     showText: true,
-    combinedMode: "sheets"
+    combinedMode: "sheets",
+    timecodeFormat: "time",
+    fps: 23.976023976
 }
 
 // ─── YTT ─────────────────────────────────────────────────────────────────────

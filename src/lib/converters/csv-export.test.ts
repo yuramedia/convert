@@ -201,4 +201,24 @@ Dialogue: 0,0:00:03.00,0:00:04.00,Default,,0000,0000,0000,,{\\p1}m 0 0 l 100 0 1
         expect(lines).toHaveLength(2) // header + 1 real line (drawing stripped)
         expect(lines[1]).toBe("1,Real line")
     })
+
+    it("formats timestamps into SMPTE format (HH:MM:SS:FF) with target FPS", () => {
+        const csv = convertToCsv(track, {
+            ...DEFAULT_CSV_OPTIONS,
+            timecodeFormat: "smpte",
+            fps: 24,
+            showIndex: true,
+            showStart: true,
+            showEnd: true,
+            showDuration: true,
+            showActor: false,
+            showText: false
+        })
+        const lines = csv.split("\n")
+        expect(lines[0]).toBe("No.,Timecode In,Timecode Out,Duration")
+        // Event 1: 1.00s -> 3.50s (at 24fps: 1.00s = 00:00:01:00, 3.50s = 00:00:03:12, dur 2.50s = 00:00:02:12)
+        expect(lines[1]).toBe("1,00:00:01:00,00:00:03:12,00:00:02:12")
+        // Event 2: 4.00s -> 6.00s (at 24fps: 00:00:04:00, 00:00:06:00, dur 00:00:02:00)
+        expect(lines[2]).toBe("2,00:00:04:00,00:00:06:00,00:00:02:00")
+    })
 })

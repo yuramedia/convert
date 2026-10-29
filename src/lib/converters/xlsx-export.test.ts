@@ -64,6 +64,17 @@ describe("convertToXlsxData", () => {
         expect(rows.every(r => r["Subtitle"] !== "Positioned Sign")).toBe(true)
     })
 
+    it("formats timestamps as SMPTE format (HH:MM:SS:FF) when timecodeFormat is smpte", () => {
+        const rows = convertToXlsxData(track, {
+            ...DEFAULT_XLSX_OPTIONS,
+            timecodeFormat: "smpte",
+            fps: 25
+        })
+        expect(rows[0]["Timecode In"]).toBe("00:00:01:00") // 1.00s at 25fps
+        expect(rows[0]["Timecode Out"]).toBe("00:00:03:13") // 3.50s at 25fps -> 500ms * 25 / 1000 = 12.5 -> frame 13
+        expect(rows[0]["Duration"]).toBe("00:00:02:13") // 2.50s at 25fps -> frame 13
+    })
+
     it("selective columns: only index and subtitle", () => {
         const rows = convertToXlsxData(track, {
             useHtmlTags: false,

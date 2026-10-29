@@ -3,21 +3,10 @@ import { type AssTrack } from "../ass-parser"
 import { convertTagsToHtml, stripTags, tokenizeText } from "../ass-tags"
 import { isLikelySign } from "./normal-srt"
 import { DEFAULT_XLSX_OPTIONS, type XlsxExportOptions } from "../export-options"
+import { formatTimecode } from "../timecode"
 
 export { DEFAULT_XLSX_OPTIONS }
 export type { XlsxExportOptions }
-
-function formatTime(ms: number): string {
-    // Round fractional ms (frame-gap math produces them) and clamp negatives
-    ms = Math.max(0, Math.round(ms))
-    const totalSeconds = Math.floor(ms / 1000)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-    const milliseconds = ms % 1000
-
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`
-}
 
 export interface XlsxRow {
     [key: string]: string | number
@@ -54,11 +43,13 @@ export function convertToXlsxData(track: AssTrack, options: XlsxExportOptions = 
         if (!text) continue
 
         const row: XlsxRow = {}
+        const timeFormat = fullOptions.timecodeFormat || "time"
+        const fps = fullOptions.fps || DEFAULT_XLSX_OPTIONS.fps
 
         if (fullOptions.showIndex) row["No."] = index
-        if (fullOptions.showStart) row["Timecode In"] = formatTime(event.Start)
-        if (fullOptions.showEnd) row["Timecode Out"] = formatTime(event.End)
-        if (fullOptions.showDuration) row["Duration"] = formatTime(event.End - event.Start)
+        if (fullOptions.showStart) row["Timecode In"] = formatTimecode(event.Start, timeFormat, fps)
+        if (fullOptions.showEnd) row["Timecode Out"] = formatTimecode(event.End, timeFormat, fps)
+        if (fullOptions.showDuration) row["Duration"] = formatTimecode(event.End - event.Start, timeFormat, fps)
         if (fullOptions.showActor) row["Name"] = event.Name
         if (fullOptions.showStyle) row["Style"] = event.Style
         if (fullOptions.showLayer) row["Layer"] = event.Layer

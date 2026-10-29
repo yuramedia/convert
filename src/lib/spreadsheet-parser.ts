@@ -235,8 +235,8 @@ export function parseSpreadsheetTimestamp(value: unknown, fps: number = 23.976):
         return sign * ((m * 60 + s) * 1000 + ms)
     }
 
-    // HH:MM:SS:FF (Frames timecode)
-    const framesMatch = str.match(/^(-?)(\d+):(\d{2}):(\d{2}):(\d{2})$/)
+    // HH:MM:SS:FF or HH:MM:SS;FF (Frames timecode)
+    const framesMatch = str.match(/^(-?)(\d+):(\d{2}):(\d{2})[:;](\d{2})$/)
     if (framesMatch) {
         const sign = framesMatch[1] === "-" ? -1 : 1
         const h = parseInt(framesMatch[2], 10)

@@ -8,6 +8,7 @@ import { type ResampleOptions } from "@/lib/converters/resample-ts"
 import {
     DEFAULT_YTT_OPTIONS,
     RESOLUTION_PRESETS,
+    FPS_PRESETS,
     type CsvExportOptions,
     type XlsxExportOptions,
     type YttExportOptions
@@ -46,6 +47,74 @@ function CustomCheckbox({ label, checked, onChange }: CustomCheckboxProps) {
     )
 }
 
+function FpsSelect({
+    fps,
+    onChange,
+    defaultFps = 23.976023976
+}: {
+    fps: number | undefined
+    onChange: (fps: number) => void
+    defaultFps?: number
+}) {
+    const currentFps = fps ?? defaultFps
+    const isPreset = FPS_PRESETS.some(p => Math.abs(p.value - currentFps) < 0.0001)
+    const [fpsMode, setFpsMode] = useState<"preset" | "custom">(isPreset ? "preset" : "custom")
+    const [prevFps, setPrevFps] = useState(fps)
+
+    if (fps !== prevFps) {
+        setPrevFps(fps)
+        setFpsMode(isPreset ? "preset" : "custom")
+    }
+
+    return (
+        <div className="flex flex-col gap-2">
+            <Select
+                value={(() => {
+                    const preset = FPS_PRESETS.find(p => Math.abs(p.value - currentFps) < 0.0001)
+                    return fpsMode === "preset" && preset ? preset.value.toString() : "custom"
+                })()}
+                onValueChange={v => {
+                    if (v === "custom") {
+                        setFpsMode("custom")
+                    } else {
+                        setFpsMode("preset")
+                        onChange(parseFloat(v || "") || defaultFps)
+                    }
+                }}
+            >
+                <SelectTrigger className="w-[140px]">
+                    <SelectValue>
+                        {(() => {
+                            const preset = FPS_PRESETS.find(p => Math.abs(p.value - currentFps) < 0.0001)
+                            return fpsMode === "preset" && preset ? preset.label : "Custom"
+                        })()}
+                    </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectGroup>
+                        {FPS_PRESETS.map(p => (
+                            <SelectItem key={p.value} value={p.value.toString()}>
+                                {p.label}
+                            </SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom</SelectItem>
+                    </SelectGroup>
+                </SelectContent>
+            </Select>
+            {fpsMode === "custom" && (
+                <Input
+                    type="number"
+                    step="any"
+                    value={fps ?? ""}
+                    onChange={e => onChange(parseFloat(e.target.value) || 0)}
+                    placeholder="Enter custom FPS"
+                    className="w-[140px] animate-in slide-in-from-top-1 duration-200"
+                />
+            )}
+        </div>
+    )
+}
+
 interface OptionsPanelProps {
     mode: ConversionMode
     normalOptions: NormalSrtOptions
@@ -61,17 +130,6 @@ interface OptionsPanelProps {
     yttOptions: YttExportOptions
     setYttOptions: (opts: YttExportOptions) => void
 }
-
-const FPS_PRESETS = [
-    { label: "23.976", value: 23.976023976 },
-    { label: "24", value: 24 },
-    { label: "25", value: 25 },
-    { label: "29.97", value: 29.97002997 },
-    { label: "30", value: 30 },
-    { label: "50", value: 50 },
-    { label: "59.94", value: 59.94005994 },
-    { label: "60", value: 60 }
-]
 
 export default function OptionsPanel({
     mode,
@@ -243,6 +301,49 @@ export default function OptionsPanel({
                                 onCheckedChange={c => setCsvOptions({ ...csvOptions, stripSigns: c })}
                             />
                         </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Timecode Format</FieldLabel>
+                                <FieldDescription>
+                                    Format timestamps as Milliseconds (HH:MM:SS.mmm) or SMPTE Frames (HH:MM:SS:FF).
+                                </FieldDescription>
+                            </div>
+                            <Select
+                                value={csvOptions.timecodeFormat || "time"}
+                                onValueChange={v =>
+                                    setCsvOptions({ ...csvOptions, timecodeFormat: v as "time" | "smpte" })
+                                }
+                            >
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue>
+                                        {csvOptions.timecodeFormat === "smpte"
+                                            ? "SMPTE (HH:MM:SS:FF)"
+                                            : "Milliseconds (.mmm)"}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="time">Milliseconds (.mmm)</SelectItem>
+                                        <SelectItem value="smpte">SMPTE (HH:MM:SS:FF)</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </Field>
+
+                        {csvOptions.timecodeFormat === "smpte" && (
+                            <Field orientation="horizontal" className="animate-in fade-in duration-200">
+                                <div className="flex-1">
+                                    <FieldLabel>Frame Rate (FPS)</FieldLabel>
+                                    <FieldDescription>
+                                        Frame rate used to calculate SMPTE frame numbers (FF).
+                                    </FieldDescription>
+                                </div>
+                                <FpsSelect
+                                    fps={csvOptions.fps}
+                                    onChange={newFps => setCsvOptions({ ...csvOptions, fps: newFps })}
+                                />
+                            </Field>
+                        )}
 
                         <div className="mt-4 pt-6 border-t border-zinc-900/50">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4 px-2">
@@ -354,6 +455,49 @@ export default function OptionsPanel({
                                 </SelectContent>
                             </Select>
                         </Field>
+                        <Field orientation="horizontal">
+                            <div className="flex-1">
+                                <FieldLabel>Timecode Format</FieldLabel>
+                                <FieldDescription>
+                                    Format timestamps as Milliseconds (HH:MM:SS.mmm) or SMPTE Frames (HH:MM:SS:FF).
+                                </FieldDescription>
+                            </div>
+                            <Select
+                                value={xlsxOptions.timecodeFormat || "time"}
+                                onValueChange={v =>
+                                    setXlsxOptions({ ...xlsxOptions, timecodeFormat: v as "time" | "smpte" })
+                                }
+                            >
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue>
+                                        {xlsxOptions.timecodeFormat === "smpte"
+                                            ? "SMPTE (HH:MM:SS:FF)"
+                                            : "Milliseconds (.mmm)"}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="time">Milliseconds (.mmm)</SelectItem>
+                                        <SelectItem value="smpte">SMPTE (HH:MM:SS:FF)</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </Field>
+
+                        {xlsxOptions.timecodeFormat === "smpte" && (
+                            <Field orientation="horizontal" className="animate-in fade-in duration-200">
+                                <div className="flex-1">
+                                    <FieldLabel>Frame Rate (FPS)</FieldLabel>
+                                    <FieldDescription>
+                                        Frame rate used to calculate SMPTE frame numbers (FF).
+                                    </FieldDescription>
+                                </div>
+                                <FpsSelect
+                                    fps={xlsxOptions.fps}
+                                    onChange={newFps => setXlsxOptions({ ...xlsxOptions, fps: newFps })}
+                                />
+                            </Field>
+                        )}
 
                         <div className="mt-4 pt-6 border-t border-zinc-900/50">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4 px-2">

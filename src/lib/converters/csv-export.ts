@@ -2,21 +2,10 @@ import { type AssTrack } from "../ass-parser"
 import { convertTagsToHtml, stripTags, tokenizeText } from "../ass-tags"
 import { isLikelySign } from "./normal-srt"
 import { DEFAULT_CSV_OPTIONS, type CsvExportOptions } from "../export-options"
+import { formatTimecode } from "../timecode"
 
 export { DEFAULT_CSV_OPTIONS }
 export type { CsvExportOptions }
-
-function formatTime(ms: number): string {
-    // Round fractional ms (frame-gap math produces them) and clamp negatives
-    ms = Math.max(0, Math.round(ms))
-    const totalSeconds = Math.floor(ms / 1000)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-    const milliseconds = ms % 1000
-
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`
-}
 
 function escapeCsvField(field: string): string {
     if (!field) return ""
@@ -79,11 +68,14 @@ export function convertToCsv(track: AssTrack, options: CsvExportOptions = DEFAUL
         text = text.trim()
         if (!text) continue
 
+        const timeFormat = fullOptions.timecodeFormat || "time"
+        const fps = fullOptions.fps || DEFAULT_CSV_OPTIONS.fps
+
         const row: string[] = []
         if (fullOptions.showIndex) row.push(String(index))
-        if (fullOptions.showStart) row.push(formatTime(event.Start))
-        if (fullOptions.showEnd) row.push(formatTime(event.End))
-        if (fullOptions.showDuration) row.push(formatTime(event.End - event.Start))
+        if (fullOptions.showStart) row.push(formatTimecode(event.Start, timeFormat, fps))
+        if (fullOptions.showEnd) row.push(formatTimecode(event.End, timeFormat, fps))
+        if (fullOptions.showDuration) row.push(formatTimecode(event.End - event.Start, timeFormat, fps))
         if (fullOptions.showActor) row.push(event.Name)
         if (fullOptions.showStyle) row.push(event.Style)
         if (fullOptions.showLayer) row.push(String(event.Layer))
